@@ -4,11 +4,23 @@
   "description": "Premium themeable React video player with pluggable providers.",
   "license": "MIT",
   "type": "module",
-  "sideEffects": ["**/*.css", "**/mux-video-element.ts", "./dist/mux.js"],
-  "files": ["dist"],
+  "sideEffects": [
+    "**/*.css",
+    "**/mux-video-element.ts",
+    "./dist/mux.js"
+  ],
+  "files": [
+    "dist"
+  ],
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
-    "./mux": { "types": "./dist/mux.d.ts", "import": "./dist/mux.js" },
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./mux": {
+      "types": "./dist/mux.d.ts",
+      "import": "./dist/mux.js"
+    },
     "./styles.css": "./dist/styles.css"
   },
   "scripts": {
@@ -20,16 +32,26 @@
     "lint": "eslint .",
     "format": "prettier --write ."
   },
-  "peerDependencies": { "react": ">=19", "react-dom": ">=19" },
-  "dependencies": { "@mux/mux-video": "^0.31.0" },
+  "peerDependencies": {
+    "react": ">=19",
+    "react-dom": ">=19"
+  },
+  "dependencies": {
+    "@mux/mux-video": "^0.31.0"
+  },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"],
-    "approvedBuilds": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ],
+    "approvedBuilds": [
+      "esbuild"
+    ]
   },
   "devDependencies": {
+    "@changesets/cli": "^2.31.0",
     "@eslint/js": "^9.0.0",
-    "@testing-library/react": "^16.1.0",
     "@testing-library/jest-dom": "^6.6.0",
+    "@testing-library/react": "^16.1.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",
