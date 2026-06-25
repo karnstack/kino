@@ -4,7 +4,7 @@
   "description": "Premium themeable React video player with pluggable providers.",
   "license": "MIT",
   "type": "module",
-  "sideEffects": ["**/*.css"],
+  "sideEffects": ["**/*.css", "**/mux-video-element.ts", "./dist/mux.js"],
   "files": ["dist"],
   "exports": {
     ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
