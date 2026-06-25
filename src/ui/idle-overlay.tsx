@@ -16,10 +16,11 @@ export function IdleOverlay() {
   const paused = useMediaSelector((s) => s.paused)
   const currentTime = useMediaSelector((s) => s.currentTime)
   const ended = useMediaSelector((s) => s.ended)
+  const rate = useMediaSelector((s) => s.rate)
   if (!paused || currentTime > 0 || ended) return null
 
-  const startAt = (rate: number) => {
-    actions.setRate(rate)
+  const startAt = (r: number) => {
+    actions.setRate(r)
     actions.play()
   }
 
@@ -39,6 +40,9 @@ export function IdleOverlay() {
             key={s.label}
             type="button"
             className="kino-speed-chip"
+            aria-pressed={s.rate === rate}
+            data-active={s.rate === rate}
+            data-max={s.rate === 2.5}
             onClick={() => startAt(s.rate)}
           >
             {s.label}

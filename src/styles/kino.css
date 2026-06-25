@@ -159,6 +159,16 @@
   background: color-mix(in oklab, white 12%, transparent);
   border-color: color-mix(in oklab, white 28%, transparent);
 }
+.kino .kino-speed-chip[data-max="true"] {
+  color: var(--kino-accent);
+  font-weight: 600;
+}
+.kino .kino-speed-chip[data-active="true"] {
+  color: oklch(98% 0 0);
+  font-weight: 600;
+  background: var(--kino-accent);
+  border-color: transparent;
+}
 .kino .kino-popover-root {
   position: relative;
   display: inline-flex;
@@ -206,15 +216,17 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 18px;
-  padding: 1px 5px;
+  min-width: 20px;
+  padding: 1px 6px;
   font-family: inherit;
   font-size: 11px;
-  line-height: 1.4;
+  font-weight: 500;
+  line-height: 1.5;
   color: var(--kino-text);
-  background: color-mix(in oklab, white 16%, transparent);
-  border: 1px solid var(--kino-border);
-  border-radius: 5px;
+  background: color-mix(in oklab, white 22%, transparent);
+  border: 1px solid color-mix(in oklab, white 28%, transparent);
+  border-radius: 6px;
+  box-shadow: 0 1px 0 color-mix(in oklab, black 40%, transparent);
 }
 .kino .kino-menu {
   position: absolute;
