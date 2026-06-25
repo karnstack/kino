@@ -1,17 +1,20 @@
-import { StrictMode, type CSSProperties } from "react"
+import { StrictMode, useRef, useState, type CSSProperties } from "react"
 import { createRoot } from "react-dom/client"
 import { Player } from "../src/ui/player"
 import { IdleOverlay } from "../src/ui/idle-overlay"
 import { ControlBar } from "../src/ui/control-bar"
 import { MuxPlayer } from "../src/mux/mux-player"
 import { createFileProvider } from "./file-provider"
+import type { Provider } from "../src/core/types"
 import "../src/styles/kino.css"
 
-// A widely used public sample clip, so the harness plays a real video with no
-// account and no signed tokens. This is the default view for anyone who clones
-// the repo.
+// Two widely used public sample clips, so the harness plays real video with no
+// account and no signed tokens. The first is the default view for anyone who
+// clones the repo; the second is used to demonstrate swapSource.
 const SAMPLE_MP4 =
   "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+const SAMPLE_MP4_ALT =
+  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4"
 
 const ACCENT = "oklch(50.8% 0.118 165.612)"
 
@@ -29,6 +32,22 @@ const frameStyle: CSSProperties = {
 }
 
 function App() {
+  // Create the file provider once and keep it stable, so <Player> mounts the
+  // <video> element a single time. Clicking "Swap clip" then routes through
+  // swapSource, reloading the source on that same element without remounting.
+  const providerRef = useRef<Provider | null>(null)
+  if (providerRef.current === null) {
+    providerRef.current = createFileProvider(SAMPLE_MP4)
+  }
+  const provider = providerRef.current
+  const [clip, setClip] = useState(SAMPLE_MP4)
+
+  const swapClip = () => {
+    const next = clip === SAMPLE_MP4 ? SAMPLE_MP4_ALT : SAMPLE_MP4
+    provider.swapSource?.({ src: next })
+    setClip(next)
+  }
+
   return (
     <main
       style={{
@@ -57,10 +76,39 @@ function App() {
 
       <section style={{ maxWidth: 960, width: "100%" }}>
         <div style={frameStyle}>
-          <Player provider={createFileProvider(SAMPLE_MP4)} accentColor={ACCENT}>
+          <Player provider={provider} accentColor={ACCENT}>
             <IdleOverlay />
             <ControlBar />
           </Player>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 16,
+            marginTop: 16,
+          }}
+        >
+          <button
+            type="button"
+            onClick={swapClip}
+            style={{
+              padding: "8px 16px",
+              borderRadius: 10,
+              border: "1px solid rgba(255, 255, 255, 0.16)",
+              background: "rgba(255, 255, 255, 0.06)",
+              color: "#e8edf2",
+              fontSize: 14,
+              cursor: "pointer",
+            }}
+          >
+            Swap clip
+          </button>
+          <p style={{ margin: 0, color: "#9aa6b2", fontSize: 13 }}>
+            Swapping reloads the clip on the same media element via swapSource,
+            so the player never remounts and a fullscreen session survives the
+            change.
+          </p>
         </div>
       </section>
 

@@ -61,10 +61,21 @@ export type PlayerActions = {
   exitPiP(): void
 }
 
+export type SourceOptions = {
+  playbackId?: string
+  src?: string
+  poster?: string
+  tokens?: { playback?: string; thumbnail?: string; storyboard?: string }
+  metadata?: { videoId?: string; videoTitle?: string; viewerUserId?: string }
+}
+
 export interface Provider {
   mount(container: HTMLElement): void
   getState(): MediaState
   subscribe(listener: () => void): () => void
   actions: PlayerActions
   destroy(): void
+  // Optional: change the media source on the existing element without
+  // recreating it, preserving DOM and fullscreen continuity.
+  swapSource?(opts: SourceOptions): void
 }

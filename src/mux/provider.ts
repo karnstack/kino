@@ -2,7 +2,7 @@
 import "@mux/mux-video"
 import { defaultState } from "../core/fake-provider"
 import { buildImageUrl, detectIOS } from "./urls"
-import type { MediaState, Provider, PlayerActions, QualityLevel, TextTrackInfo } from "../core/types"
+import type { MediaState, Provider, PlayerActions, QualityLevel, TextTrackInfo, SourceOptions } from "../core/types"
 
 export type MuxProviderOptions = {
   playbackId: string
@@ -150,6 +150,39 @@ export function createMuxProvider(opts: MuxProviderOptions): Provider {
       el.addEventListener("enterpictureinpicture", onEnterPip)
       el.addEventListener("leavepictureinpicture", onLeavePip)
       container.appendChild(el)
+    },
+    swapSource(opts: SourceOptions) {
+      // Change the source on the existing element: no createElement, no remove,
+      // and keep the event listeners attached so DOM/fullscreen continuity holds.
+      if (!el) return
+      if (opts.playbackId != null) {
+        el.playbackId = opts.tokens?.playback
+          ? `${opts.playbackId}?token=${opts.tokens.playback}`
+          : opts.playbackId
+      }
+      if (opts.poster != null) {
+        el.poster = opts.poster
+      } else if (opts.playbackId != null) {
+        el.poster = buildImageUrl(opts.playbackId, "thumbnail", opts.tokens?.thumbnail)
+      }
+      if (opts.metadata) {
+        el.metadata = {
+          video_id: opts.metadata.videoId,
+          video_title: opts.metadata.videoTitle,
+          viewer_user_id: opts.metadata.viewerUserId,
+        }
+      }
+      patch({
+        currentTime: 0,
+        duration: 0,
+        ended: false,
+        seeking: false,
+        error: null,
+        storyboard:
+          opts.playbackId != null
+            ? { vttUrl: buildImageUrl(opts.playbackId, "storyboard", opts.tokens?.storyboard) }
+            : state.storyboard,
+      })
     },
     getState: () => state,
     subscribe: (l) => { listeners.add(l); return () => listeners.delete(l) },

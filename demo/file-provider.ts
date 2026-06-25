@@ -3,6 +3,7 @@ import type {
   MediaState,
   Provider,
   PlayerActions,
+  SourceOptions,
 } from "../src/core/types"
 
 // Demo-only provider backed by a plain <video> element. It lets the visual
@@ -117,6 +118,21 @@ export function createFileProvider(src: string, poster?: string): Provider {
       el.addEventListener("enterpictureinpicture", onEnterPip)
       el.addEventListener("leavepictureinpicture", onLeavePip)
       container.appendChild(el)
+    },
+    swapSource(opts: SourceOptions) {
+      // Reuse the existing <video> element: change its source and reload,
+      // so the element (and any fullscreen session) stays in place.
+      if (!el) return
+      el.src = opts.src ?? el.src
+      if (opts.poster) el.poster = opts.poster
+      el.load()
+      patch({
+        currentTime: 0,
+        duration: 0,
+        ended: false,
+        seeking: false,
+        error: null,
+      })
     },
     getState: () => state,
     subscribe: (l) => {
