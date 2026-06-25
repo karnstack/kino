@@ -32,6 +32,7 @@ export function createMuxProvider(opts: MuxProviderOptions): Provider {
   const ios = typeof navigator !== "undefined" && detectIOS(navigator.userAgent)
   let el: MuxVideoEl | null = null
   let renditions: MuxVideoEl["videoRenditions"] | null = null
+  let renditionsBound = false
   let state: MediaState = {
     ...defaultState(),
     rate: opts.defaultRate ?? 1,
@@ -76,8 +77,17 @@ export function createMuxProvider(opts: MuxProviderOptions): Provider {
     }
     return out
   }
+  // Renditions populate after metadata loads, so el.videoRenditions is usually
+  // undefined at mount time. Bind the "change" listener lazily and once.
+  const bindRenditions = () => {
+    if (renditionsBound || !el?.videoRenditions) return
+    renditions = el.videoRenditions
+    renditions.addEventListener("change", syncFromEl)
+    renditionsBound = true
+  }
   const syncFromEl = () => {
     if (!el) return
+    bindRenditions()
     const ranges: Array<[number, number]> = []
     for (let i = 0; i < el.buffered.length; i++) ranges.push([el.buffered.start(i), el.buffered.end(i)])
     patch({
@@ -144,8 +154,7 @@ export function createMuxProvider(opts: MuxProviderOptions): Provider {
         }
       }
       for (const ev of MEDIA_EVENTS) el.addEventListener(ev, syncFromEl)
-      renditions = el.videoRenditions ?? null
-      renditions?.addEventListener("change", syncFromEl)
+      // videoRenditions is not yet available here; bound lazily in syncFromEl.
       document.addEventListener("fullscreenchange", onFullscreenChange)
       el.addEventListener("enterpictureinpicture", onEnterPip)
       el.addEventListener("leavepictureinpicture", onLeavePip)
@@ -189,8 +198,9 @@ export function createMuxProvider(opts: MuxProviderOptions): Provider {
     actions,
     destroy() {
       document.removeEventListener("fullscreenchange", onFullscreenChange)
-      renditions?.removeEventListener("change", syncFromEl)
+      if (renditionsBound) renditions?.removeEventListener("change", syncFromEl)
       renditions = null
+      renditionsBound = false
       if (el) {
         for (const ev of MEDIA_EVENTS) el.removeEventListener(ev, syncFromEl)
         el.removeEventListener("enterpictureinpicture", onEnterPip)
