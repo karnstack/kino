@@ -14,6 +14,7 @@ export function SpeedMenu() {
     <Popover
       label={`${label} speed`}
       shortcut="S"
+      openOn="kino:open-speed"
       trigger={
         <>
           <GaugeIcon />

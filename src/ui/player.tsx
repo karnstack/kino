@@ -79,7 +79,7 @@ export function Player({
         break
       }
       case "open-speed":
-        // Speed popover wiring lands in a later task (menus mount in Task 9).
+        wrapperRef.current?.dispatchEvent(new Event("kino:open-speed"))
         break
     }
   }
