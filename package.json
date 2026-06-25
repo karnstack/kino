@@ -3,10 +3,26 @@
   "version": "0.0.1",
   "description": "Premium themeable React video player with pluggable providers.",
   "license": "MIT",
+  "author": "Karn",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/karnstack/kino.git"
+  },
+  "homepage": "https://github.com/karnstack/kino#readme",
+  "bugs": {
+    "url": "https://github.com/karnstack/kino/issues"
+  },
+  "keywords": [
+    "video",
+    "player",
+    "react",
+    "mux",
+    "hls",
+    "video-player"
+  ],
   "type": "module",
   "sideEffects": [
     "**/*.css",
-    "**/mux-video-element.ts",
     "./dist/mux.js"
   ],
   "files": [

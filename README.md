@@ -1,6 +1,6 @@
 # @karnstack/kino
 
-A premium, themeable React video player with a pluggable-provider architecture. Translucent glass / macOS-style chrome, keyboard-first controls, and a small typed surface. Mux is the first provider.
+A premium, themeable React video player with a pluggable-provider architecture. Translucent, frosted-glass chrome, keyboard-first controls, and a small typed surface. Mux is the first provider.
 
 kino ships the player UI and a provider contract. Each provider adapts a streaming engine to that contract, so the same glass chrome can sit on top of different backends. The Mux provider is built on the `@mux/mux-video` custom element.
 
