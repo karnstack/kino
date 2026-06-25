@@ -1,4 +1,4 @@
-import { useMediaSelector, usePlayer } from "../core/store"
+import { useMediaSelector, usePlayerActions } from "../core/store"
 import { PlayIcon } from "./icons"
 
 const SPEEDS: Array<{ label: string; rate: number }> = [
@@ -12,7 +12,7 @@ const SPEEDS: Array<{ label: string; rate: number }> = [
 ]
 
 export function IdleOverlay() {
-  const { actions } = usePlayer()
+  const actions = usePlayerActions()
   const paused = useMediaSelector((s) => s.paused)
   const currentTime = useMediaSelector((s) => s.currentTime)
   const ended = useMediaSelector((s) => s.ended)

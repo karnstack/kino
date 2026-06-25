@@ -29,3 +29,9 @@ export function usePlayer(): { state: MediaState; actions: PlayerActions } {
   const state = useMediaSelector((s) => s)
   return { state, actions: provider.actions }
 }
+
+export function usePlayerActions(): PlayerActions {
+  // actions is a stable reference on the provider, so we can read it directly
+  // without subscribing via useSyncExternalStore (no re-render on state change).
+  return useProvider().actions
+}

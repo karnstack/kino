@@ -4,12 +4,12 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react"
-import { useMediaSelector, usePlayer } from "../core/store"
+import { useMediaSelector, usePlayerActions } from "../core/store"
 import { parseStoryboard, type Storyboard } from "../util/storyboard"
 import { formatTime } from "../util/format-time"
 
 export function Scrubber() {
-  const { actions } = usePlayer()
+  const actions = usePlayerActions()
   const duration = useMediaSelector((s) => s.duration)
   const currentTime = useMediaSelector((s) => s.currentTime)
   const buffered = useMediaSelector((s) => s.buffered)
@@ -88,6 +88,13 @@ export function Scrubber() {
         ref={trackRef}
         data-testid="kino-track"
         className="kino-track"
+        role="slider"
+        tabIndex={0}
+        aria-label="Seek"
+        aria-valuemin={0}
+        aria-valuemax={Math.floor(duration) || 0}
+        aria-valuenow={Math.floor(currentTime)}
+        aria-valuetext={formatTime(currentTime)}
         onPointerDown={onPointerDown}
       >
         {buffered.map(([s, e], i) => (

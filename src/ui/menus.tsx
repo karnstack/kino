@@ -1,11 +1,11 @@
 import { Popover } from "./popover"
-import { useMediaSelector, usePlayer } from "../core/store"
+import { useMediaSelector, usePlayerActions } from "../core/store"
 import { GaugeIcon, SettingsIcon, CcIcon } from "./icons"
 
 const RATES = [0.8, 1, 1.2, 1.5, 1.7, 2, 2.5]
 
 export function SpeedMenu() {
-  const { actions } = usePlayer()
+  const actions = usePlayerActions()
   const rate = useMediaSelector((s) => s.rate)
   const canSetRate = useMediaSelector((s) => s.capabilities.canSetRate)
   if (!canSetRate) return null
@@ -38,7 +38,7 @@ export function SpeedMenu() {
 }
 
 export function QualityMenu() {
-  const { actions } = usePlayer()
+  const actions = usePlayerActions()
   const qualities = useMediaSelector((s) => s.qualities)
   const active = useMediaSelector((s) => s.activeQualityId)
   const canSetQuality = useMediaSelector((s) => s.capabilities.canSetQuality)
@@ -69,7 +69,7 @@ export function QualityMenu() {
 }
 
 export function CaptionsMenu() {
-  const { actions } = usePlayer()
+  const actions = usePlayerActions()
   const tracks = useMediaSelector((s) => s.textTracks)
   const active = useMediaSelector((s) => s.activeTextTrackId)
   const hasTextTracks = useMediaSelector((s) => s.capabilities.hasTextTracks)

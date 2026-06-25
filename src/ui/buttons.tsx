@@ -1,5 +1,5 @@
 import type { ChangeEvent } from "react"
-import { useMediaSelector, usePlayer } from "../core/store"
+import { useMediaSelector, usePlayerActions } from "../core/store"
 import { useWrapperRef } from "./player"
 import {
   PlayIcon,
@@ -12,7 +12,7 @@ import {
 } from "./icons"
 
 export function PlayPauseButton() {
-  const { actions } = usePlayer()
+  const actions = usePlayerActions()
   const paused = useMediaSelector((s) => s.paused)
   return (
     <button
@@ -27,7 +27,7 @@ export function PlayPauseButton() {
 }
 
 export function VolumeControl() {
-  const { actions } = usePlayer()
+  const actions = usePlayerActions()
   const volume = useMediaSelector((s) => s.volume)
   const muted = useMediaSelector((s) => s.muted)
   const onChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -59,7 +59,7 @@ export function VolumeControl() {
 }
 
 export function PipButton() {
-  const { actions } = usePlayer()
+  const actions = usePlayerActions()
   const pip = useMediaSelector((s) => s.pip)
   const canPiP = useMediaSelector((s) => s.capabilities.canPiP)
   if (!canPiP) return null
@@ -76,7 +76,7 @@ export function PipButton() {
 }
 
 export function FullscreenButton() {
-  const { actions } = usePlayer()
+  const actions = usePlayerActions()
   const wrapperRef = useWrapperRef()
   const fullscreen = useMediaSelector((s) => s.fullscreen)
   const canFullscreen = useMediaSelector((s) => s.capabilities.canFullscreen)
