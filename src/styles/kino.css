@@ -1,0 +1,35 @@
+.kino {
+  /* theme tokens (overridable via inline style or a theme prop) */
+  --kino-accent: oklch(50.8% 0.118 165.612);
+  --kino-radius: 12px;
+  --kino-surface: color-mix(in oklab, black 55%, transparent);
+  --kino-surface-strong: color-mix(in oklab, black 70%, transparent);
+  --kino-border: color-mix(in oklab, white 14%, transparent);
+  --kino-text: oklch(98% 0 0);
+  --kino-text-dim: color-mix(in oklab, white 65%, transparent);
+  --kino-blur: 18px;
+  --kino-shadow: 0 8px 40px rgba(0, 0, 0, 0.45);
+  --kino-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  position: relative;
+  width: 100%;
+  height: 100%;
+  color: var(--kino-text);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  background: black;
+  overflow: hidden;
+}
+.kino * { box-sizing: border-box; }
+.kino mux-video,
+.kino video { position: absolute; inset: 0; width: 100%; height: 100%; }
+.kino-glass {
+  background: var(--kino-surface);
+  backdrop-filter: blur(var(--kino-blur));
+  -webkit-backdrop-filter: blur(var(--kino-blur));
+  border: 1px solid var(--kino-border);
+  border-radius: var(--kino-radius);
+  box-shadow: var(--kino-shadow);
+}
+@media (prefers-reduced-motion: reduce) {
+  .kino *, .kino *::before, .kino *::after { transition-duration: 0.01ms !important; }
+}
