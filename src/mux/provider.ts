@@ -1,4 +1,5 @@
-import "./mux-video-element"
+// Importing this module registers <mux-video> as a custom element (side effect).
+import "@mux/mux-video"
 import { defaultState } from "../core/fake-provider"
 import { buildImageUrl, detectIOS } from "./urls"
 import type { MediaState, Provider, PlayerActions, QualityLevel, TextTrackInfo } from "../core/types"
@@ -83,6 +84,7 @@ export function createMuxProvider(opts: MuxProviderOptions): Provider {
       paused: el.paused, currentTime: el.currentTime, duration: el.duration || 0,
       buffered: ranges, rate: el.playbackRate, volume: el.volume, muted: el.muted,
       readyState: el.readyState, seeking: el.seeking, ended: el.ended,
+      error: el.error ? { code: el.error.code, message: el.error.message } : null,
       qualities: readQualities(), textTracks: readTextTracks(),
     })
   }
@@ -130,7 +132,7 @@ export function createMuxProvider(opts: MuxProviderOptions): Provider {
         ? `${opts.playbackId}?token=${opts.tokens.playback}`
         : opts.playbackId
       el.setAttribute("crossorigin", "")
-      if (opts.poster) el.poster = opts.poster
+      el.poster = opts.poster ?? buildImageUrl(opts.playbackId, "thumbnail", opts.tokens?.thumbnail)
       if (opts.autoPlay) el.autoplay = true
       el.playbackRate = state.rate
       if (opts.envKey) el.envKey = opts.envKey
