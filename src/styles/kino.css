@@ -251,6 +251,51 @@
 .kino .kino-menu-item[aria-checked="true"] {
   color: var(--kino-accent);
 }
+.kino .kino-controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 8px;
+  padding: 4px 12px 8px;
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity 0.2s var(--kino-ease),
+    transform 0.2s var(--kino-ease);
+  pointer-events: none;
+}
+.kino .kino-controls.is-visible {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.kino .kino-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px 4px;
+}
+.kino .kino-controls-spacer { flex: 1; }
+.kino .kino-time {
+  padding: 0 6px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--kino-text-dim);
+}
+.kino .kino-volume {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.kino .kino-volume input[type="range"] {
+  width: 72px;
+  height: 4px;
+  margin: 0 6px 0 2px;
+  accent-color: var(--kino-accent);
+  cursor: pointer;
+}
 @media (prefers-reduced-motion: reduce) {
   .kino *, .kino *::before, .kino *::after { transition-duration: 0.01ms !important; }
 }
