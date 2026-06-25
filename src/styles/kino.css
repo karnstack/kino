@@ -308,6 +308,11 @@
   accent-color: var(--kino-accent);
   cursor: pointer;
 }
+.kino :focus-visible {
+  outline: 2px solid var(--kino-accent);
+  outline-offset: 2px;
+}
+.kino :focus:not(:focus-visible) { outline: none; }
 @media (prefers-reduced-motion: reduce) {
   .kino *, .kino *::before, .kino *::after { transition-duration: 0.01ms !important; }
 }
