@@ -6,7 +6,7 @@
 
 **Architecture:** Three layers — a normalized media store (`useSyncExternalStore` + selector subscriptions), a Provider adapter that maps a concrete engine to that store, and a pure-React glass UI shell that reads state via selectors and calls provider actions. The Mux provider wraps the raw `<mux-video>` custom element (not `@mux/mux-video-react`, which lacks the renditions API and image-token props). Controls are capability-gated so providers that can't do a thing (iOS quality switching, custom-chrome fullscreen on iPhone) hide that control.
 
-**Tech Stack:** React 19, TypeScript (strict), `tsup` build, Vitest + `@testing-library/react` + jsdom, `mux-video` (raw custom element), standalone CSS scoped under `.kino` with CSS-variable theming, Changesets for versioning. pnpm.
+**Tech Stack:** React 19, TypeScript (strict), `tsup` build, Vitest + `@testing-library/react` + jsdom, `@mux/mux-video` (raw custom element), standalone CSS scoped under `.kino` with CSS-variable theming, Changesets for versioning. pnpm.
 
 ## Global Constraints
 
@@ -14,7 +14,7 @@
 - **Package name:** `@karnstack/kino`. Published public. MIT license.
 - **No commercial-product references** (including the visual inspiration) anywhere in repo, docs, comments, or commit history. Describe the look only as "translucent glass / macOS-style".
 - **No em dashes** in prose, copy, comments, or commit messages (monorepo convention; apply to kino too).
-- **React is a peer dependency** (`react >=19`, `react-dom >=19`). Engine deps (`mux-video`) live only under the `/mux` subpath export.
+- **React is a peer dependency** (`react >=19`, `react-dom >=19`). Engine deps (`@mux/mux-video`) live only under the `/mux` subpath export.
 - **Consumers must not need Tailwind.** Styles ship as one standalone `dist/styles.css` scoped under `.kino`; no global reset / preflight may leak onto the consumer page. Theming is via CSS custom properties.
 - **Player is auth-agnostic.** Signed tokens are passed in as props; kino never mints tokens or touches Clerk.
 - **Node 24, pnpm 10** (match the monorepo toolchain).
@@ -178,7 +178,7 @@ Create `package.json`:
     "format": "prettier --write ."
   },
   "peerDependencies": { "react": ">=19", "react-dom": ">=19" },
-  "dependencies": { "mux-video": "^0.26.0" },
+  "dependencies": { "@mux/mux-video": "^0.31.0" },
   "devDependencies": {
     "@testing-library/react": "^16.1.0",
     "@testing-library/jest-dom": "^6.6.0",
@@ -198,7 +198,7 @@ Create `package.json`:
 }
 ```
 
-Note: confirm the latest `mux-video` version with `pnpm view mux-video version` and pin to it.
+Note: the Mux custom-element package is `@mux/mux-video` (scoped). The unscoped `mux-video` name is NOT published on npm. Version `0.31.0` is verified to define the `<mux-video>` element and expose the `videoRenditions` API. `tsup` keeps `dependencies` external by default, so `@mux/mux-video` is not bundled into `dist`.
 
 - [ ] **Step 2: Config files**
 
@@ -743,27 +743,30 @@ git commit -m "feat: keyboard action map"
 
 **Files:**
 - Create: `src/mux/mux-video-element.ts` (registers the custom element)
-- Create: `src/mux/provider.ts`, `src/mux/provider.test.ts`
+- Create: `src/mux/urls.ts`, `src/mux/urls.test.ts` (pure helpers, jsdom-unit-tested WITHOUT importing the element)
+- Create: `src/mux/provider.ts` (imports the element + helpers; its element behavior is verified in the demo at Task 11, NOT in a jsdom unit test, so no test imports `provider.ts`)
+
+**CRITICAL:** Importing `@mux/mux-video` pulls browser-only playback code that is unreliable under jsdom. Therefore NO vitest test file may import `provider.ts` (which top-imports the element). Pure logic is extracted to `urls.ts` and tested there. The provider's element wiring is exercised only by the Vite demo (Task 11).
 
 **Interfaces:**
 - Consumes: types from Task 2; `parseStoryboard` (Task 3, used later by scrubber, not here).
 - Produces:
-  - `createMuxProvider(opts: MuxProviderOptions): Provider`
+  - `createMuxProvider(opts: MuxProviderOptions): Provider` (in `provider.ts`)
   - `type MuxProviderOptions = { playbackId: string; tokens?: { playback?: string; thumbnail?: string; storyboard?: string }; metadata?: { videoId?: string; videoTitle?: string; viewerUserId?: string }; envKey?: string; poster?: string; autoPlay?: boolean; defaultRate?: number }`
-  - `buildImageUrl(playbackId, kind: "storyboard" | "thumbnail", token?, ext?): string` (exported for unit test)
-  - `detectIOS(ua: string): boolean` (exported for unit test)
+  - `buildImageUrl(playbackId, kind: "storyboard" | "thumbnail", token?, ext?): string` (in `urls.ts`)
+  - `detectIOS(ua: string): boolean` (in `urls.ts`)
 
 - [ ] **Step 1: Element registration** `src/mux/mux-video-element.ts`
 
 ```ts
 // Importing this module registers <mux-video> as a custom element (side effect).
-import "mux-video"
+import "@mux/mux-video"
 ```
 
-- [ ] **Step 2: Write the failing test** `src/mux/provider.test.ts`
+- [ ] **Step 2: Write the failing test** `src/mux/urls.test.ts`
 
 ```ts
-import { buildImageUrl, detectIOS } from "./provider"
+import { buildImageUrl, detectIOS } from "./urls"
 
 test("buildImageUrl composes signed storyboard url", () => {
   expect(buildImageUrl("ID", "storyboard", "JWT")).toBe(
@@ -781,25 +784,11 @@ test("detectIOS true for iPhone UA, false for desktop", () => {
 })
 ```
 
-- [ ] **Step 3: Run it, verify it fails** — Run: `pnpm test src/mux/provider.test.ts` — Expected: FAIL.
+- [ ] **Step 3: Run it, verify it fails** — Run: `pnpm test src/mux/urls.test.ts` — Expected: FAIL ("Cannot find module './urls'").
 
-- [ ] **Step 4: Implement** `src/mux/provider.ts`
+- [ ] **Step 4a: Implement the pure helpers** `src/mux/urls.ts`
 
 ```ts
-import "./mux-video-element"
-import { defaultState } from "../core/fake-provider"
-import type { MediaState, Provider, PlayerActions, QualityLevel, TextTrackInfo } from "../core/types"
-
-export type MuxProviderOptions = {
-  playbackId: string
-  tokens?: { playback?: string; thumbnail?: string; storyboard?: string }
-  metadata?: { videoId?: string; videoTitle?: string; viewerUserId?: string }
-  envKey?: string
-  poster?: string
-  autoPlay?: boolean
-  defaultRate?: number
-}
-
 const IMAGE_HOST = "https://image.mux.com"
 
 export function buildImageUrl(
@@ -814,6 +803,27 @@ export function buildImageUrl(
 
 export function detectIOS(ua: string): boolean {
   return /iPhone|iPad|iPod/.test(ua)
+}
+```
+
+Run: `pnpm test src/mux/urls.test.ts` — Expected: PASS.
+
+- [ ] **Step 4b: Implement the provider** `src/mux/provider.ts`
+
+```ts
+import "./mux-video-element"
+import { defaultState } from "../core/fake-provider"
+import { buildImageUrl, detectIOS } from "./urls"
+import type { MediaState, Provider, PlayerActions, QualityLevel, TextTrackInfo } from "../core/types"
+
+export type MuxProviderOptions = {
+  playbackId: string
+  tokens?: { playback?: string; thumbnail?: string; storyboard?: string }
+  metadata?: { videoId?: string; videoTitle?: string; viewerUserId?: string }
+  envKey?: string
+  poster?: string
+  autoPlay?: boolean
+  defaultRate?: number
 }
 
 // Minimal structural type of the mux-video element we touch.
@@ -953,9 +963,9 @@ export function createMuxProvider(opts: MuxProviderOptions): Provider {
 }
 ```
 
-- [ ] **Step 5: Run tests, verify pass** — Run: `pnpm test src/mux/provider.test.ts` — Expected: PASS. (The unit tests cover the pure URL/iOS logic; full element behavior is verified in the demo, Task 11.)
+- [ ] **Step 5: Typecheck the provider** — Run: `pnpm typecheck` — Expected: PASS. (Pure logic is already covered by `src/mux/urls.test.ts` in Step 4a; the element wiring in `provider.ts` is verified in the demo at Task 11. Do NOT add a vitest file that imports `provider.ts` — it would load `@mux/mux-video` under jsdom and is brittle.)
 
-- [ ] **Step 6: Export from `/mux` barrel** — `src/mux.ts`: `export { createMuxProvider } from "./mux/provider"` (the `<MuxPlayer>` component is added in Task 11).
+- [ ] **Step 6: Export from `/mux` barrel** — `src/mux.ts`: `export { createMuxProvider, type MuxProviderOptions } from "./mux/provider"` (the `<MuxPlayer>` component is added in Task 11).
 
 - [ ] **Step 7: Commit**
 
@@ -1655,7 +1665,7 @@ git commit -m "feat: MuxPlayer drop-in and demo playground"
 
 **Interfaces:** none (docs/release).
 
-- [ ] **Step 1: README** — public-safe. Sections: what kino is (translucent glass React player, pluggable providers), install (`pnpm add @karnstack/kino mux-video`), quick start with `<MuxPlayer>` + `import "@karnstack/kino/styles.css"`, theming (accentColor + CSS vars table), keyboard shortcuts table, capability-gating note, roadmap (YouTube/file providers, AirPlay, chapters, headless docs). No commercial-product references.
+- [ ] **Step 1: README** — public-safe. Sections: what kino is (translucent glass React player, pluggable providers), install (`pnpm add @karnstack/kino` — `@mux/mux-video` comes transitively), quick start with `<MuxPlayer>` + `import "@karnstack/kino/styles.css"`, theming (accentColor + CSS vars table), keyboard shortcuts table, capability-gating note, roadmap (YouTube/file providers, AirPlay, chapters, headless docs). No commercial-product references.
 
 - [ ] **Step 2: Changesets** — `pnpm add -Dw @changesets/cli` (or per-repo), `pnpm changeset init`, set `config.json` access to `public`, baseBranch `main`. Add `.changeset/initial.md` describing the 0.0.1 feature set.
 
@@ -1692,7 +1702,7 @@ In kino: `pnpm build`. In `MONOREPO:.../apps/web`, add the dependency. Two optio
 - Workspace path dep: add `"@karnstack/kino": "file:../../../kino"` to `apps/web/package.json` then `pnpm install` from the monorepo root. (kino is outside the pnpm workspace globs, so a `file:` dep is correct.)
 - Or `pnpm --filter web add @karnstack/kino@file:../../../kino`.
 
-Also add the peer engine: `mux-video` is a dependency of kino so it resolves transitively; no extra install needed in the app.
+Also note the engine: `@mux/mux-video` is a dependency of kino so it resolves transitively; no extra install needed in the app.
 
 - [ ] **Step 2: Import the stylesheet once** — in the app's root stylesheet import (where `@karnstack/ui/globals.css` is imported), add `import "@karnstack/kino/styles.css"`. Verify the `.kino` scope does not disturb existing pages.
 
