@@ -5,7 +5,7 @@ import type {
   ReactNode,
   RefObject,
 } from "react"
-import { PlayerContext, usePlayer } from "../core/store"
+import { PlayerContext, useMediaSelector } from "../core/store"
 import { resolveKey, isTypingTarget } from "../util/keymap"
 import type { Provider } from "../core/types"
 
@@ -113,7 +113,7 @@ Player.Overlay = Overlay
 export function useControlsVisible(): boolean {
   const [visible, setVisible] = useState(true)
   const wrapperRef = useWrapperRef()
-  const { state } = usePlayer()
+  const paused = useMediaSelector((s) => s.paused)
   useEffect(() => {
     const root = wrapperRef?.current
     if (!root) return
@@ -121,7 +121,7 @@ export function useControlsVisible(): boolean {
     const show = () => {
       setVisible(true)
       clearTimeout(timer)
-      if (!state.paused) timer = setTimeout(() => setVisible(false), 2500)
+      if (!paused) timer = setTimeout(() => setVisible(false), 2500)
     }
     root.addEventListener("pointermove", show)
     root.addEventListener("focusin", show)
@@ -131,6 +131,6 @@ export function useControlsVisible(): boolean {
       root.removeEventListener("pointermove", show)
       root.removeEventListener("focusin", show)
     }
-  }, [wrapperRef, state.paused])
-  return visible || state.paused
+  }, [wrapperRef, paused])
+  return visible || paused
 }
