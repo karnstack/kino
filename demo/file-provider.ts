@@ -109,7 +109,6 @@ export function createFileProvider(src: string, poster?: string): Provider {
     mount(container) {
       el = document.createElement("video")
       el.playsInline = true
-      el.crossOrigin = "anonymous"
       el.preload = "metadata"
       if (poster) el.poster = poster
       el.src = src

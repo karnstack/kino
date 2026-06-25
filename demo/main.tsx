@@ -1,27 +1,14 @@
-import { StrictMode, useRef, useState, type CSSProperties } from "react"
+import { useState, type CSSProperties } from "react"
 import { createRoot } from "react-dom/client"
-import { Player } from "../src/ui/player"
-import { IdleOverlay } from "../src/ui/idle-overlay"
-import { ControlBar } from "../src/ui/control-bar"
 import { MuxPlayer } from "../src/mux/mux-player"
-import { createFileProvider } from "./file-provider"
-import type { Provider } from "../src/core/types"
 import "../src/styles/kino.css"
 
-// Two widely used public sample clips, so the harness plays real video with no
-// account and no signed tokens. The first is the default view for anyone who
-// clones the repo; the second is used to demonstrate swapSource.
-const SAMPLE_MP4 =
-  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
-const SAMPLE_MP4_ALT =
-  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4"
+// Two public Mux assets (no signed tokens needed), so the harness plays real
+// HLS video, storyboard scrub previews, and quality switching out of the box.
+const SAMPLE_A = "01b2r4H6Pg8Q01NJZGppCu6X6tmfP6f6Jtp5oFZaETUwU"
+const SAMPLE_B = "a4nOgmxGWg6gULfcBbAa00gXyfcwPnAFldF8RdsNyk8M"
 
 const ACCENT = "oklch(50.8% 0.118 165.612)"
-
-// Optional Mux section. Only renders when a playback id is provided via env, so
-// the default experience never needs a Mux account.
-const env = import.meta.env
-const muxPlaybackId: string | undefined = env.VITE_MUX_PLAYBACK_ID
 
 const frameStyle: CSSProperties = {
   width: "100%",
@@ -32,21 +19,12 @@ const frameStyle: CSSProperties = {
 }
 
 function App() {
-  // Create the file provider once and keep it stable, so <Player> mounts the
-  // <video> element a single time. Clicking "Swap clip" then routes through
-  // swapSource, reloading the source on that same element without remounting.
-  const providerRef = useRef<Provider | null>(null)
-  if (providerRef.current === null) {
-    providerRef.current = createFileProvider(SAMPLE_MP4)
-  }
-  const provider = providerRef.current
-  const [clip, setClip] = useState(SAMPLE_MP4)
-
-  const swapClip = () => {
-    const next = clip === SAMPLE_MP4 ? SAMPLE_MP4_ALT : SAMPLE_MP4
-    provider.swapSource?.({ src: next })
-    setClip(next)
-  }
+  // Toggle the playback id to exercise swapSource: MuxPlayer keeps the same
+  // <mux-video> element mounted and reloads the new source on it, so a
+  // fullscreen session survives the swap.
+  const [playbackId, setPlaybackId] = useState(SAMPLE_A)
+  const swap = () =>
+    setPlaybackId((id) => (id === SAMPLE_A ? SAMPLE_B : SAMPLE_A))
 
   return (
     <main
@@ -69,17 +47,14 @@ function App() {
           kino playground
         </h1>
         <p style={{ margin: 0, color: "#9aa6b2", fontSize: 15 }}>
-          The real kino glass UI playing a public sample clip. No account or
-          tokens required.
+          The real kino glass UI on the Mux provider, playing public sample
+          assets. No account or signed tokens required.
         </p>
       </header>
 
       <section style={{ maxWidth: 960, width: "100%" }}>
         <div style={frameStyle}>
-          <Player provider={provider} accentColor={ACCENT}>
-            <IdleOverlay />
-            <ControlBar />
-          </Player>
+          <MuxPlayer playbackId={playbackId} accentColor={ACCENT} />
         </div>
         <div
           style={{
@@ -91,7 +66,7 @@ function App() {
         >
           <button
             type="button"
-            onClick={swapClip}
+            onClick={swap}
             style={{
               padding: "8px 16px",
               borderRadius: 10,
@@ -102,42 +77,19 @@ function App() {
               cursor: "pointer",
             }}
           >
-            Swap clip
+            Swap source
           </button>
           <p style={{ margin: 0, color: "#9aa6b2", fontSize: 13 }}>
-            Swapping reloads the clip on the same media element via swapSource,
-            so the player never remounts and a fullscreen session survives the
-            change.
+            Swapping reloads a new asset on the same media element via
+            swapSource, so the player never remounts and a fullscreen session
+            survives the change. Current id: {playbackId}
           </p>
         </div>
       </section>
-
-      {muxPlaybackId ? (
-        <section style={{ maxWidth: 960, width: "100%" }}>
-          <h2 style={{ margin: "0 0 12px", fontSize: 18, fontWeight: 600 }}>
-            Mux source
-          </h2>
-          <div style={frameStyle}>
-            <MuxPlayer
-              playbackId={muxPlaybackId}
-              tokens={{
-                playback: env.VITE_MUX_PLAYBACK_TOKEN,
-                thumbnail: env.VITE_MUX_THUMBNAIL_TOKEN,
-                storyboard: env.VITE_MUX_STORYBOARD_TOKEN,
-              }}
-              accentColor={ACCENT}
-            />
-          </div>
-        </section>
-      ) : null}
     </main>
   )
 }
 
 const rootEl = document.getElementById("root")
 if (!rootEl) throw new Error("#root not found")
-createRoot(rootEl).render(
-  <StrictMode>
-    <App />
-  </StrictMode>
-)
+createRoot(rootEl).render(<App />)
