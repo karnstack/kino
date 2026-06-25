@@ -1,5 +1,5 @@
 ---
-"@karnstack/kino": minor
+"@karnstack/kino": patch
 ---
 
 Initial release of kino, a premium themeable React video player with a pluggable-provider architecture.
