@@ -159,6 +159,98 @@
   background: color-mix(in oklab, white 12%, transparent);
   border-color: color-mix(in oklab, white 28%, transparent);
 }
+.kino .kino-popover-root {
+  position: relative;
+  display: inline-flex;
+}
+.kino .kino-ctrl {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 10px;
+  color: var(--kino-text);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s var(--kino-ease);
+}
+.kino .kino-ctrl:hover {
+  background: color-mix(in oklab, white 12%, transparent);
+}
+.kino .kino-ctrl svg { width: 22px; height: 22px; }
+.kino .kino-ctrl-label {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.kino .kino-tip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--kino-text);
+  transform: translateX(-50%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s var(--kino-ease);
+  z-index: 3;
+}
+.kino .kino-popover-root:hover .kino-tip { opacity: 1; }
+.kino .kino-tip kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  padding: 1px 5px;
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--kino-text);
+  background: color-mix(in oklab, white 16%, transparent);
+  border: 1px solid var(--kino-border);
+  border-radius: 5px;
+}
+.kino .kino-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+  padding: 6px;
+  transform: translateX(-50%);
+  transform-origin: bottom;
+  transition: opacity 0.12s, transform 0.12s;
+  z-index: 4;
+}
+.kino .kino-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  color: var(--kino-text);
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.12s var(--kino-ease);
+}
+.kino .kino-menu-item:hover {
+  background: color-mix(in oklab, white 12%, transparent);
+}
+.kino .kino-menu-item[aria-checked="true"] {
+  color: var(--kino-accent);
+}
 @media (prefers-reduced-motion: reduce) {
   .kino *, .kino *::before, .kino *::after { transition-duration: 0.01ms !important; }
 }
