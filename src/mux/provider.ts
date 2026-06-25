@@ -30,6 +30,7 @@ type MuxVideoEl = HTMLVideoElement & {
 export function createMuxProvider(opts: MuxProviderOptions): Provider {
   const ios = typeof navigator !== "undefined" && detectIOS(navigator.userAgent)
   let el: MuxVideoEl | null = null
+  let renditions: MuxVideoEl["videoRenditions"] | null = null
   let state: MediaState = {
     ...defaultState(),
     rate: opts.defaultRate ?? 1,
@@ -46,6 +47,10 @@ export function createMuxProvider(opts: MuxProviderOptions): Provider {
   const listeners = new Set<() => void>()
   const emit = () => listeners.forEach((l) => l())
   const patch = (p: Partial<MediaState>) => { state = { ...state, ...p }; emit() }
+
+  const onFullscreenChange = () => patch({ fullscreen: document.fullscreenElement != null })
+  const onEnterPip = () => patch({ pip: true })
+  const onLeavePip = () => patch({ pip: false })
 
   const readQualities = (): QualityLevel[] => {
     const r = el?.videoRenditions
@@ -137,19 +142,26 @@ export function createMuxProvider(opts: MuxProviderOptions): Provider {
         }
       }
       for (const ev of MEDIA_EVENTS) el.addEventListener(ev, syncFromEl)
-      el.videoRenditions?.addEventListener("change", syncFromEl)
-      document.addEventListener("fullscreenchange", () =>
-        patch({ fullscreen: document.fullscreenElement != null })
-      )
-      el.addEventListener("enterpictureinpicture", () => patch({ pip: true }))
-      el.addEventListener("leavepictureinpicture", () => patch({ pip: false }))
+      renditions = el.videoRenditions ?? null
+      renditions?.addEventListener("change", syncFromEl)
+      document.addEventListener("fullscreenchange", onFullscreenChange)
+      el.addEventListener("enterpictureinpicture", onEnterPip)
+      el.addEventListener("leavepictureinpicture", onLeavePip)
       container.appendChild(el)
     },
     getState: () => state,
     subscribe: (l) => { listeners.add(l); return () => listeners.delete(l) },
     actions,
     destroy() {
-      if (el) { for (const ev of MEDIA_EVENTS) el.removeEventListener(ev, syncFromEl); el.remove() }
+      document.removeEventListener("fullscreenchange", onFullscreenChange)
+      renditions?.removeEventListener("change", syncFromEl)
+      renditions = null
+      if (el) {
+        for (const ev of MEDIA_EVENTS) el.removeEventListener(ev, syncFromEl)
+        el.removeEventListener("enterpictureinpicture", onEnterPip)
+        el.removeEventListener("leavepictureinpicture", onLeavePip)
+        el.remove()
+      }
       el = null; listeners.clear()
     },
   }
