@@ -1,8 +1,9 @@
 name: Release
 
+# Manual only — no auto-publish on merge to main.
+# Trigger from the Actions tab ("Run workflow") when you want to cut a release.
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
