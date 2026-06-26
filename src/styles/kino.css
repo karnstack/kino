@@ -34,6 +34,18 @@
   width: 100%;
   height: 100%;
 }
+.kino .kino-placeholder {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Same level as the video host but earlier in the DOM, so the video element
+     (and its sharp poster, once decoded) paints over this blur-up. */
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+}
 .kino .kino-video-host {
   position: absolute;
   inset: 0;

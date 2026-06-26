@@ -50,6 +50,12 @@ type PlayerProps = {
   accentColor?: string
   theme?: Record<string, string>
   className?: string
+  /**
+   * Low-res still (data URI or URL) painted behind the video while the poster
+   * and first frame load — a blur-up. The sharp poster covers it once decoded,
+   * so it only shows during the initial load and across source swaps.
+   */
+  placeholder?: string
   children?: ReactNode
 }
 
@@ -58,6 +64,7 @@ export function Player({
   accentColor,
   theme,
   className,
+  placeholder,
   children,
 }: PlayerProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null)
@@ -170,6 +177,15 @@ export function Player({
           style={style as CSSProperties}
           tabIndex={0}
         >
+          {placeholder && (
+            <img
+              className="kino-placeholder"
+              src={placeholder}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+            />
+          )}
           <div ref={videoHostRef} className="kino-video-host" />
           <PlayerChrome compact={compact}>{children}</PlayerChrome>
         </div>

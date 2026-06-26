@@ -10,6 +10,8 @@ export type MuxPlayerProps = MuxProviderOptions & {
   accentColor?: string
   theme?: Record<string, string>
   className?: string
+  /** Blur-up still painted behind the video until the poster/first frame loads. */
+  placeholder?: string
   children?: ReactNode
 }
 
@@ -17,6 +19,7 @@ export function MuxPlayer({
   accentColor,
   theme,
   className,
+  placeholder,
   children,
   ...opts
 }: MuxPlayerProps) {
@@ -57,6 +60,7 @@ export function MuxPlayer({
       accentColor={accentColor}
       theme={theme}
       className={className}
+      placeholder={placeholder}
     >
       <IdleOverlay />
       <Captions />
