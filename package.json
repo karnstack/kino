@@ -1,6 +1,6 @@
 {
   "name": "@karnstack/kino",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Themeable React video player with pluggable providers.",
   "license": "MIT",
   "author": "Karn",
