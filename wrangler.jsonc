@@ -1,0 +1,11 @@
+{
+  // Static-assets Worker for the demo playground (kino.karnstack.com).
+  // Unrelated to the published library: only `demo/dist` is uploaded, never
+  // the root `dist/` (that is the npm package build). Not in files:["dist"],
+  // so this never ships to npm.
+  "name": "kino",
+  "compatibility_date": "2026-06-27",
+  "assets": {
+    "directory": "./demo/dist"
+  }
+}
