@@ -1,5 +1,5 @@
 ---
-"@karnstack/kino": minor
+"@karnstack/kino": patch
 ---
 
 Add a `placeholder` prop (blur-up): pass a low-res data URI or URL and kino paints it behind the video while the poster and first frame load, then the sharp poster covers it. Works on `MuxPlayer` and the headless `Player`.
