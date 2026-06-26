@@ -72,6 +72,12 @@ export function createMuxProvider(opts: MuxProviderOptions): Provider {
       hasTextTracks: true,
     },
   }
+  // The rate the viewer chose. mux-video does not proxy defaultPlaybackRate to
+  // its inner <video>, so loading a new source resets playbackRate to 1x. We
+  // re-assert desiredRate after every source load (see syncFromEl) so the speed
+  // carries across swaps, and report it as state.rate so the brief reset never
+  // surfaces to the UI.
+  let desiredRate = opts.defaultRate ?? 1
   const listeners = new Set<() => void>()
   const emit = () => listeners.forEach((l) => l())
   const patch = (p: Partial<MediaState>) => {
@@ -189,6 +195,10 @@ export function createMuxProvider(opts: MuxProviderOptions): Provider {
   const syncFromEl = () => {
     if (!el) return
     bindRenditions()
+    // A new source load resets the element's playbackRate to 1x. Re-assert the
+    // chosen rate so it survives swaps (this fires on canplay/loadedmetadata/
+    // timeupdate, so the correction lands as soon as the new source is ready).
+    if (el.playbackRate !== desiredRate) el.playbackRate = desiredRate
     // Re-assert track modes every tick: once a "showing" track's cues finish
     // loading this flips it to "hidden" (progress fires while paused too).
     applyTextTrackModes()
@@ -200,7 +210,7 @@ export function createMuxProvider(opts: MuxProviderOptions): Provider {
       currentTime: el.currentTime,
       duration: el.duration || 0,
       buffered: ranges,
-      rate: el.playbackRate,
+      rate: desiredRate,
       volume: el.volume,
       muted: el.muted,
       readyState: el.readyState,
@@ -298,11 +308,10 @@ export function createMuxProvider(opts: MuxProviderOptions): Provider {
       if (el) el.currentTime = t
     },
     setRate: (r) => {
-      if (!el) return
-      el.playbackRate = r
-      // Loading a new source resets playbackRate to defaultPlaybackRate, so keep
-      // them in lockstep — otherwise the chosen rate drops to 1x on every swap.
-      el.defaultPlaybackRate = r
+      desiredRate = r
+      if (el) el.playbackRate = r
+      // Reflect immediately even before the element's ratechange fires.
+      patch({ rate: r })
     },
     setVolume: (v) => {
       if (el) el.volume = Math.min(1, Math.max(0, v))
@@ -370,10 +379,7 @@ export function createMuxProvider(opts: MuxProviderOptions): Provider {
         opts.poster ??
         buildImageUrl(opts.playbackId, "thumbnail", opts.tokens?.thumbnail)
       if (opts.autoPlay) el.autoplay = true
-      el.playbackRate = state.rate
-      // defaultPlaybackRate is what the element reverts to when a new source
-      // loads; seed it so the initial rate survives the first (and every) load.
-      el.defaultPlaybackRate = state.rate
+      el.playbackRate = desiredRate
       if (opts.envKey) el.envKey = opts.envKey
       if (opts.metadata) {
         el.metadata = {
