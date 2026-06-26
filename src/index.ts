@@ -1,6 +1,11 @@
 export { formatTime } from "./util/format-time"
 export type * from "./core/types"
-export { PlayerContext, usePlayer, usePlayerActions, useMediaSelector } from "./core/store"
+export {
+  PlayerContext,
+  usePlayer,
+  usePlayerActions,
+  useMediaSelector,
+} from "./core/store"
 export {
   Player,
   useControlsVisible,

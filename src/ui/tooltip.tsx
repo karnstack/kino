@@ -44,7 +44,10 @@ export function Tooltip({
   return (
     <span className="kino-popover-root">
       {children}
-      <span className={`kino-tip kino-glass kino-tip-${align}`} aria-hidden="true">
+      <span
+        className={`kino-tip kino-glass kino-tip-${align}`}
+        aria-hidden="true"
+      >
         {label}
         {renderShortcut(shortcut)}
       </span>

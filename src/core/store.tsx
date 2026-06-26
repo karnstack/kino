@@ -11,13 +11,17 @@ function useProvider(): Provider {
 
 export function useMediaSelector<T>(
   selector: (s: MediaState) => T,
-  isEqual: (a: T, b: T) => boolean = Object.is
+  isEqual: (a: T, b: T) => boolean = Object.is,
 ): T {
   const provider = useProvider()
-  const cache = useRef<{ has: boolean; value: T }>({ has: false, value: undefined as never })
+  const cache = useRef<{ has: boolean; value: T }>({
+    has: false,
+    value: undefined as never,
+  })
   const getSnapshot = () => {
     const next = selector(provider.getState())
-    if (cache.current.has && isEqual(cache.current.value, next)) return cache.current.value
+    if (cache.current.has && isEqual(cache.current.value, next))
+      return cache.current.value
     cache.current = { has: true, value: next }
     return next
   }

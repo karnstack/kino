@@ -9,7 +9,7 @@ test("speed menu sets rate", () => {
   render(
     <PlayerContext.Provider value={provider}>
       <SpeedMenu />
-    </PlayerContext.Provider>
+    </PlayerContext.Provider>,
   )
   act(() => screen.getByRole("button", { name: /speed/i }).click()) // open
   act(() => screen.getByRole("menuitemradio", { name: "1.5x" }).click())
@@ -21,7 +21,7 @@ test("speed menu opens on the kino:open-speed event", () => {
   const { container } = render(
     <Player provider={fakeProvider}>
       <SpeedMenu />
-    </Player>
+    </Player>,
   )
   expect(screen.queryByRole("menuitemradio", { name: "1.5x" })).toBeNull()
   const wrapper = container.querySelector(".kino") as HTMLElement
@@ -39,7 +39,7 @@ test("quality menu hidden when capability is off", () => {
   const { container } = render(
     <PlayerContext.Provider value={provider}>
       <QualityMenu />
-    </PlayerContext.Provider>
+    </PlayerContext.Provider>,
   )
   expect(container.firstChild).toBeNull()
 })

@@ -21,6 +21,10 @@
     "video-player"
   ],
   "type": "module",
+  "packageManager": "pnpm@10.34.4",
+  "engines": {
+    "node": ">=24"
+  },
   "sideEffects": [
     "**/*.css",
     "./dist/mux.js"
@@ -46,7 +50,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "peerDependencies": {
     "react": ">=19",

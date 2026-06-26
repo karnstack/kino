@@ -1,5 +1,10 @@
 import { render, screen, act } from "@testing-library/react"
-import { PlayerContext, useMediaSelector, usePlayer, usePlayerActions } from "./store"
+import {
+  PlayerContext,
+  useMediaSelector,
+  usePlayer,
+  usePlayerActions,
+} from "./store"
 import { createFakeProvider } from "./fake-provider"
 
 function Time() {
@@ -18,7 +23,7 @@ test("useMediaSelector re-renders only when the selected slice changes", () => {
   render(
     <PlayerContext.Provider value={provider}>
       <Counted />
-    </PlayerContext.Provider>
+    </PlayerContext.Provider>,
   )
   const before = renders
   act(() => provider.set({ currentTime: 5 })) // unrelated slice
@@ -37,8 +42,9 @@ test("usePlayerActions does not re-render on unrelated state changes but drives 
   }
   render(
     <PlayerContext.Provider value={provider}>
-      <Btn /><Time />
-    </PlayerContext.Provider>
+      <Btn />
+      <Time />
+    </PlayerContext.Provider>,
   )
   const before = renders
   act(() => provider.set({ currentTime: 5 })) // unrelated slice
@@ -55,8 +61,9 @@ test("usePlayer exposes actions that drive state", () => {
   }
   render(
     <PlayerContext.Provider value={provider}>
-      <Btn /><Time />
-    </PlayerContext.Provider>
+      <Btn />
+      <Time />
+    </PlayerContext.Provider>,
   )
   act(() => screen.getByText("seek").click())
   expect(screen.getByTestId("t").textContent).toBe("9")
