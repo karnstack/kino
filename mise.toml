@@ -1,0 +1,5 @@
+# Pinned toolchain — single source of truth for local dev and CI.
+# Exact versions keep every environment byte-for-byte reproducible.
+[tools]
+node = "24.18.0"  # latest Node.js 24 LTS (Krypton)
+pnpm = "10.34.4"  # latest pnpm 10.x (lockfileVersion 9.0)

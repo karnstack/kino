@@ -17,13 +17,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
+      # Installs Node and pnpm at the exact versions pinned in mise.toml.
+      - name: Setup toolchain (mise)
+        uses: jdx/mise-action@v2
         with:
-          node-version: 24
-          cache: pnpm
-          registry-url: https://registry.npmjs.org
+          cache: true
+
+      # Configure npm auth for changesets publish.
+      - name: Configure npm registry
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - run: pnpm install --frozen-lockfile
 
