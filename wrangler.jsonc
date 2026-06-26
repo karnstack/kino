@@ -6,6 +6,6 @@
   "name": "kino",
   "compatibility_date": "2026-06-27",
   "assets": {
-    "directory": "./demo/dist"
-  }
+    "directory": "./demo/dist",
+  },
 }
