@@ -8,7 +8,7 @@ test("shows speed options and starts playback at chosen rate", () => {
   render(
     <PlayerContext.Provider value={provider}>
       <IdleOverlay />
-    </PlayerContext.Provider>
+    </PlayerContext.Provider>,
   )
   act(() => screen.getByRole("button", { name: "1.5x" }).click())
   expect(provider.getState().rate).toBe(1.5)
@@ -20,7 +20,7 @@ test("hidden once playback has progressed", () => {
   render(
     <PlayerContext.Provider value={provider}>
       <IdleOverlay />
-    </PlayerContext.Provider>
+    </PlayerContext.Provider>,
   )
   expect(screen.queryByLabelText("Play")).toBeNull()
 })

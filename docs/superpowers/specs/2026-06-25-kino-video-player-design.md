@@ -7,7 +7,7 @@ Status: approved, pre-implementation
 
 `kino` is a premium, themeable React video player UI with a **provider
 abstraction** underneath. The glass controls, popovers, keyboard handling, and
-theming are written once against a normalized media interface; each *provider*
+theming are written once against a normalized media interface; each _provider_
 adapts a concrete playback engine to that interface. Mux is the first provider.
 
 It ships as a **public** OSS package `@karnstack/kino` from a standalone repo
@@ -132,7 +132,7 @@ shape the implementation:
   provider maps these to MediaState.
 - **Quality / renditions** via the Media Renditions API on the element:
   `videoRenditions` list with `{ id, width, height, bitrate, frameRate, codec,
-  selected }`, `selectedIndex`, and a `change` event. Switch by setting
+selected }`, `selectedIndex`, and a `change` event. Switch by setting
   `videoRenditions.selectedIndex = n` or `rendition.selected = true`; reset for
   Auto/ABR. **Not available on iOS** (native HLS) → capability-gate off. With
   signed URLs, resolution caps must be baked into the JWT claims

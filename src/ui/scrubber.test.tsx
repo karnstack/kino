@@ -8,7 +8,7 @@ test("renders progress fill proportional to currentTime/duration", () => {
   render(
     <PlayerContext.Provider value={provider}>
       <Scrubber />
-    </PlayerContext.Provider>
+    </PlayerContext.Provider>,
   )
   const fill = screen.getByTestId("kino-progress")
   expect(fill.style.width).toBe("25%")
@@ -19,7 +19,7 @@ test("clicking the track seeks", () => {
   render(
     <PlayerContext.Provider value={provider}>
       <Scrubber />
-    </PlayerContext.Provider>
+    </PlayerContext.Provider>,
   )
   const track = screen.getByTestId("kino-track")
   // jsdom has no layout; stub getBoundingClientRect
@@ -36,7 +36,7 @@ test("clicking the track seeks", () => {
   })
   act(() => {
     track.dispatchEvent(
-      new MouseEvent("pointerdown", { clientX: 100, bubbles: true })
+      new MouseEvent("pointerdown", { clientX: 100, bubbles: true }),
     )
   })
   expect(provider.getState().currentTime).toBe(50)

@@ -9,7 +9,7 @@ test("renders children overlay and applies accent var", () => {
       <Player.Overlay>
         <span>hi</span>
       </Player.Overlay>
-    </Player>
+    </Player>,
   )
   expect(screen.getByText("hi")).toBeInTheDocument()
   const root = container.querySelector(".kino") as HTMLElement

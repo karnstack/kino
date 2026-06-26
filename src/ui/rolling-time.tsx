@@ -29,7 +29,7 @@ export function RollingTime({ value }: { value: string }) {
           <span key={i} className="kino-roll-sep" aria-hidden="true">
             {ch}
           </span>
-        )
+        ),
       )}
     </span>
   )

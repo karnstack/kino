@@ -25,7 +25,13 @@ test("captions section only appears when tracks exist", () => {
       hasTextTracks: true,
     },
     textTracks: [
-      { id: "en", kind: "captions", label: "English", lang: "en", mode: "hidden" },
+      {
+        id: "en",
+        kind: "captions",
+        label: "English",
+        lang: "en",
+        mode: "hidden",
+      },
     ],
   })
   render(

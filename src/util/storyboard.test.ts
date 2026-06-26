@@ -14,7 +14,12 @@ test("parses cues into tiles with xywh and time ranges", () => {
   expect(sb.tiles).toHaveLength(2)
   expect(sb.tiles[0]).toMatchObject({
     url: "https://image.mux.com/ID/storyboard.jpg",
-    x: 0, y: 0, w: 320, h: 180, start: 0, end: 5,
+    x: 0,
+    y: 0,
+    w: 320,
+    h: 180,
+    start: 0,
+    end: 5,
   })
   expect(sb.tiles[1]?.x).toBe(320)
 })

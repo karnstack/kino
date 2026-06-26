@@ -25,15 +25,15 @@ These types are defined in Task 2 (`src/core/types.ts`) and referenced verbatim 
 
 ```ts
 export type QualityLevel = {
-  id: string            // rendition id from the engine
-  height: number        // e.g. 1080
-  bitrate: number       // bits/sec
-  selected: boolean     // currently the pinned manual selection
+  id: string // rendition id from the engine
+  height: number // e.g. 1080
+  bitrate: number // bits/sec
+  selected: boolean // currently the pinned manual selection
 }
 
 export type TextTrackInfo = {
   id: string
-  kind: string          // "subtitles" | "captions" | ...
+  kind: string // "subtitles" | "captions" | ...
   label: string
   lang: string
   mode: "showing" | "hidden" | "disabled"
@@ -43,7 +43,7 @@ export type Capabilities = {
   canSetQuality: boolean
   hasStoryboard: boolean
   canPiP: boolean
-  canFullscreen: boolean   // custom-chrome fullscreen (false on iPhone)
+  canFullscreen: boolean // custom-chrome fullscreen (false on iPhone)
   canSetRate: boolean
   hasTextTracks: boolean
 }
@@ -54,11 +54,11 @@ export type MediaState = {
   paused: boolean
   currentTime: number
   duration: number
-  buffered: Array<[number, number]>   // [start, end] seconds
+  buffered: Array<[number, number]> // [start, end] seconds
   rate: number
-  volume: number                       // 0..1
+  volume: number // 0..1
   muted: boolean
-  readyState: number                   // HTMLMediaElement.readyState
+  readyState: number // HTMLMediaElement.readyState
   seeking: boolean
   ended: boolean
   error: MediaError | null
@@ -138,11 +138,13 @@ kino/                                  (repo root /Users/karn/code/karnstack/kin
 ### Task 1: Repo scaffold, tooling, and theme stylesheet
 
 **Files:**
+
 - Create: `package.json`, `tsconfig.json`, `tsup.config.ts`, `vitest.config.ts`, `eslint.config.js`, `.prettierrc`, `.gitignore`, `LICENSE`, `README.md`
 - Create: `src/index.ts`, `src/mux.ts`, `src/styles/kino.css`
 - Create: `src/util/format-time.ts`, `src/util/format-time.test.ts`
 
 **Interfaces:**
+
 - Produces: a buildable/testable package; `formatTime(seconds: number): string`.
 
 - [ ] **Step 1: Create the repo and pnpm package**
@@ -290,9 +292,16 @@ import "@testing-library/jest-dom/vitest"
   background: black;
   overflow: hidden;
 }
-.kino * { box-sizing: border-box; }
+.kino * {
+  box-sizing: border-box;
+}
 .kino mux-video,
-.kino video { position: absolute; inset: 0; width: 100%; height: 100%; }
+.kino video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
 .kino-glass {
   background: var(--kino-surface);
   backdrop-filter: blur(var(--kino-blur));
@@ -302,7 +311,11 @@ import "@testing-library/jest-dom/vitest"
   box-shadow: var(--kino-shadow);
 }
 @media (prefers-reduced-motion: reduce) {
-  .kino *, .kino *::before, .kino *::after { transition-duration: 0.01ms !important; }
+  .kino *,
+  .kino *::before,
+  .kino *::after {
+    transition-duration: 0.01ms !important;
+  }
 }
 ```
 
@@ -363,10 +376,12 @@ git commit -m "chore: scaffold @karnstack/kino package, tooling, theme css"
 ### Task 2: Core types and the player store
 
 **Files:**
+
 - Create: `src/core/types.ts` (the Shared Type Contract verbatim)
 - Create: `src/core/fake-provider.ts`, `src/core/store.tsx`, `src/core/store.test.tsx`
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces:
   - `PlayerContext` (React context holding a `Provider`)
@@ -382,17 +397,35 @@ git commit -m "chore: scaffold @karnstack/kino package, tooling, theme css"
 import type { MediaState, Provider, PlayerActions } from "./types"
 
 const DEFAULT_CAPS = {
-  canSetQuality: true, hasStoryboard: false, canPiP: true,
-  canFullscreen: true, canSetRate: true, hasTextTracks: false,
+  canSetQuality: true,
+  hasStoryboard: false,
+  canPiP: true,
+  canFullscreen: true,
+  canSetRate: true,
+  hasTextTracks: false,
 }
 
 export function defaultState(): MediaState {
   return {
-    paused: true, currentTime: 0, duration: 0, buffered: [],
-    rate: 1, volume: 1, muted: false, readyState: 0, seeking: false,
-    ended: false, error: null, qualities: [], activeQualityId: "auto",
-    textTracks: [], activeTextTrackId: null, fullscreen: false, pip: false,
-    storyboard: null, capabilities: { ...DEFAULT_CAPS },
+    paused: true,
+    currentTime: 0,
+    duration: 0,
+    buffered: [],
+    rate: 1,
+    volume: 1,
+    muted: false,
+    readyState: 0,
+    seeking: false,
+    ended: false,
+    error: null,
+    qualities: [],
+    activeQualityId: "auto",
+    textTracks: [],
+    activeTextTrackId: null,
+    fullscreen: false,
+    pip: false,
+    storyboard: null,
+    capabilities: { ...DEFAULT_CAPS },
   }
 }
 
@@ -421,7 +454,10 @@ export function createFakeProvider(initial?: Partial<MediaState>) {
   const provider: Provider = {
     mount: () => {},
     getState: () => state,
-    subscribe: (l) => { listeners.add(l); return () => listeners.delete(l) },
+    subscribe: (l) => {
+      listeners.add(l)
+      return () => listeners.delete(l)
+    },
     actions,
     destroy: () => listeners.clear(),
   }
@@ -452,7 +488,7 @@ test("useMediaSelector re-renders only when the selected slice changes", () => {
   render(
     <PlayerContext.Provider value={provider}>
       <Counted />
-    </PlayerContext.Provider>
+    </PlayerContext.Provider>,
   )
   const before = renders
   act(() => provider.set({ currentTime: 5 })) // unrelated slice
@@ -469,8 +505,9 @@ test("usePlayer exposes actions that drive state", () => {
   }
   render(
     <PlayerContext.Provider value={provider}>
-      <Btn /><Time />
-    </PlayerContext.Provider>
+      <Btn />
+      <Time />
+    </PlayerContext.Provider>,
   )
   act(() => screen.getByText("seek").click())
   expect(screen.getByTestId("t").textContent).toBe("9")
@@ -495,13 +532,17 @@ function useProvider(): Provider {
 
 export function useMediaSelector<T>(
   selector: (s: MediaState) => T,
-  isEqual: (a: T, b: T) => boolean = Object.is
+  isEqual: (a: T, b: T) => boolean = Object.is,
 ): T {
   const provider = useProvider()
-  const cache = useRef<{ has: boolean; value: T }>({ has: false, value: undefined as never })
+  const cache = useRef<{ has: boolean; value: T }>({
+    has: false,
+    value: undefined as never,
+  })
   const getSnapshot = () => {
     const next = selector(provider.getState())
-    if (cache.current.has && isEqual(cache.current.value, next)) return cache.current.value
+    if (cache.current.has && isEqual(cache.current.value, next))
+      return cache.current.value
     cache.current = { has: true, value: next }
     return next
   }
@@ -536,9 +577,11 @@ git commit -m "feat: core media types, fake provider, selector store"
 ### Task 3: Storyboard VTT parser
 
 **Files:**
+
 - Create: `src/util/storyboard.ts`, `src/util/storyboard.test.ts`
 
 **Interfaces:**
+
 - Produces:
   - `parseStoryboard(vttText: string, baseUrl: string): Storyboard`
   - `type Storyboard = { tiles: Tile[]; thumbnailAt(time: number): Tile | null }`
@@ -563,7 +606,12 @@ test("parses cues into tiles with xywh and time ranges", () => {
   expect(sb.tiles).toHaveLength(2)
   expect(sb.tiles[0]).toMatchObject({
     url: "https://image.mux.com/ID/storyboard.jpg",
-    x: 0, y: 0, w: 320, h: 180, start: 0, end: 5,
+    x: 0,
+    y: 0,
+    w: 320,
+    h: 180,
+    start: 0,
+    end: 5,
   })
   expect(sb.tiles[1].x).toBe(320)
 })
@@ -591,9 +639,18 @@ test("returns empty storyboard for blank input", () => {
 
 ```ts
 export type Tile = {
-  url: string; x: number; y: number; w: number; h: number; start: number; end: number
+  url: string
+  x: number
+  y: number
+  w: number
+  h: number
+  start: number
+  end: number
 }
-export type Storyboard = { tiles: Tile[]; thumbnailAt(time: number): Tile | null }
+export type Storyboard = {
+  tiles: Tile[]
+  thumbnailAt(time: number): Tile | null
+}
 
 function toSeconds(stamp: string): number {
   // hh:mm:ss.mmm or mm:ss.mmm
@@ -618,7 +675,12 @@ export function parseStoryboard(vttText: string, baseUrl: string): Storyboard {
     const [, file, x, y, w, h] = m
     tiles.push({
       url: new URL(file, baseUrl).href,
-      x: +x, y: +y, w: +w, h: +h, start, end,
+      x: +x,
+      y: +y,
+      w: +w,
+      h: +h,
+      start,
+      end,
     })
   }
   return {
@@ -646,9 +708,11 @@ git commit -m "feat: storyboard vtt parser with tile lookup"
 ### Task 4: Keyboard map
 
 **Files:**
+
 - Create: `src/util/keymap.ts`, `src/util/keymap.test.ts`
 
 **Interfaces:**
+
 - Produces: `resolveKey(e: KeyboardEvent): KeyAction | null` and `type KeyAction` (a discriminated union below). Plus `isTypingTarget(el: EventTarget | null): boolean`.
 
 - [ ] **Step 1: Write the failing test** `src/util/keymap.test.ts`
@@ -662,9 +726,18 @@ test("space toggles play", () => {
   expect(resolveKey(ev({ key: " " }))).toEqual({ type: "toggle-play" })
 })
 test("arrows seek and adjust volume", () => {
-  expect(resolveKey(ev({ key: "ArrowRight" }))).toEqual({ type: "seek-by", delta: 5 })
-  expect(resolveKey(ev({ key: "ArrowLeft" }))).toEqual({ type: "seek-by", delta: -5 })
-  expect(resolveKey(ev({ key: "ArrowUp" }))).toEqual({ type: "volume-by", delta: 0.1 })
+  expect(resolveKey(ev({ key: "ArrowRight" }))).toEqual({
+    type: "seek-by",
+    delta: 5,
+  })
+  expect(resolveKey(ev({ key: "ArrowLeft" }))).toEqual({
+    type: "seek-by",
+    delta: -5,
+  })
+  expect(resolveKey(ev({ key: "ArrowUp" }))).toEqual({
+    type: "volume-by",
+    delta: 0.1,
+  })
 })
 test("letters map to feature toggles", () => {
   expect(resolveKey(ev({ key: "f" }))).toEqual({ type: "toggle-fullscreen" })
@@ -673,7 +746,10 @@ test("letters map to feature toggles", () => {
   expect(resolveKey(ev({ key: "s" }))).toEqual({ type: "open-speed" })
 })
 test("digits seek to percent", () => {
-  expect(resolveKey(ev({ key: "5" }))).toEqual({ type: "seek-percent", percent: 50 })
+  expect(resolveKey(ev({ key: "5" }))).toEqual({
+    type: "seek-percent",
+    percent: 50,
+  })
 })
 test("modifier keys are ignored", () => {
   expect(resolveKey(ev({ key: " ", metaKey: true }))).toBeNull()
@@ -704,26 +780,43 @@ export type KeyAction =
 export function isTypingTarget(el: EventTarget | null): boolean {
   if (!(el instanceof HTMLElement)) return false
   const tag = el.tagName
-  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable
+  return (
+    tag === "INPUT" ||
+    tag === "TEXTAREA" ||
+    tag === "SELECT" ||
+    el.isContentEditable
+  )
 }
 
 export function resolveKey(e: KeyboardEvent): KeyAction | null {
   if (e.ctrlKey || e.metaKey || e.altKey) return null
   switch (e.key) {
     case " ":
-    case "k": return { type: "toggle-play" }
-    case "ArrowRight": return { type: "seek-by", delta: 5 }
-    case "ArrowLeft": return { type: "seek-by", delta: -5 }
-    case "ArrowUp": return { type: "volume-by", delta: 0.1 }
-    case "ArrowDown": return { type: "volume-by", delta: -0.1 }
-    case "f": return { type: "toggle-fullscreen" }
-    case "m": return { type: "toggle-mute" }
-    case "c": return { type: "toggle-captions" }
-    case "s": return { type: "open-speed" }
-    case "<": return { type: "rate-by", delta: -0.25 }
-    case ">": return { type: "rate-by", delta: 0.25 }
+    case "k":
+      return { type: "toggle-play" }
+    case "ArrowRight":
+      return { type: "seek-by", delta: 5 }
+    case "ArrowLeft":
+      return { type: "seek-by", delta: -5 }
+    case "ArrowUp":
+      return { type: "volume-by", delta: 0.1 }
+    case "ArrowDown":
+      return { type: "volume-by", delta: -0.1 }
+    case "f":
+      return { type: "toggle-fullscreen" }
+    case "m":
+      return { type: "toggle-mute" }
+    case "c":
+      return { type: "toggle-captions" }
+    case "s":
+      return { type: "open-speed" }
+    case "<":
+      return { type: "rate-by", delta: -0.25 }
+    case ">":
+      return { type: "rate-by", delta: 0.25 }
   }
-  if (/^[0-9]$/.test(e.key)) return { type: "seek-percent", percent: Number(e.key) * 10 }
+  if (/^[0-9]$/.test(e.key))
+    return { type: "seek-percent", percent: Number(e.key) * 10 }
   return null
 }
 ```
@@ -742,6 +835,7 @@ git commit -m "feat: keyboard action map"
 ### Task 5: Mux provider over raw `<mux-video>`
 
 **Files:**
+
 - Create: `src/mux/mux-video-element.ts` (registers the custom element)
 - Create: `src/mux/urls.ts`, `src/mux/urls.test.ts` (pure helpers, jsdom-unit-tested WITHOUT importing the element)
 - Create: `src/mux/provider.ts` (imports the element + helpers; its element behavior is verified in the demo at Task 11, NOT in a jsdom unit test, so no test imports `provider.ts`)
@@ -749,6 +843,7 @@ git commit -m "feat: keyboard action map"
 **CRITICAL:** Importing `@mux/mux-video` pulls browser-only playback code that is unreliable under jsdom. Therefore NO vitest test file may import `provider.ts` (which top-imports the element). Pure logic is extracted to `urls.ts` and tested there. The provider's element wiring is exercised only by the Vite demo (Task 11).
 
 **Interfaces:**
+
 - Consumes: types from Task 2; `parseStoryboard` (Task 3, used later by scrubber, not here).
 - Produces:
   - `createMuxProvider(opts: MuxProviderOptions): Provider` (in `provider.ts`)
@@ -770,16 +865,18 @@ import { buildImageUrl, detectIOS } from "./urls"
 
 test("buildImageUrl composes signed storyboard url", () => {
   expect(buildImageUrl("ID", "storyboard", "JWT")).toBe(
-    "https://image.mux.com/ID/storyboard.vtt?token=JWT"
+    "https://image.mux.com/ID/storyboard.vtt?token=JWT",
   )
 })
 test("buildImageUrl omits token when unsigned", () => {
   expect(buildImageUrl("ID", "thumbnail")).toBe(
-    "https://image.mux.com/ID/thumbnail.webp"
+    "https://image.mux.com/ID/thumbnail.webp",
   )
 })
 test("detectIOS true for iPhone UA, false for desktop", () => {
-  expect(detectIOS("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)")).toBe(true)
+  expect(
+    detectIOS("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)"),
+  ).toBe(true)
   expect(detectIOS("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15)")).toBe(false)
 })
 ```
@@ -795,7 +892,7 @@ export function buildImageUrl(
   playbackId: string,
   kind: "storyboard" | "thumbnail",
   token?: string,
-  ext = kind === "storyboard" ? "vtt" : "webp"
+  ext = kind === "storyboard" ? "vtt" : "webp",
 ): string {
   const base = `${IMAGE_HOST}/${playbackId}/${kind}.${ext}`
   return token ? `${base}?token=${token}` : base
@@ -814,7 +911,13 @@ Run: `pnpm test src/mux/urls.test.ts` — Expected: PASS.
 import "./mux-video-element"
 import { defaultState } from "../core/fake-provider"
 import { buildImageUrl, detectIOS } from "./urls"
-import type { MediaState, Provider, PlayerActions, QualityLevel, TextTrackInfo } from "../core/types"
+import type {
+  MediaState,
+  Provider,
+  PlayerActions,
+  QualityLevel,
+  TextTrackInfo,
+} from "../core/types"
 
 export type MuxProviderOptions = {
   playbackId: string
@@ -834,7 +937,12 @@ type MuxVideoEl = HTMLVideoElement & {
   videoRenditions?: {
     length: number
     selectedIndex: number
-    [i: number]: { id: string; height: number; bitrate: number; selected: boolean }
+    [i: number]: {
+      id: string
+      height: number
+      bitrate: number
+      selected: boolean
+    }
     addEventListener(t: string, cb: () => void): void
     removeEventListener(t: string, cb: () => void): void
   }
@@ -846,11 +954,19 @@ export function createMuxProvider(opts: MuxProviderOptions): Provider {
   let state: MediaState = {
     ...defaultState(),
     rate: opts.defaultRate ?? 1,
-    storyboard: { vttUrl: buildImageUrl(opts.playbackId, "storyboard", opts.tokens?.storyboard) },
+    storyboard: {
+      vttUrl: buildImageUrl(
+        opts.playbackId,
+        "storyboard",
+        opts.tokens?.storyboard,
+      ),
+    },
     capabilities: {
       canSetQuality: !ios,
       hasStoryboard: true,
-      canPiP: typeof document !== "undefined" && "pictureInPictureEnabled" in document,
+      canPiP:
+        typeof document !== "undefined" &&
+        "pictureInPictureEnabled" in document,
       canFullscreen: !ios,
       canSetRate: true,
       hasTextTracks: true,
@@ -858,7 +974,10 @@ export function createMuxProvider(opts: MuxProviderOptions): Provider {
   }
   const listeners = new Set<() => void>()
   const emit = () => listeners.forEach((l) => l())
-  const patch = (p: Partial<MediaState>) => { state = { ...state, ...p }; emit() }
+  const patch = (p: Partial<MediaState>) => {
+    state = { ...state, ...p }
+    emit()
+  }
 
   const readQualities = (): QualityLevel[] => {
     const r = el?.videoRenditions
@@ -866,7 +985,12 @@ export function createMuxProvider(opts: MuxProviderOptions): Provider {
     const out: QualityLevel[] = []
     for (let i = 0; i < r.length; i++) {
       const item = r[i]
-      out.push({ id: item.id, height: item.height, bitrate: item.bitrate, selected: item.selected })
+      out.push({
+        id: item.id,
+        height: item.height,
+        bitrate: item.bitrate,
+        selected: item.selected,
+      })
     }
     return out
   }
@@ -877,36 +1001,84 @@ export function createMuxProvider(opts: MuxProviderOptions): Provider {
     for (let i = 0; i < tt.length; i++) {
       const t = tt[i]
       if (t.kind !== "subtitles" && t.kind !== "captions") continue
-      out.push({ id: t.id || String(i), kind: t.kind, label: t.label, lang: t.language, mode: t.mode })
+      out.push({
+        id: t.id || String(i),
+        kind: t.kind,
+        label: t.label,
+        lang: t.language,
+        mode: t.mode,
+      })
     }
     return out
   }
   const syncFromEl = () => {
     if (!el) return
     const ranges: Array<[number, number]> = []
-    for (let i = 0; i < el.buffered.length; i++) ranges.push([el.buffered.start(i), el.buffered.end(i)])
+    for (let i = 0; i < el.buffered.length; i++)
+      ranges.push([el.buffered.start(i), el.buffered.end(i)])
     patch({
-      paused: el.paused, currentTime: el.currentTime, duration: el.duration || 0,
-      buffered: ranges, rate: el.playbackRate, volume: el.volume, muted: el.muted,
-      readyState: el.readyState, seeking: el.seeking, ended: el.ended,
-      qualities: readQualities(), textTracks: readTextTracks(),
+      paused: el.paused,
+      currentTime: el.currentTime,
+      duration: el.duration || 0,
+      buffered: ranges,
+      rate: el.playbackRate,
+      volume: el.volume,
+      muted: el.muted,
+      readyState: el.readyState,
+      seeking: el.seeking,
+      ended: el.ended,
+      qualities: readQualities(),
+      textTracks: readTextTracks(),
     })
   }
 
-  const MEDIA_EVENTS = ["play","pause","timeupdate","durationchange","progress","volumechange","ratechange","seeking","seeked","ended","loadedmetadata","canplay","waiting","error"]
+  const MEDIA_EVENTS = [
+    "play",
+    "pause",
+    "timeupdate",
+    "durationchange",
+    "progress",
+    "volumechange",
+    "ratechange",
+    "seeking",
+    "seeked",
+    "ended",
+    "loadedmetadata",
+    "canplay",
+    "waiting",
+    "error",
+  ]
 
   const actions: PlayerActions = {
-    play: () => { void el?.play?.() },
+    play: () => {
+      void el?.play?.()
+    },
     pause: () => el?.pause(),
-    seek: (t) => { if (el) el.currentTime = t },
-    setRate: (r) => { if (el) el.playbackRate = r },
-    setVolume: (v) => { if (el) el.volume = Math.min(1, Math.max(0, v)) },
-    setMuted: (m) => { if (el) el.muted = m },
+    seek: (t) => {
+      if (el) el.currentTime = t
+    },
+    setRate: (r) => {
+      if (el) el.playbackRate = r
+    },
+    setVolume: (v) => {
+      if (el) el.volume = Math.min(1, Math.max(0, v))
+    },
+    setMuted: (m) => {
+      if (el) el.muted = m
+    },
     setQuality: (id) => {
       const r = el?.videoRenditions
       if (!r) return
-      if (id === "auto") { r.selectedIndex = -1; patch({ activeQualityId: "auto" }); return }
-      for (let i = 0; i < r.length; i++) if (r[i].id === id) { r[i].selected = true; r.selectedIndex = i }
+      if (id === "auto") {
+        r.selectedIndex = -1
+        patch({ activeQualityId: "auto" })
+        return
+      }
+      for (let i = 0; i < r.length; i++)
+        if (r[i].id === id) {
+          r[i].selected = true
+          r.selectedIndex = i
+        }
       patch({ activeQualityId: id })
     },
     setTextTrack: (id) => {
@@ -919,10 +1091,18 @@ export function createMuxProvider(opts: MuxProviderOptions): Provider {
       }
       patch({ activeTextTrackId: id })
     },
-    enterFullscreen: (wrapper) => { void wrapper.requestFullscreen?.() },
-    exitFullscreen: () => { void document.exitFullscreen?.() },
-    enterPiP: () => { void el?.requestPictureInPicture?.() },
-    exitPiP: () => { void document.exitPictureInPicture?.() },
+    enterFullscreen: (wrapper) => {
+      void wrapper.requestFullscreen?.()
+    },
+    exitFullscreen: () => {
+      void document.exitFullscreen?.()
+    },
+    enterPiP: () => {
+      void el?.requestPictureInPicture?.()
+    },
+    exitPiP: () => {
+      void document.exitPictureInPicture?.()
+    },
   }
 
   return {
@@ -946,18 +1126,25 @@ export function createMuxProvider(opts: MuxProviderOptions): Provider {
       for (const ev of MEDIA_EVENTS) el.addEventListener(ev, syncFromEl)
       el.videoRenditions?.addEventListener("change", syncFromEl)
       document.addEventListener("fullscreenchange", () =>
-        patch({ fullscreen: document.fullscreenElement != null })
+        patch({ fullscreen: document.fullscreenElement != null }),
       )
       el.addEventListener("enterpictureinpicture", () => patch({ pip: true }))
       el.addEventListener("leavepictureinpicture", () => patch({ pip: false }))
       container.appendChild(el)
     },
     getState: () => state,
-    subscribe: (l) => { listeners.add(l); return () => listeners.delete(l) },
+    subscribe: (l) => {
+      listeners.add(l)
+      return () => listeners.delete(l)
+    },
     actions,
     destroy() {
-      if (el) { for (const ev of MEDIA_EVENTS) el.removeEventListener(ev, syncFromEl); el.remove() }
-      el = null; listeners.clear()
+      if (el) {
+        for (const ev of MEDIA_EVENTS) el.removeEventListener(ev, syncFromEl)
+        el.remove()
+      }
+      el = null
+      listeners.clear()
     },
   }
 }
@@ -979,10 +1166,12 @@ git commit -m "feat: mux provider over raw mux-video element"
 ### Task 6: Player root (layout, theme, auto-hide, keyboard)
 
 **Files:**
+
 - Create: `src/ui/icons.tsx` (inline SVGs: Play, Pause, Volume, VolumeMuted, Cc, Settings, Pip, Fullscreen, FullscreenExit, Gauge)
 - Create: `src/ui/player.tsx`, `src/ui/player.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `PlayerContext`, `useMediaSelector`, `usePlayer` (Task 2); `resolveKey`, `isTypingTarget` (Task 4).
 - Produces:
   - `<Player>` component: `{ provider: Provider; accentColor?: string; theme?: Record<string,string>; className?: string; children?: ReactNode }`
@@ -1003,8 +1192,10 @@ test("renders children overlay and applies accent var", () => {
   const provider = createFakeProvider()
   const { container } = render(
     <Player provider={provider} accentColor="rgb(1,2,3)">
-      <Player.Overlay><span>hi</span></Player.Overlay>
-    </Player>
+      <Player.Overlay>
+        <span>hi</span>
+      </Player.Overlay>
+    </Player>,
   )
   expect(screen.getByText("hi")).toBeInTheDocument()
   const root = container.querySelector(".kino") as HTMLElement
@@ -1015,7 +1206,9 @@ test("space toggles playback via keyboard", () => {
   const provider = createFakeProvider({ paused: true })
   const { container } = render(<Player provider={provider} />)
   const root = container.querySelector(".kino") as HTMLElement
-  act(() => { fireEvent.keyDown(root, { key: " " }) })
+  act(() => {
+    fireEvent.keyDown(root, { key: " " })
+  })
   expect(provider.getState().paused).toBe(false)
 })
 ```
@@ -1031,7 +1224,8 @@ import { PlayerContext, usePlayer } from "../core/store"
 import { resolveKey, isTypingTarget } from "../util/keymap"
 import type { Provider } from "../core/types"
 
-const WrapperContext = createContext<React.RefObject<HTMLDivElement | null> | null>(null)
+const WrapperContext =
+  createContext<React.RefObject<HTMLDivElement | null> | null>(null)
 export const useWrapperRef = () => useContext(WrapperContext)
 
 type PlayerProps = {
@@ -1042,7 +1236,13 @@ type PlayerProps = {
   children?: ReactNode
 }
 
-export function Player({ provider, accentColor, theme, className, children }: PlayerProps) {
+export function Player({
+  provider,
+  accentColor,
+  theme,
+  className,
+  children,
+}: PlayerProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null)
   const videoHostRef = useRef<HTMLDivElement | null>(null)
 
@@ -1054,7 +1254,8 @@ export function Player({ provider, accentColor, theme, className, children }: Pl
   }, [provider])
 
   const style: React.CSSProperties = { ...(theme as React.CSSProperties) }
-  if (accentColor) (style as Record<string, string>)["--kino-accent"] = accentColor
+  if (accentColor)
+    (style as Record<string, string>)["--kino-accent"] = accentColor
 
   return (
     <PlayerContext.Provider value={provider}>
@@ -1099,7 +1300,11 @@ export function useControlsVisible(): boolean {
     root.addEventListener("pointermove", show)
     root.addEventListener("focusin", show)
     show()
-    return () => { clearTimeout(timer); root.removeEventListener("pointermove", show); root.removeEventListener("focusin", show) }
+    return () => {
+      clearTimeout(timer)
+      root.removeEventListener("pointermove", show)
+      root.removeEventListener("focusin", show)
+    }
   }, [wrapperRef, state.paused])
   return visible || state.paused
 }
@@ -1158,9 +1363,11 @@ git commit -m "feat: player root with theme, overlay slot, keyboard"
 ### Task 7: Scrubber with buffered shading, drag-seek, and hover thumbnail
 
 **Files:**
+
 - Create: `src/ui/scrubber.tsx`, `src/ui/scrubber.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `useMediaSelector`, `usePlayer` (Task 2), `parseStoryboard` (Task 3), `formatTime` (Task 1).
 - Produces: `<Scrubber />` (no props; reads everything from context).
 
@@ -1174,18 +1381,40 @@ import { Scrubber } from "./scrubber"
 
 test("renders progress fill proportional to currentTime/duration", () => {
   const provider = createFakeProvider({ duration: 100, currentTime: 25 })
-  render(<PlayerContext.Provider value={provider}><Scrubber /></PlayerContext.Provider>)
+  render(
+    <PlayerContext.Provider value={provider}>
+      <Scrubber />
+    </PlayerContext.Provider>,
+  )
   const fill = screen.getByTestId("kino-progress")
   expect(fill.style.width).toBe("25%")
 })
 
 test("clicking the track seeks", () => {
   const provider = createFakeProvider({ duration: 100, currentTime: 0 })
-  render(<PlayerContext.Provider value={provider}><Scrubber /></PlayerContext.Provider>)
+  render(
+    <PlayerContext.Provider value={provider}>
+      <Scrubber />
+    </PlayerContext.Provider>,
+  )
   const track = screen.getByTestId("kino-track")
   // jsdom has no layout; stub getBoundingClientRect
-  track.getBoundingClientRect = () => ({ left: 0, width: 200, top: 0, height: 4, right: 200, bottom: 4, x: 0, y: 0, toJSON: () => ({}) })
-  act(() => { track.dispatchEvent(new MouseEvent("pointerdown", { clientX: 100, bubbles: true })) })
+  track.getBoundingClientRect = () => ({
+    left: 0,
+    width: 200,
+    top: 0,
+    height: 4,
+    right: 200,
+    bottom: 4,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  })
+  act(() => {
+    track.dispatchEvent(
+      new MouseEvent("pointerdown", { clientX: 100, bubbles: true }),
+    )
+  })
   expect(provider.getState().currentTime).toBe(50)
 })
 ```
@@ -1215,10 +1444,15 @@ export function Scrubber() {
   useEffect(() => {
     if (!hasStoryboard || !storyboardUrl) return
     let alive = true
-    fetch(storyboardUrl).then((r) => r.text()).then((txt) => {
-      if (alive) setSb(parseStoryboard(txt, storyboardUrl))
-    }).catch(() => {})
-    return () => { alive = false }
+    fetch(storyboardUrl)
+      .then((r) => r.text())
+      .then((txt) => {
+        if (alive) setSb(parseStoryboard(txt, storyboardUrl))
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
   }, [hasStoryboard, storyboardUrl])
 
   const pct = duration > 0 ? (currentTime / duration) * 100 : 0
@@ -1231,7 +1465,10 @@ export function Scrubber() {
     const t = timeFromClientX(e.clientX)
     actions.seek(t)
     const move = (ev: PointerEvent) => actions.seek(timeFromClientX(ev.clientX))
-    const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up) }
+    const up = () => {
+      window.removeEventListener("pointermove", move)
+      window.removeEventListener("pointerup", up)
+    }
     window.addEventListener("pointermove", move)
     window.addEventListener("pointerup", up)
   }
@@ -1242,27 +1479,48 @@ export function Scrubber() {
   const tile = sb && hover ? sb.thumbnailAt(hover.time) : null
 
   return (
-    <div className="kino-scrubber" onPointerMove={onPointerMove} onPointerLeave={() => setHover(null)}>
+    <div
+      className="kino-scrubber"
+      onPointerMove={onPointerMove}
+      onPointerLeave={() => setHover(null)}
+    >
       {hover && (
         <div className="kino-preview" style={{ left: hover.x }}>
           {tile && (
-            <div className="kino-preview-img" style={{
-              width: tile.w, height: tile.h,
-              backgroundImage: `url(${tile.url})`,
-              backgroundPosition: `-${tile.x}px -${tile.y}px`,
-            }} />
+            <div
+              className="kino-preview-img"
+              style={{
+                width: tile.w,
+                height: tile.h,
+                backgroundImage: `url(${tile.url})`,
+                backgroundPosition: `-${tile.x}px -${tile.y}px`,
+              }}
+            />
           )}
           <span className="kino-preview-time">{formatTime(hover.time)}</span>
         </div>
       )}
-      <div ref={trackRef} data-testid="kino-track" className="kino-track" onPointerDown={onPointerDown}>
+      <div
+        ref={trackRef}
+        data-testid="kino-track"
+        className="kino-track"
+        onPointerDown={onPointerDown}
+      >
         {buffered.map(([s, e], i) => (
-          <div key={i} className="kino-buffered" style={{
-            left: `${duration ? (s / duration) * 100 : 0}%`,
-            width: `${duration ? ((e - s) / duration) * 100 : 0}%`,
-          }} />
+          <div
+            key={i}
+            className="kino-buffered"
+            style={{
+              left: `${duration ? (s / duration) * 100 : 0}%`,
+              width: `${duration ? ((e - s) / duration) * 100 : 0}%`,
+            }}
+          />
         ))}
-        <div data-testid="kino-progress" className="kino-progress" style={{ width: `${pct}%` }} />
+        <div
+          data-testid="kino-progress"
+          className="kino-progress"
+          style={{ width: `${pct}%` }}
+        />
         <div className="kino-thumb" style={{ left: `${pct}%` }} />
       </div>
     </div>
@@ -1286,9 +1544,11 @@ git commit -m "feat: scrubber with buffered shading, drag-seek, storyboard previ
 ### Task 8: Idle overlay (hover-zoom play + speed pre-select)
 
 **Files:**
+
 - Create: `src/ui/idle-overlay.tsx`, `src/ui/idle-overlay.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `useMediaSelector`, `usePlayer`.
 - Produces: `<IdleOverlay />` — shown only while `currentTime === 0 && paused && !ended`.
 
@@ -1302,7 +1562,11 @@ import { IdleOverlay } from "./idle-overlay"
 
 test("shows speed options and starts playback at chosen rate", () => {
   const provider = createFakeProvider({ paused: true, currentTime: 0 })
-  render(<PlayerContext.Provider value={provider}><IdleOverlay /></PlayerContext.Provider>)
+  render(
+    <PlayerContext.Provider value={provider}>
+      <IdleOverlay />
+    </PlayerContext.Provider>,
+  )
   act(() => screen.getByRole("button", { name: "1.5x" }).click())
   expect(provider.getState().rate).toBe(1.5)
   expect(provider.getState().paused).toBe(false)
@@ -1310,7 +1574,11 @@ test("shows speed options and starts playback at chosen rate", () => {
 
 test("hidden once playback has progressed", () => {
   const provider = createFakeProvider({ paused: false, currentTime: 12 })
-  render(<PlayerContext.Provider value={provider}><IdleOverlay /></PlayerContext.Provider>)
+  render(
+    <PlayerContext.Provider value={provider}>
+      <IdleOverlay />
+    </PlayerContext.Provider>,
+  )
   expect(screen.queryByLabelText("Play")).toBeNull()
 })
 ```
@@ -1324,8 +1592,12 @@ import { useMediaSelector, usePlayer } from "../core/store"
 import { PlayIcon } from "./icons"
 
 const SPEEDS: Array<{ label: string; rate: number }> = [
-  { label: "0.8x", rate: 0.8 }, { label: "1x", rate: 1 }, { label: "1.2x", rate: 1.2 },
-  { label: "1.5x", rate: 1.5 }, { label: "1.7x", rate: 1.7 }, { label: "2x", rate: 2 },
+  { label: "0.8x", rate: 0.8 },
+  { label: "1x", rate: 1 },
+  { label: "1.2x", rate: 1.2 },
+  { label: "1.5x", rate: 1.5 },
+  { label: "1.7x", rate: 1.7 },
+  { label: "2x", rate: 2 },
   { label: "Max", rate: 2.5 },
 ]
 
@@ -1336,16 +1608,27 @@ export function IdleOverlay() {
   const ended = useMediaSelector((s) => s.ended)
   if (!paused || currentTime > 0 || ended) return null
 
-  const startAt = (rate: number) => { actions.setRate(rate); actions.play() }
+  const startAt = (rate: number) => {
+    actions.setRate(rate)
+    actions.play()
+  }
 
   return (
     <div className="kino-idle">
-      <button className="kino-idle-play" aria-label="Play" onClick={() => actions.play()}>
+      <button
+        className="kino-idle-play"
+        aria-label="Play"
+        onClick={() => actions.play()}
+      >
         <PlayIcon />
       </button>
       <div className="kino-idle-speeds kino-glass">
         {SPEEDS.map((s) => (
-          <button key={s.label} className="kino-speed-chip" onClick={() => startAt(s.rate)}>
+          <button
+            key={s.label}
+            className="kino-speed-chip"
+            onClick={() => startAt(s.rate)}
+          >
             {s.label}
           </button>
         ))}
@@ -1371,9 +1654,11 @@ git commit -m "feat: idle overlay with hover-zoom play and speed pre-select"
 ### Task 9: Popover primitive and Speed/Quality/Captions menus
 
 **Files:**
+
 - Create: `src/ui/popover.tsx`, `src/ui/menus.tsx`, `src/ui/menus.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `useMediaSelector`, `usePlayer`.
 - Produces:
   - `<Popover trigger={ReactNode} shortcut?: string>{children}</Popover>` — snappy glass popover; `shortcut` renders a keyboard badge in the trigger tooltip.
@@ -1389,7 +1674,11 @@ import { SpeedMenu, QualityMenu } from "./menus"
 
 test("speed menu sets rate", () => {
   const provider = createFakeProvider({ rate: 1 })
-  render(<PlayerContext.Provider value={provider}><SpeedMenu /></PlayerContext.Provider>)
+  render(
+    <PlayerContext.Provider value={provider}>
+      <SpeedMenu />
+    </PlayerContext.Provider>,
+  )
   act(() => screen.getByRole("button", { name: /1x speed/i }).click()) // open
   act(() => screen.getByRole("menuitemradio", { name: "1.5x" }).click())
   expect(provider.getState().rate).toBe(1.5)
@@ -1397,8 +1686,14 @@ test("speed menu sets rate", () => {
 
 test("quality menu hidden when capability is off", () => {
   const provider = createFakeProvider()
-  provider.set({ capabilities: { ...provider.getState().capabilities, canSetQuality: false } })
-  const { container } = render(<PlayerContext.Provider value={provider}><QualityMenu /></PlayerContext.Provider>)
+  provider.set({
+    capabilities: { ...provider.getState().capabilities, canSetQuality: false },
+  })
+  const { container } = render(
+    <PlayerContext.Provider value={provider}>
+      <QualityMenu />
+    </PlayerContext.Provider>,
+  )
   expect(container.firstChild).toBeNull()
 })
 ```
@@ -1410,19 +1705,39 @@ test("quality menu hidden when capability is off", () => {
 ```tsx
 import { useState, type ReactNode } from "react"
 
-export function Popover({ trigger, shortcut, label, children }: {
-  trigger: ReactNode; shortcut?: string; label: string; children: ReactNode
+export function Popover({
+  trigger,
+  shortcut,
+  label,
+  children,
+}: {
+  trigger: ReactNode
+  shortcut?: string
+  label: string
+  children: ReactNode
 }) {
   const [open, setOpen] = useState(false)
   return (
     <div className="kino-popover-root" onPointerLeave={() => setOpen(false)}>
-      <button className="kino-ctrl" aria-label={label} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <button
+        className="kino-ctrl"
+        aria-label={label}
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
         {trigger}
       </button>
       {!open && shortcut && (
-        <span className="kino-tip kino-glass">{label}<kbd>{shortcut}</kbd></span>
+        <span className="kino-tip kino-glass">
+          {label}
+          <kbd>{shortcut}</kbd>
+        </span>
       )}
-      {open && <div className="kino-menu kino-glass" role="menu">{children}</div>}
+      {open && (
+        <div className="kino-menu kino-glass" role="menu">
+          {children}
+        </div>
+      )}
     </div>
   )
 }
@@ -1444,10 +1759,24 @@ export function SpeedMenu() {
   if (!canSetRate) return null
   const label = rate === 2.5 ? "Max" : `${rate}x`
   return (
-    <Popover label={`${label} speed`} shortcut="S" trigger={<><GaugeIcon /><span className="kino-ctrl-label">{label}</span></>}>
+    <Popover
+      label={`${label} speed`}
+      shortcut="S"
+      trigger={
+        <>
+          <GaugeIcon />
+          <span className="kino-ctrl-label">{label}</span>
+        </>
+      }
+    >
       {RATES.map((r) => (
-        <button key={r} role="menuitemradio" aria-checked={r === rate} className="kino-menu-item"
-          onClick={() => actions.setRate(r)}>
+        <button
+          key={r}
+          role="menuitemradio"
+          aria-checked={r === rate}
+          className="kino-menu-item"
+          onClick={() => actions.setRate(r)}
+        >
           {r === 2.5 ? "Max" : `${r}x`}
         </button>
       ))}
@@ -1463,11 +1792,24 @@ export function QualityMenu() {
   if (!canSetQuality || qualities.length === 0) return null
   return (
     <Popover label="Quality" trigger={<SettingsIcon />}>
-      <button role="menuitemradio" aria-checked={active === "auto"} className="kino-menu-item"
-        onClick={() => actions.setQuality("auto")}>Auto</button>
+      <button
+        role="menuitemradio"
+        aria-checked={active === "auto"}
+        className="kino-menu-item"
+        onClick={() => actions.setQuality("auto")}
+      >
+        Auto
+      </button>
       {qualities.map((q) => (
-        <button key={q.id} role="menuitemradio" aria-checked={active === q.id} className="kino-menu-item"
-          onClick={() => actions.setQuality(q.id)}>{q.height}p</button>
+        <button
+          key={q.id}
+          role="menuitemradio"
+          aria-checked={active === q.id}
+          className="kino-menu-item"
+          onClick={() => actions.setQuality(q.id)}
+        >
+          {q.height}p
+        </button>
       ))}
     </Popover>
   )
@@ -1481,11 +1823,24 @@ export function CaptionsMenu() {
   if (!hasTextTracks || tracks.length === 0) return null
   return (
     <Popover label="Captions" shortcut="C" trigger={<CcIcon />}>
-      <button role="menuitemradio" aria-checked={active === null} className="kino-menu-item"
-        onClick={() => actions.setTextTrack(null)}>Off</button>
+      <button
+        role="menuitemradio"
+        aria-checked={active === null}
+        className="kino-menu-item"
+        onClick={() => actions.setTextTrack(null)}
+      >
+        Off
+      </button>
       {tracks.map((t) => (
-        <button key={t.id} role="menuitemradio" aria-checked={active === t.id} className="kino-menu-item"
-          onClick={() => actions.setTextTrack(t.id)}>{t.label || t.lang}</button>
+        <button
+          key={t.id}
+          role="menuitemradio"
+          aria-checked={active === t.id}
+          className="kino-menu-item"
+          onClick={() => actions.setTextTrack(t.id)}
+        >
+          {t.label || t.lang}
+        </button>
       ))}
     </Popover>
   )
@@ -1508,9 +1863,11 @@ git commit -m "feat: glass popover primitive and speed/quality/captions menus"
 ### Task 10: Control bar, buttons, and assembled chrome
 
 **Files:**
+
 - Create: `src/ui/buttons.tsx`, `src/ui/control-bar.tsx`, `src/ui/control-bar.test.tsx`
 
 **Interfaces:**
+
 - Consumes: all UI pieces above + `useControlsVisible`, `useWrapperRef`.
 - Produces: `<PlayPauseButton/>`, `<VolumeControl/>`, `<FullscreenButton/>`, `<PipButton/>`, and `<ControlBar/>` that lays them out with `<Scrubber/>` and the menus, fading via `useControlsVisible`.
 
@@ -1523,8 +1880,16 @@ import { ControlBar } from "./control-bar"
 import { createFakeProvider } from "../core/fake-provider"
 
 test("play/pause button toggles and shows time", () => {
-  const provider = createFakeProvider({ paused: true, duration: 68, currentTime: 3 })
-  render(<Player provider={provider}><ControlBar /></Player>)
+  const provider = createFakeProvider({
+    paused: true,
+    duration: 68,
+    currentTime: 3,
+  })
+  render(
+    <Player provider={provider}>
+      <ControlBar />
+    </Player>,
+  )
   expect(screen.getByText("0:03 / 1:08")).toBeInTheDocument()
   act(() => screen.getByRole("button", { name: "Play" }).click())
   expect(provider.getState().paused).toBe(false)
@@ -1543,7 +1908,12 @@ import { useMediaSelector } from "../core/store"
 import { formatTime } from "../util/format-time"
 import { Scrubber } from "./scrubber"
 import { SpeedMenu, QualityMenu, CaptionsMenu } from "./menus"
-import { PlayPauseButton, VolumeControl, PipButton, FullscreenButton } from "./buttons"
+import {
+  PlayPauseButton,
+  VolumeControl,
+  PipButton,
+  FullscreenButton,
+} from "./buttons"
 
 export function ControlBar() {
   const visible = useControlsVisible()
@@ -1555,7 +1925,9 @@ export function ControlBar() {
       <div className="kino-controls-row">
         <PlayPauseButton />
         <VolumeControl />
-        <span className="kino-time">{formatTime(currentTime)} / {formatTime(duration)}</span>
+        <span className="kino-time">
+          {formatTime(currentTime)} / {formatTime(duration)}
+        </span>
         <div className="kino-controls-spacer" />
         <SpeedMenu />
         <QualityMenu />
@@ -1586,11 +1958,13 @@ git commit -m "feat: control bar, buttons, assembled chrome"
 ### Task 11: `<MuxPlayer>` drop-in and Vite demo playground
 
 **Files:**
+
 - Create: `src/mux/mux-player.tsx`
 - Modify: `src/mux.ts` (export `MuxPlayer`)
 - Create: `demo/index.html`, `demo/main.tsx`, `demo/vite.config.ts`
 
 **Interfaces:**
+
 - Consumes: `Player`, `ControlBar`, `IdleOverlay`, `createMuxProvider`.
 - Produces: `<MuxPlayer>` with the prop surface from the spec.
 
@@ -1610,15 +1984,26 @@ export type MuxPlayerProps = MuxProviderOptions & {
   children?: ReactNode
 }
 
-export function MuxPlayer({ accentColor, theme, className, children, ...opts }: MuxPlayerProps) {
+export function MuxPlayer({
+  accentColor,
+  theme,
+  className,
+  children,
+  ...opts
+}: MuxPlayerProps) {
   // Recreate the provider only when the identity of the media changes.
   const provider = useMemo(
     () => createMuxProvider(opts),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [opts.playbackId, opts.tokens?.playback]
+    [opts.playbackId, opts.tokens?.playback],
   )
   return (
-    <Player provider={provider} accentColor={accentColor} theme={theme} className={className}>
+    <Player
+      provider={provider}
+      accentColor={accentColor}
+      theme={theme}
+      className={className}
+    >
       <IdleOverlay />
       <ControlBar />
       {children}
@@ -1660,6 +2045,7 @@ git commit -m "feat: MuxPlayer drop-in and demo playground"
 ### Task 12: README, license, Changesets, first release prep
 
 **Files:**
+
 - Create/modify: `README.md`, `.changeset/config.json`, `.changeset/initial.md`
 - Create: `.github/workflows/ci.yml`
 
@@ -1688,17 +2074,20 @@ gh repo create karngyan/kino --public --source=. --remote=origin --push
 ### Task 13: Swap kino into karnstack's lesson player
 
 **Files:**
+
 - Modify: `MONOREPO:/Users/karn/code/karnstack/karnstack/apps/web/package.json` (add dep)
 - Modify: `MONOREPO:/Users/karn/code/karnstack/karnstack/apps/web/src/components/course/lesson-video.tsx`
 - Reference (unchanged): `apps/web/src/lib/mux/sign-playback.ts`, `apps/web/src/lib/mux/lesson-blurups.ts`
 
 **Interfaces:**
+
 - Consumes: `MuxPlayer` and `Player.Overlay` semantics from kino.
 - Produces: the same `LessonVideo` public props as today (no caller changes in the course routes).
 
 - [ ] **Step 1: Link kino into karnstack for dev**
 
 In kino: `pnpm build`. In `MONOREPO:.../apps/web`, add the dependency. Two options, pick one and record it:
+
 - Workspace path dep: add `"@karnstack/kino": "file:../../../kino"` to `apps/web/package.json` then `pnpm install` from the monorepo root. (kino is outside the pnpm workspace globs, so a `file:` dep is correct.)
 - Or `pnpm --filter web add @karnstack/kino@file:../../../kino`.
 
@@ -1715,7 +2104,7 @@ import { MuxPlayer } from "@karnstack/kino/mux"
 // remove: import MuxPlayer from "@mux/mux-player-react/lazy"
 
 // inside the `if (lastReady)` branch, replace the <MuxPlayer .../> with:
-<MuxPlayer
+;<MuxPlayer
   playbackId={activeTokens.playbackId}
   tokens={{
     playback: activeTokens.playback,
@@ -1769,6 +2158,7 @@ git commit -m "feat: adopt @karnstack/kino for the lesson video player"
 ## Self-Review
 
 **Spec coverage:**
+
 - Provider architecture, MediaState, Capabilities, store -> Tasks 2, 5.
 - Subpath exports / no-Tailwind CSS / theming -> Tasks 1, 12.
 - Mux verified API (raw element, renditions, image URLs, iOS gating, Mux Data, PiP, fullscreen) -> Task 5, demo-verified Task 11.
@@ -1779,4 +2169,7 @@ git commit -m "feat: adopt @karnstack/kino for the lesson video player"
 **Placeholder scan:** No "TBD/TODO". The one deliberate v0.0.1 simplification (`open-speed` keyboard focus into the menu) is called out explicitly in Task 6 and completed via the menus in Task 9; not a hidden gap.
 
 **Type consistency:** `MediaState`, `Capabilities`, `Provider`, `PlayerActions`, `QualityLevel`, `TextTrackInfo`, `MuxProviderOptions`, `buildImageUrl`, `detectIOS`, `parseStoryboard`/`Storyboard`/`Tile`, `resolveKey`/`KeyAction`, `formatTime`, `useMediaSelector`/`usePlayer`/`PlayerContext`, `Player`/`Player.Overlay`/`useControlsVisible`/`useWrapperRef` — names used consistently across all referencing tasks.
+
+```
+
 ```

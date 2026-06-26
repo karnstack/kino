@@ -27,7 +27,9 @@ export function SpeedMenu() {
       label="Speed"
       shortcut="S"
       openOn="kino:open-speed"
-      trigger={<span className="kino-ctrl-label kino-speed-label">{label}</span>}
+      trigger={
+        <span className="kino-ctrl-label kino-speed-label">{label}</span>
+      }
     >
       {RATES.map((r) => (
         <button
@@ -63,7 +65,9 @@ export function QualityMenu() {
     <Popover
       label="Quality"
       align="end"
-      trigger={<span className="kino-quality-badge">{heightKeyword(badgeHeight)}</span>}
+      trigger={
+        <span className="kino-quality-badge">{heightKeyword(badgeHeight)}</span>
+      }
     >
       <button
         role="menuitemradio"

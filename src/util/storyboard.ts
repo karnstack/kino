@@ -7,7 +7,10 @@ export type Tile = {
   start: number
   end: number
 }
-export type Storyboard = { tiles: Tile[]; thumbnailAt(time: number): Tile | null }
+export type Storyboard = {
+  tiles: Tile[]
+  thumbnailAt(time: number): Tile | null
+}
 
 function toSeconds(stamp: string): number {
   // hh:mm:ss.mmm or mm:ss.mmm

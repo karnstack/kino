@@ -45,18 +45,18 @@ The quickest knob is the `accentColor` prop, which drives the scrubber fill, act
 
 For deeper control, every visual is driven by CSS custom properties on the `.kino` root. Override them in your own stylesheet, or pass a `theme` object of property/value pairs to set them inline.
 
-| Custom property | Default | Role |
-| --- | --- | --- |
-| `--kino-accent` | `oklch(50.8% 0.118 165.612)` | Accent color (progress, active items, ranges) |
-| `--kino-radius` | `12px` | Corner radius of glass surfaces |
-| `--kino-surface` | `color-mix(in oklab, black 55%, transparent)` | Glass surface fill |
-| `--kino-surface-strong` | `color-mix(in oklab, black 70%, transparent)` | Stronger surface (idle play button) |
-| `--kino-border` | `color-mix(in oklab, white 14%, transparent)` | Hairline borders |
-| `--kino-text` | `oklch(98% 0 0)` | Primary text and icons |
-| `--kino-text-dim` | `color-mix(in oklab, white 65%, transparent)` | Secondary text (timecode) |
-| `--kino-blur` | `18px` | Backdrop blur radius |
-| `--kino-shadow` | `0 8px 40px rgba(0, 0, 0, 0.45)` | Surface drop shadow |
-| `--kino-ease` | `cubic-bezier(0.22, 1, 0.36, 1)` | Shared transition easing |
+| Custom property         | Default                                       | Role                                          |
+| ----------------------- | --------------------------------------------- | --------------------------------------------- |
+| `--kino-accent`         | `oklch(50.8% 0.118 165.612)`                  | Accent color (progress, active items, ranges) |
+| `--kino-radius`         | `12px`                                        | Corner radius of glass surfaces               |
+| `--kino-surface`        | `color-mix(in oklab, black 55%, transparent)` | Glass surface fill                            |
+| `--kino-surface-strong` | `color-mix(in oklab, black 70%, transparent)` | Stronger surface (idle play button)           |
+| `--kino-border`         | `color-mix(in oklab, white 14%, transparent)` | Hairline borders                              |
+| `--kino-text`           | `oklch(98% 0 0)`                              | Primary text and icons                        |
+| `--kino-text-dim`       | `color-mix(in oklab, white 65%, transparent)` | Secondary text (timecode)                     |
+| `--kino-blur`           | `18px`                                        | Backdrop blur radius                          |
+| `--kino-shadow`         | `0 8px 40px rgba(0, 0, 0, 0.45)`              | Surface drop shadow                           |
+| `--kino-ease`           | `cubic-bezier(0.22, 1, 0.36, 1)`              | Shared transition easing                      |
 
 ```css
 .kino {
@@ -70,15 +70,15 @@ For deeper control, every visual is driven by CSS custom properties on the `.kin
 
 The player is keyboard-first. Shortcuts are ignored while a text input, textarea, select, or contenteditable element is focused, and modifier-key combinations (Ctrl/Cmd/Alt) are passed through.
 
-| Key | Action |
-| --- | --- |
-| `Space` / `K` | Play / pause |
-| `<` / `>` | Decrease / increase playback rate (0.25 step) |
-| `M` | Toggle mute |
-| `C` | Toggle captions |
-| `S` | Open the speed menu |
-| `F` | Toggle fullscreen |
-| `0`-`9` | Seek to 0%-90% of the duration |
+| Key           | Action                                        |
+| ------------- | --------------------------------------------- |
+| `Space` / `K` | Play / pause                                  |
+| `<` / `>`     | Decrease / increase playback rate (0.25 step) |
+| `M`           | Toggle mute                                   |
+| `C`           | Toggle captions                               |
+| `S`           | Open the speed menu                           |
+| `F`           | Toggle fullscreen                             |
+| `0`-`9`       | Seek to 0%-90% of the duration                |
 
 ## Capability gating
 

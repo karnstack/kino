@@ -20,7 +20,11 @@ export function PlayPauseButton() {
   const actions = usePlayerActions()
   const paused = useMediaSelector((s) => s.paused)
   return (
-    <Tooltip label={paused ? "Play" : "Pause"} shortcut={<SpaceKey />} align="start">
+    <Tooltip
+      label={paused ? "Play" : "Pause"}
+      shortcut={<SpaceKey />}
+      align="start"
+    >
       <button
         type="button"
         className="kino-ctrl"
@@ -63,7 +67,9 @@ export function SkipForwardButton() {
         aria-label={`Forward ${SKIP_SECONDS} seconds`}
         onClick={() =>
           actions.seek(
-            duration ? Math.min(duration, currentTime + SKIP_SECONDS) : currentTime + SKIP_SECONDS
+            duration
+              ? Math.min(duration, currentTime + SKIP_SECONDS)
+              : currentTime + SKIP_SECONDS,
           )
         }
       >

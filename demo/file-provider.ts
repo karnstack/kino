@@ -16,7 +16,9 @@ export function createFileProvider(src: string, poster?: string): Provider {
     capabilities: {
       canSetQuality: false,
       hasStoryboard: false,
-      canPiP: typeof document !== "undefined" && "pictureInPictureEnabled" in document,
+      canPiP:
+        typeof document !== "undefined" &&
+        "pictureInPictureEnabled" in document,
       canFullscreen: true,
       canSetRate: true,
       hasTextTracks: false,
