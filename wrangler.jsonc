@@ -1,10 +1,12 @@
 {
-  // Cloudflare Pages config for the demo playground (kino.karnstack.com).
-  // Pages requires `pages_build_output_dir`; without it Pages ignores this
-  // file entirely. `name` is the Pages project name. Only demo/dist is
-  // uploaded — never the root dist/ (that is the npm package build) — and
-  // this file is not in files:["dist"], so it never ships to npm.
+  // Static-assets Worker for the demo playground (kino.karnstack.com).
+  // Deployed via `wrangler deploy` (production) and `wrangler versions upload`
+  // (preview branches); both read `assets.directory`. Only demo/dist is
+  // uploaded — never the root dist/ (that is the npm package build) — and this
+  // file is not in files:["dist"], so it never ships to npm.
   "name": "kino",
-  "pages_build_output_dir": "./demo/dist",
   "compatibility_date": "2026-06-27",
+  "assets": {
+    "directory": "./demo/dist",
+  },
 }
