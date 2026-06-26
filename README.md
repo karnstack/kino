@@ -1,6 +1,28 @@
-# @karnstack/kino
+<p align="center">
+  <img src="./assets/kino-banner.png" alt="kino" width="720" />
+</p>
 
-A premium, themeable React video player with a pluggable-provider architecture. Translucent, frosted-glass chrome, keyboard-first controls, and a small typed surface. Mux is the first provider.
+<p align="center">
+  A themeable React video player with a pluggable-provider architecture —
+  translucent glass chrome, keyboard-first controls, and a small typed surface.
+  Mux is the first provider.
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/@karnstack/kino"><img alt="npm" src="https://img.shields.io/badge/npm-%40karnstack%2Fkino-10b981?logo=npm&logoColor=white"></a>
+  &nbsp;
+  <a href="./LICENSE"><img alt="license MIT" src="https://img.shields.io/badge/license-MIT-10b981"></a>
+  &nbsp;
+  <a href="https://kino.karnstack.com"><img alt="live playground" src="https://img.shields.io/badge/playground-kino.karnstack.com-10b981"></a>
+</p>
+
+<p align="center">
+  <a href="https://kino.karnstack.com">
+    <img src="./assets/playground.png" alt="The kino playground" width="100%" />
+  </a>
+</p>
+
+> **[Try it live → kino.karnstack.com](https://kino.karnstack.com)** — drop in any public Mux playback ID, pick an accent, and play with the real glass UI.
 
 kino ships the player UI and a provider contract. Each provider adapts a streaming engine to that contract, so the same glass chrome can sit on top of different backends. The Mux provider is built on the `@mux/mux-video` custom element.
 
@@ -100,7 +122,7 @@ pnpm typecheck  # tsc --noEmit
 pnpm lint       # eslint
 ```
 
-`pnpm dev` runs the demo harness, which plays a public sample clip through a small demo file provider. No Mux account or signed tokens are needed to see the real glass UI. To exercise the Mux provider in the demo, set `VITE_MUX_PLAYBACK_ID` (and optionally the matching token env vars) before running `pnpm dev`.
+`pnpm dev` runs the playground in `demo/` — the real kino glass UI on the Mux provider, playing public sample assets. Paste any public Mux playback ID, switch accent colors, and tweak the corner radius live; no Mux account or signed tokens required. The same playground is deployed at [kino.karnstack.com](https://kino.karnstack.com).
 
 ## Roadmap
 

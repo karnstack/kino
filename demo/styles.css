@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+/* Geist + Geist Mono: precise, Swiss-flavored, developer-grade — and the mono
+   pairs with the player's own tabular time readout. Loaded via <link> in index.html. */
+@theme {
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono:
+    "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    /* Soft cinema spotlight bleeding from the top, fading to near-black. */
+    background:
+      radial-gradient(1100px 560px at 50% -8%, #16202e, #0a0d12 60%) no-repeat,
+      #0a0d12;
+    background-attachment: fixed;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+}
+
+/* Range slider (corner-radius control) — themed to the live accent. Lives
+   outside the player's own scoped `.kino` styles, so it needs its own paint. */
+.pg-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in oklab, white 14%, transparent);
+  cursor: pointer;
+}
+.pg-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #fff;
+  border: 3px solid var(--accent);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+}
+.pg-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #fff;
+  border: 3px solid var(--accent);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+}
+.pg-range:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+/* Native color input: strip the chrome so it reads as a round swatch. */
+.pg-color {
+  -webkit-appearance: none;
+  appearance: none;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+.pg-color::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.pg-color::-webkit-color-swatch {
+  border: none;
+  border-radius: 999px;
+}
+.pg-color::-moz-color-swatch {
+  border: none;
+  border-radius: 999px;
+}
