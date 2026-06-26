@@ -1,8 +1,9 @@
 {
   // Static-assets Worker for the demo playground (kino.karnstack.com).
-  // Unrelated to the published library: only `demo/dist` is uploaded, never
-  // the root `dist/` (that is the npm package build). Not in files:["dist"],
-  // so this never ships to npm.
+  // Deployed via `wrangler deploy` (production) and `wrangler versions upload`
+  // (preview branches); both read `assets.directory`. Only demo/dist is
+  // uploaded — never the root dist/ (that is the npm package build) — and this
+  // file is not in files:["dist"], so it never ships to npm.
   "name": "kino",
   "compatibility_date": "2026-06-27",
   "assets": {
