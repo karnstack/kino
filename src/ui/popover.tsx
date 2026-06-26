@@ -1,20 +1,26 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { useWrapperRef } from "./player"
+import { renderShortcut, type TipAlign } from "./tooltip"
 
 export function Popover({
   trigger,
   shortcut,
   label,
   openOn,
+  align = "center",
   children,
 }: {
   trigger: ReactNode
-  shortcut?: string
+  shortcut?: ReactNode
   label: string
   openOn?: string
+  align?: TipAlign
   children: ReactNode
 }) {
   const [open, setOpen] = useState(false)
+  // After selecting an item the menu closes while the pointer is still over the
+  // trigger — suppress the hover tooltip until the pointer actually leaves.
+  const [justClosed, setJustClosed] = useState(false)
   const rootRef = useRef<HTMLDivElement | null>(null)
   const wrapperRef = useWrapperRef()
 
@@ -47,7 +53,7 @@ export function Popover({
     <div
       className="kino-popover-root"
       ref={rootRef}
-      onPointerLeave={() => setOpen(false)}
+      onPointerLeave={() => setJustClosed(false)}
     >
       <button
         className="kino-ctrl"
@@ -58,14 +64,24 @@ export function Popover({
       >
         {trigger}
       </button>
-      {!open && shortcut && (
-        <span className="kino-tip kino-glass">
+      {!open && !justClosed && (
+        <span
+          className={`kino-tip kino-glass kino-tip-${align}`}
+          aria-hidden="true"
+        >
           {label}
-          <kbd>{shortcut}</kbd>
+          {renderShortcut(shortcut)}
         </span>
       )}
       {open && (
-        <div className="kino-menu kino-glass" role="menu">
+        <div
+          className={`kino-menu kino-glass kino-menu-${align}`}
+          role="menu"
+          onClick={() => {
+            setOpen(false)
+            setJustClosed(true)
+          }}
+        >
           {children}
         </div>
       )}

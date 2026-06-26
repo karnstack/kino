@@ -1,18 +1,14 @@
+import type { CSSProperties } from "react"
 import { useMediaSelector, usePlayerActions } from "../core/store"
+import { useIsCompact } from "./player"
 import { PlayIcon } from "./icons"
 
-const SPEEDS: Array<{ label: string; rate: number }> = [
-  { label: "0.8x", rate: 0.8 },
-  { label: "1x", rate: 1 },
-  { label: "1.2x", rate: 1.2 },
-  { label: "1.5x", rate: 1.5 },
-  { label: "1.7x", rate: 1.7 },
-  { label: "2x", rate: 2 },
-  { label: "Max", rate: 2.5 },
-]
+const SPEEDS = [0.8, 1, 1.2, 1.5, 1.7, 2, 2.5]
+const MAX_RATE = 2.5
 
 export function IdleOverlay() {
   const actions = usePlayerActions()
+  const compact = useIsCompact()
   const paused = useMediaSelector((s) => s.paused)
   const currentTime = useMediaSelector((s) => s.currentTime)
   const ended = useMediaSelector((s) => s.ended)
@@ -25,7 +21,7 @@ export function IdleOverlay() {
   }
 
   return (
-    <div className="kino-idle">
+    <div className="kino-idle" onClick={() => actions.play()}>
       <button
         type="button"
         className="kino-idle-play"
@@ -34,21 +30,37 @@ export function IdleOverlay() {
       >
         <PlayIcon />
       </button>
-      <div className="kino-idle-speeds kino-glass">
-        {SPEEDS.map((s) => (
-          <button
-            key={s.label}
-            type="button"
-            className="kino-speed-chip"
-            aria-pressed={s.rate === rate}
-            data-active={s.rate === rate}
-            data-max={s.rate === 2.5}
-            onClick={() => startAt(s.rate)}
-          >
-            {s.label}
-          </button>
-        ))}
-      </div>
+      {!compact && (
+        <div className="kino-idle-speeds">
+          {SPEEDS.map((r, i) => {
+            const isMax = r === MAX_RATE
+            return (
+              <button
+                key={r}
+                type="button"
+                className="kino-speed-chip"
+                style={{ "--i": i } as CSSProperties}
+                aria-label={isMax ? "Max" : `${r}x`}
+                aria-pressed={r === rate}
+                data-active={r === rate}
+                data-max={isMax}
+                onClick={() => startAt(r)}
+              >
+                {isMax ? (
+                  <>
+                    <span className="kino-bolt" aria-hidden="true">
+                      ⚡
+                    </span>
+                    Max
+                  </>
+                ) : (
+                  `${r}×`
+                )}
+              </button>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

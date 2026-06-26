@@ -2,6 +2,7 @@ import { useEffect, useRef, type ReactNode } from "react"
 import { Player } from "../ui/player"
 import { ControlBar } from "../ui/control-bar"
 import { IdleOverlay } from "../ui/idle-overlay"
+import { Captions } from "../ui/captions"
 import { createMuxProvider, type MuxProviderOptions } from "./provider"
 import type { Provider } from "../core/types"
 
@@ -58,6 +59,7 @@ export function MuxPlayer({
       className={className}
     >
       <IdleOverlay />
+      <Captions />
       <ControlBar />
       {children}
     </Player>

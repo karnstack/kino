@@ -9,8 +9,9 @@ export function defaultState(): MediaState {
   return {
     paused: true, currentTime: 0, duration: 0, buffered: [],
     rate: 1, volume: 1, muted: false, readyState: 0, seeking: false,
-    ended: false, error: null, qualities: [], activeQualityId: "auto",
-    textTracks: [], activeTextTrackId: null, fullscreen: false, pip: false,
+    ended: false, error: null, qualities: [], activeQualityId: "auto", videoHeight: 0,
+    textTracks: [], activeTextTrackId: null, activeCueText: "",
+    fullscreen: false, pip: false,
     storyboard: null, capabilities: { ...DEFAULT_CAPS },
   }
 }

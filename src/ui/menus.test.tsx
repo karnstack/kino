@@ -11,7 +11,7 @@ test("speed menu sets rate", () => {
       <SpeedMenu />
     </PlayerContext.Provider>
   )
-  act(() => screen.getByRole("button", { name: /1x speed/i }).click()) // open
+  act(() => screen.getByRole("button", { name: /speed/i }).click()) // open
   act(() => screen.getByRole("menuitemradio", { name: "1.5x" }).click())
   expect(provider.getState().rate).toBe(1.5)
 })

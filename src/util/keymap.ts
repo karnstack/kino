@@ -25,6 +25,9 @@ export function resolveKey(e: KeyboardEvent): KeyAction | null {
   switch (e.key) {
     case " ":
     case "k":
+    case "MediaPlayPause":
+    case "MediaPlay":
+    case "MediaPause":
       return { type: "toggle-play" }
     case "ArrowRight":
       return { type: "seek-by", delta: 5 }

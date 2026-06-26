@@ -1,13 +1,13 @@
 export type QualityLevel = {
-  id: string            // rendition id from the engine
-  height: number        // e.g. 1080
-  bitrate: number       // bits/sec
-  selected: boolean     // currently the pinned manual selection
+  id: string // rendition id from the engine
+  height: number // e.g. 1080
+  bitrate: number // bits/sec
+  selected: boolean // currently the pinned manual selection
 }
 
 export type TextTrackInfo = {
   id: string
-  kind: string          // "subtitles" | "captions" | ...
+  kind: string // "subtitles" | "captions" | ...
   label: string
   lang: string
   mode: "showing" | "hidden" | "disabled"
@@ -17,7 +17,7 @@ export type Capabilities = {
   canSetQuality: boolean
   hasStoryboard: boolean
   canPiP: boolean
-  canFullscreen: boolean   // custom-chrome fullscreen (false on iPhone)
+  canFullscreen: boolean // fullscreen available (custom chrome, or native on iPhone)
   canSetRate: boolean
   hasTextTracks: boolean
 }
@@ -28,18 +28,20 @@ export type MediaState = {
   paused: boolean
   currentTime: number
   duration: number
-  buffered: Array<[number, number]>   // [start, end] seconds
+  buffered: Array<[number, number]> // [start, end] seconds
   rate: number
-  volume: number                       // 0..1
+  volume: number // 0..1
   muted: boolean
-  readyState: number                   // HTMLMediaElement.readyState
+  readyState: number // HTMLMediaElement.readyState
   seeking: boolean
   ended: boolean
   error: MediaError | null
   qualities: QualityLevel[]
   activeQualityId: string | "auto"
+  videoHeight: number // currently-decoded frame height (0 if unknown)
   textTracks: TextTrackInfo[]
   activeTextTrackId: string | null
+  activeCueText: string // text of the currently showing caption cue
   fullscreen: boolean
   pip: boolean
   storyboard: { vttUrl: string } | null

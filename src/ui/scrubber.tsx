@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -7,6 +8,7 @@ import {
 import { useMediaSelector, usePlayerActions } from "../core/store"
 import { parseStoryboard, type Storyboard } from "../util/storyboard"
 import { formatTime } from "../util/format-time"
+import { RollingTime } from "./rolling-time"
 
 export function Scrubber() {
   const actions = usePlayerActions()
@@ -17,8 +19,12 @@ export function Scrubber() {
   const hasStoryboard = useMediaSelector((s) => s.capabilities.hasStoryboard)
 
   const trackRef = useRef<HTMLDivElement | null>(null)
+  const previewRef = useRef<HTMLDivElement | null>(null)
   const [hover, setHover] = useState<{ x: number; time: number } | null>(null)
   const [sb, setSb] = useState<Storyboard | null>(null)
+  // measured (post-transform) preview width + track width, to keep the preview
+  // from spilling past either edge of the player
+  const [dims, setDims] = useState<{ pw: number; tw: number }>({ pw: 0, tw: 0 })
 
   useEffect(() => {
     if (!hasStoryboard || !storyboardUrl) return
@@ -62,6 +68,19 @@ export function Scrubber() {
 
   const tile = sb && hover ? sb.thumbnailAt(hover.time) : null
 
+  useLayoutEffect(() => {
+    const pw = previewRef.current?.getBoundingClientRect().width ?? 0
+    const tw = trackRef.current?.getBoundingClientRect().width ?? 0
+    setDims({ pw, tw })
+  }, [hover, tile?.url])
+
+  // Center the preview on the cursor, but clamp so it never crosses an edge.
+  let previewLeft = hover?.x ?? 0
+  if (hover && dims.pw > 0 && dims.tw > 0) {
+    const half = dims.pw / 2 + 4
+    previewLeft = Math.min(Math.max(hover.x, half), dims.tw - half)
+  }
+
   return (
     <div
       className="kino-scrubber"
@@ -69,7 +88,11 @@ export function Scrubber() {
       onPointerLeave={() => setHover(null)}
     >
       {hover && (
-        <div className="kino-preview kino-glass" style={{ left: hover.x }}>
+        <div
+          ref={previewRef}
+          className="kino-preview kino-glass"
+          style={{ left: previewLeft }}
+        >
           {tile && (
             <div
               className="kino-preview-img"
@@ -81,7 +104,9 @@ export function Scrubber() {
               }}
             />
           )}
-          <span className="kino-preview-time">{formatTime(hover.time)}</span>
+          <span className="kino-preview-time">
+            <RollingTime value={formatTime(hover.time)} />
+          </span>
         </div>
       )}
       <div
