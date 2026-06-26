@@ -20,6 +20,10 @@ export function Scrubber() {
 
   const trackRef = useRef<HTMLDivElement | null>(null)
   const previewRef = useRef<HTMLDivElement | null>(null)
+  // Cleanup for an in-flight drag, so window listeners don't outlive the
+  // component if it unmounts mid-drag (e.g. layout swaps compact <-> desktop).
+  const dragCleanup = useRef<(() => void) | null>(null)
+  useEffect(() => () => dragCleanup.current?.(), [])
   const [hover, setHover] = useState<{ x: number; time: number } | null>(null)
   const [sb, setSb] = useState<Storyboard | null>(null)
   // measured (post-transform) preview width + track width, to keep the preview
@@ -55,9 +59,13 @@ export function Scrubber() {
     const up = () => {
       window.removeEventListener("pointermove", move)
       window.removeEventListener("pointerup", up)
+      window.removeEventListener("pointercancel", up)
+      dragCleanup.current = null
     }
+    dragCleanup.current = up
     window.addEventListener("pointermove", move)
     window.addEventListener("pointerup", up)
+    window.addEventListener("pointercancel", up)
   }
 
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {

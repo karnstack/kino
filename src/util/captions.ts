@@ -34,7 +34,7 @@ export function activeCueText(
       const hits: TextTrackCue[] = []
       for (let j = 0; j < all.length; j++) {
         const c = all[j]
-        if (c && c.startTime <= now && now <= c.endTime) hits.push(c)
+        if (c && c.startTime <= now && now < c.endTime) hits.push(c)
       }
       const text = joinCues(hits)
       if (text) return text
