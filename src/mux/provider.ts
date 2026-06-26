@@ -298,7 +298,11 @@ export function createMuxProvider(opts: MuxProviderOptions): Provider {
       if (el) el.currentTime = t
     },
     setRate: (r) => {
-      if (el) el.playbackRate = r
+      if (!el) return
+      el.playbackRate = r
+      // Loading a new source resets playbackRate to defaultPlaybackRate, so keep
+      // them in lockstep — otherwise the chosen rate drops to 1x on every swap.
+      el.defaultPlaybackRate = r
     },
     setVolume: (v) => {
       if (el) el.volume = Math.min(1, Math.max(0, v))
@@ -367,6 +371,9 @@ export function createMuxProvider(opts: MuxProviderOptions): Provider {
         buildImageUrl(opts.playbackId, "thumbnail", opts.tokens?.thumbnail)
       if (opts.autoPlay) el.autoplay = true
       el.playbackRate = state.rate
+      // defaultPlaybackRate is what the element reverts to when a new source
+      // loads; seed it so the initial rate survives the first (and every) load.
+      el.defaultPlaybackRate = state.rate
       if (opts.envKey) el.envKey = opts.envKey
       if (opts.metadata) {
         el.metadata = {

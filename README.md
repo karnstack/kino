@@ -57,6 +57,16 @@ Give the player a sized container. It fills `100%` width and height of its paren
 
 kino is auth-agnostic. For signed playback you mint the `playback`, `thumbnail`, and `storyboard` tokens server-side and hand them to the player through the `tokens` prop. The player never holds a signing key and never talks to your auth layer; it only appends the tokens you give it to the media, thumbnail, and storyboard URLs. For public playback you can omit `tokens` entirely.
 
+### Blur-up placeholder
+
+Before the poster and first frame load, the video box is empty. Pass a small `placeholder` (a base64 data URI or a URL) and kino paints it behind the video as a blur-up; the sharp poster covers it once decoded, and it reappears briefly across source swaps.
+
+```tsx
+<MuxPlayer playbackId="..." placeholder={blurDataUrl} />
+```
+
+The poster itself stays the signed Mux thumbnail (kino derives it from `playbackId` + the `thumbnail` token), so `placeholder` is purely the instant low-res layer underneath.
+
 ## Theming
 
 The quickest knob is the `accentColor` prop, which drives the scrubber fill, active menu items, and range controls.
