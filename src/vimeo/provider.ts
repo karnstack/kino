@@ -155,8 +155,6 @@ export function createVimeoProvider(opts: VimeoProviderOptions): Provider {
   let player: VimeoPlayer | null = null
   let destroyed = false
   let desiredRate = opts.defaultRate ?? 1
-  // Watches for the SDK-injected iframe so we can grant it PiP (see createPlayer).
-  let pipObserver: MutationObserver | null = null
 
   let state: MediaState = {
     ...defaultState(),
@@ -165,9 +163,16 @@ export function createVimeoProvider(opts: VimeoProviderOptions): Provider {
     capabilities: {
       canSetRate: true, // best-effort: setPlaybackRate is plan-gated, can't probe
       hasStoryboard: false,
-      canPiP: !!(
-        typeof document !== "undefined" && document.pictureInPictureEnabled
-      ),
+      // PiP is not available from the parent frame. The Vimeo SDK's
+      // requestPictureInPicture() is a plain postMessage to the cross-origin
+      // player.vimeo.com iframe; postMessage does not transfer transient user
+      // activation, so video.requestPictureInPicture() inside the iframe runs
+      // without a user gesture and the browser rejects it (NotAllowedError:
+      // "Must be handling a user gesture…"). The Vimeo SDK has no capability-
+      // delegation path (vimeo/player.js#696, vimeo/player.js#734, closed
+      // not-planned). Same limitation as YouTube — canPiP: false hides the
+      // dead button.
+      canPiP: false,
       canFullscreen: true,
       // Flip on at `loaded` once getQualities/getTextTracks return non-empty.
       canSetQuality: false,
@@ -221,8 +226,8 @@ export function createVimeoProvider(opts: VimeoProviderOptions): Provider {
     exitFullscreen: () => {
       if (document.fullscreenElement) void document.exitFullscreen?.()
     },
-    enterPiP: () => void player?.requestPictureInPicture().catch(() => {}),
-    exitPiP: () => void player?.exitPictureInPicture().catch(() => {}),
+    enterPiP: () => {},
+    exitPiP: () => {},
   }
 
   const setSessionMetadata = (title: string) => {
@@ -344,34 +349,6 @@ export function createVimeoProvider(opts: VimeoProviderOptions): Provider {
     if (initial.hash) ctorOpts.url = playerUrl(initial.id, initial.hash)
     else ctorOpts.id = initial.id
 
-    // The Vimeo SDK programmatically creates the iframe with only
-    // allow="autoplay; encrypted-media" — "picture-in-picture" is absent.
-    // Browsers enforce Permissions Policy at the iframe boundary: without it,
-    // requestPictureInPicture() inside the cross-origin player.vimeo.com frame
-    // is silently rejected regardless of user gesture. Patch the attribute as
-    // soon as the SDK inserts the iframe so the delegation is present before
-    // the frame's document loads (Permissions Policy is evaluated at navigation
-    // time, not at call time).
-    pipObserver = new MutationObserver((mutations) => {
-      for (const m of mutations) {
-        for (const node of m.addedNodes) {
-          if (node instanceof HTMLIFrameElement) {
-            const current = node.getAttribute("allow") ?? ""
-            if (!current.includes("picture-in-picture")) {
-              node.setAttribute(
-                "allow",
-                current ? `${current}; picture-in-picture` : "picture-in-picture",
-              )
-            }
-            pipObserver?.disconnect()
-            pipObserver = null
-            return
-          }
-        }
-      }
-    })
-    pipObserver.observe(host, { childList: true, subtree: true })
-
     const p = new v.Player(host, ctorOpts)
     player = p
     void p.ready().then(() => {
@@ -420,8 +397,6 @@ export function createVimeoProvider(opts: VimeoProviderOptions): Provider {
     actions,
     destroy() {
       destroyed = true
-      pipObserver?.disconnect()
-      pipObserver = null
       document.removeEventListener("fullscreenchange", onFullscreenChange)
       try {
         void player?.destroy()

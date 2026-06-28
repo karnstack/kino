@@ -368,16 +368,21 @@ describe("actions", () => {
     provider.destroy()
   })
 
-  it("setQuality + PiP call the SDK", async () => {
+  it("setQuality calls the SDK", async () => {
     const { provider, player } = await ready({ videoId: "1" })
     provider.actions.setQuality("1080p")
+    expect(names(player)).toContain("setQuality")
+    provider.destroy()
+  })
+
+  it("enterPiP and exitPiP are no-ops (PiP is not available from the parent frame)", async () => {
+    const { provider, player } = await ready({ videoId: "1" })
+    // Must not throw, and must not call the SDK (postMessage-based PiP rejects
+    // inside the cross-origin iframe without user activation).
     provider.actions.enterPiP()
     provider.actions.exitPiP()
-    expect(names(player)).toEqual([
-      "setQuality",
-      "requestPictureInPicture",
-      "exitPictureInPicture",
-    ])
+    expect(names(player)).not.toContain("requestPictureInPicture")
+    expect(names(player)).not.toContain("exitPictureInPicture")
     provider.destroy()
   })
 })
@@ -429,36 +434,18 @@ describe("captions", () => {
   })
 })
 
-describe("picture-in-picture allow attribute", () => {
+describe("picture-in-picture capability", () => {
   beforeEach(() => installFakeVimeo())
   afterEach(() => uninstallFakeVimeo())
 
-  // Regression: the Vimeo SDK creates the iframe with only
-  // allow="autoplay; encrypted-media". Without "picture-in-picture" the browser
-  // silently rejects requestPictureInPicture() inside the cross-origin frame
-  // (Permissions Policy enforcement at the iframe boundary). kino must patch
-  // the attribute via MutationObserver before the frame navigation completes.
-  it("patches allow=picture-in-picture on the SDK-injected iframe", async () => {
+  // PiP cannot be driven from the parent frame. The Vimeo SDK's
+  // requestPictureInPicture() is a plain postMessage; postMessage does not
+  // transfer transient user activation, so the browser rejects it inside the
+  // cross-origin iframe (vimeo/player.js#696, #734 — closed not-planned).
+  // canPiP: false hides the dead button; same approach as YouTube.
+  it("reports canPiP: false regardless of document.pictureInPictureEnabled", () => {
     const provider = createVimeoProvider({ videoId: "1" })
-    const container = mount(provider)
-    await flush()
-    const iframe = container.querySelector("iframe")
-    expect(iframe).not.toBeNull()
-    expect(iframe?.getAttribute("allow")).toContain("picture-in-picture")
-    provider.destroy()
-  })
-
-  it("appends to the SDK's existing allow tokens without dropping them", async () => {
-    // The fake injects allow="autoplay; encrypted-media" like the real SDK.
-    const provider = createVimeoProvider({ videoId: "1" })
-    const container = mount(provider)
-    await flush()
-    const allow = container.querySelector("iframe")!.getAttribute("allow") ?? ""
-    expect(allow).toContain("autoplay")
-    expect(allow).toContain("encrypted-media")
-    expect(allow).toContain("picture-in-picture")
-    // Appended once, not duplicated.
-    expect(allow.split("picture-in-picture").length - 1).toBe(1)
+    expect(provider.getState().capabilities.canPiP).toBe(false)
     provider.destroy()
   })
 })
