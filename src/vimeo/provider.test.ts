@@ -243,7 +243,10 @@ describe("loaded handler", () => {
     await flush()
     const s = provider.getState()
     expect(s.capabilities.hasTextTracks).toBe(true)
-    expect(s.textTracks.map((t) => t.id)).toEqual(["en.captions", "en.subtitles"])
+    expect(s.textTracks.map((t) => t.id)).toEqual([
+      "en.captions",
+      "en.subtitles",
+    ])
     provider.destroy()
   })
 })
@@ -395,7 +398,12 @@ describe("captions", () => {
     const r = await ready({ videoId: "1" })
     r.player._textTracks = [
       { label: "English", language: "en", kind: "captions", mode: "disabled" },
-      { label: "Français", language: "fr", kind: "subtitles", mode: "disabled" },
+      {
+        label: "Français",
+        language: "fr",
+        kind: "subtitles",
+        mode: "disabled",
+      },
     ]
     r.player.emit("loaded")
     await flush()

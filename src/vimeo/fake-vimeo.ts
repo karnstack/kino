@@ -111,7 +111,9 @@ export class FakeVimeoPlayer {
 
 export function installFakeVimeo() {
   FakeVimeoPlayer.instances = []
-  ;(window as unknown as { Vimeo?: unknown }).Vimeo = { Player: FakeVimeoPlayer }
+  ;(window as unknown as { Vimeo?: unknown }).Vimeo = {
+    Player: FakeVimeoPlayer,
+  }
 }
 
 export function uninstallFakeVimeo() {

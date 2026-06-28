@@ -18,6 +18,7 @@ a per-page "Copy as Markdown" button, and a root `/llms.txt` index following the
 ## Components
 
 ### 1. Per-page markdown source
+
 Each page file (`overview`, `install`, `providers`, `theming`) gains a
 co-located `const markdown = \`…\`` — a concise, LLM-pasteable markdown of the
 page: H1 title, the prose, and the key code blocks. Authored to be useful to an
@@ -25,6 +26,7 @@ LLM, not a literal DOM mirror. Kept in rough sync with the JSX by hand (4 small
 pages, low churn).
 
 ### 2. `CopyMarkdownButton` (shared, `demo/ui.tsx`)
+
 Reuses the existing `useCopied()` hook (clipboard + 1.4s copied state). A labeled
 secondary button: `CopyIcon` + "Copy as Markdown", flipping to `CheckIcon` +
 "Copied". Rendered by `PageHeader` when given an optional `markdown` prop
@@ -32,9 +34,11 @@ secondary button: `CopyIcon` + "Copy as Markdown", flipping to `CheckIcon` +
 eyebrow.
 
 ### 3. `/llms.txt` static file (`demo/public/llms.txt`)
+
 New `demo/public/` dir (Vite `root: demo` serves `public/` at the site root and
 copies it to `demo/dist/` on build; the Worker serves `demo/dist` static assets
 ahead of its SPA fallback). Hand-authored to the standard:
+
 - `# kino` + a one-line blockquote summary
 - `## Docs` — links to the four pages (absolute `https://kino.karnstack.com/…`)
   with a short note each
@@ -44,10 +48,12 @@ ahead of its SPA fallback). Hand-authored to the standard:
 A footer link to `/llms.txt` in `shell.tsx` makes it discoverable.
 
 ## Out of scope (YAGNI)
+
 `llms-full.txt`; DOM-derived markdown; a markdown-render dependency; any router
 or build-pipeline change beyond adding `demo/public/`.
 
 ## Verification
+
 No demo unit tests exist. Gate: `pnpm build` emits `demo/dist/llms.txt`;
 `pnpm typecheck` + `pnpm lint` clean; a headless screenshot of a doc page shows
 the button.

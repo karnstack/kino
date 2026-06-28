@@ -1,5 +1,12 @@
 import { defaultState } from "../core/fake-provider"
-import type { MediaState, PlayerActions, Provider, QualityLevel, TextTrackInfo, SourceOptions } from "../core/types"
+import type {
+  MediaState,
+  PlayerActions,
+  Provider,
+  QualityLevel,
+  TextTrackInfo,
+  SourceOptions,
+} from "../core/types"
 
 export type VimeoProviderOptions = {
   // A numeric Vimeo id, or any vimeo.com / player.vimeo.com URL —
@@ -67,7 +74,9 @@ export type VimeoPlayer = {
   disableTextTrack(): Promise<unknown>
   requestPictureInPicture(): Promise<unknown>
   exitPictureInPicture(): Promise<unknown>
-  loadVideo(idOrOpts: number | string | { id?: number | string; url?: string }): Promise<unknown>
+  loadVideo(
+    idOrOpts: number | string | { id?: number | string; url?: string },
+  ): Promise<unknown>
   destroy(): Promise<unknown>
 }
 type VimeoNamespace = {
@@ -218,7 +227,8 @@ export function createVimeoProvider(opts: VimeoProviderOptions): Provider {
       }
       const ref = state.textTracks.find((t) => t.id === id)
       patch({ activeTextTrackId: id })
-      if (ref) void player?.enableTextTrack(ref.lang, ref.kind, false).catch(() => {})
+      if (ref)
+        void player?.enableTextTrack(ref.lang, ref.kind, false).catch(() => {})
     },
     enterFullscreen: (wrapper) => {
       if (wrapper.requestFullscreen) void wrapper.requestFullscreen()
@@ -231,7 +241,8 @@ export function createVimeoProvider(opts: VimeoProviderOptions): Provider {
   }
 
   const setSessionMetadata = (title: string) => {
-    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator))
+      return
     if (typeof MediaMetadata === "undefined") return
     try {
       navigator.mediaSession.metadata = new MediaMetadata({ title })
@@ -273,7 +284,9 @@ export function createVimeoProvider(opts: VimeoProviderOptions): Provider {
     p.on("play", () => patch({ paused: false, ended: false }))
     p.on("pause", () => patch({ paused: true }))
     p.on("ended", () => patch({ paused: true, ended: true }))
-    p.on("bufferstart", () => { if (!state.seeking) patch({ paused: false }) })
+    p.on("bufferstart", () => {
+      if (!state.seeking) patch({ paused: false })
+    })
     p.on("bufferend", () => {})
     p.on("timeupdate", (d) => {
       const e = d as { seconds: number; duration: number }
@@ -295,7 +308,11 @@ export function createVimeoProvider(opts: VimeoProviderOptions): Provider {
     })
     p.on("seeked", (d) => {
       const e = d as { seconds?: number }
-      patch({ seeking: false, ended: false, currentTime: e?.seconds ?? state.currentTime })
+      patch({
+        seeking: false,
+        ended: false,
+        currentTime: e?.seconds ?? state.currentTime,
+      })
     })
     p.on("volumechange", (d) => {
       const e = d as { volume: number; muted?: boolean }
@@ -314,11 +331,15 @@ export function createVimeoProvider(opts: VimeoProviderOptions): Provider {
     p.on("leavepictureinpicture", () => patch({ pip: false }))
     p.on("error", (d) => {
       const e = d as { name?: string; message?: string }
-      const message = e.name ? `${e.name}: ${e.message ?? ""}`.trim() : (e.message ?? "Vimeo playback error")
+      const message = e.name
+        ? `${e.name}: ${e.message ?? ""}`.trim()
+        : (e.message ?? "Vimeo playback error")
       patch({ error: { code: 0, message } })
     })
     p.on("loaded", () => void onLoaded())
-    p.on("qualitychange", (d) => patch({ activeQualityId: (d as { quality: string }).quality }))
+    p.on("qualitychange", (d) =>
+      patch({ activeQualityId: (d as { quality: string }).quality }),
+    )
     p.on("cuechange", (d) => {
       const e = d as { cues?: Array<{ text?: string }> }
       patch({ activeCueText: e.cues?.[0]?.text ?? "" })

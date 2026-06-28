@@ -28,7 +28,7 @@ rather than polled — the Vimeo SDK emits `timeupdate`.
 - `src/vimeo/provider.ts` — `createVimeoProvider(opts): Provider` +
   `VimeoProviderOptions` type + `parseVimeoSource(input): { id; hash? }` helper.
 - `src/vimeo/vimeo-player.tsx` — `<VimeoPlayer>` (props = `VimeoProviderOptions`
-  + `accentColor/theme/className/placeholder/children`).
+  - `accentColor/theme/className/placeholder/children`).
 - `src/vimeo/provider.test.ts` — vitest, mirroring `youtube/provider.test.ts`
   (fake `window.Vimeo.Player`).
 - `src/vimeo.ts` — entry re-exporting the provider, component, types, helper.
@@ -75,15 +75,15 @@ handler, which fires once video metadata is available.
 
 ```ts
 new Vimeo.Player(host, {
-  id,                 // numeric id (public videos)
-  url,                // player.vimeo.com/video/ID?h=HASH (unlisted — see below)
-  controls: false,    // kino owns the chrome (paid-plan feature — see caveat)
+  id, // numeric id (public videos)
+  url, // player.vimeo.com/video/ID?h=HASH (unlisted — see below)
+  controls: false, // kino owns the chrome (paid-plan feature — see caveat)
   autoplay: !!opts.autoPlay,
   muted: !!opts.muted,
   loop: !!opts.loop,
   playsinline: true,
-  dnt: true,          // do-not-track; no analytics cookies
-  keyboard: false,    // kino owns the keyboard map
+  dnt: true, // do-not-track; no analytics cookies
+  keyboard: false, // kino owns the keyboard map
 })
 ```
 
@@ -114,26 +114,26 @@ carries `{ seconds, duration, percent }` and `progress` carries the buffered
 `{ seconds, duration, percent }`, so `currentTime`/`buffered` stay fresh without
 polling.
 
-| MediaState          | Source                                                            |
-| ------------------- | ---------------------------------------------------------------- |
-| `paused`            | `play` → false; `pause`/`ended` → true; `bufferstart` keeps false |
-| `ended`             | `ended` → true; cleared on `play`/`seeked`/swap                   |
-| `currentTime`       | `timeupdate.seconds` (and `seeked`)                              |
-| `duration`          | `timeupdate.duration` / `getDuration()` at `loaded`              |
-| `buffered`          | `progress.percent` → `[[0, percent * duration]]`                |
-| `rate`              | `playbackratechange.playbackRate` (re-asserted as `desiredRate`) |
-| `volume`            | `volumechange.volume` (already `0..1`, no scaling)              |
-| `muted`             | `volumechange.muted`; `getMuted()` at `loaded`                  |
-| `qualities`         | `getQualities()` at `loaded` → `QualityLevel[]`                 |
-| `activeQualityId`   | active entry id; `qualitychange.quality` (string id) thereafter |
-| `textTracks`        | `getTextTracks()` at `loaded` → `TextTrackInfo[]`               |
-| `activeTextTrackId` | synthesized id of the active track; `null` on `texttrackchange` disable |
-| `activeCueText`     | `cuechange.cues[0].text` (cues rendered in kino's overlay)       |
-| `pip`               | `enterpictureinpicture` / `leavepictureinpicture`               |
-| `fullscreen`        | `fullscreenchange.fullscreen` / `document.fullscreenElement`     |
+| MediaState          | Source                                                                   |
+| ------------------- | ------------------------------------------------------------------------ |
+| `paused`            | `play` → false; `pause`/`ended` → true; `bufferstart` keeps false        |
+| `ended`             | `ended` → true; cleared on `play`/`seeked`/swap                          |
+| `currentTime`       | `timeupdate.seconds` (and `seeked`)                                      |
+| `duration`          | `timeupdate.duration` / `getDuration()` at `loaded`                      |
+| `buffered`          | `progress.percent` → `[[0, percent * duration]]`                         |
+| `rate`              | `playbackratechange.playbackRate` (re-asserted as `desiredRate`)         |
+| `volume`            | `volumechange.volume` (already `0..1`, no scaling)                       |
+| `muted`             | `volumechange.muted`; `getMuted()` at `loaded`                           |
+| `qualities`         | `getQualities()` at `loaded` → `QualityLevel[]`                          |
+| `activeQualityId`   | active entry id; `qualitychange.quality` (string id) thereafter          |
+| `textTracks`        | `getTextTracks()` at `loaded` → `TextTrackInfo[]`                        |
+| `activeTextTrackId` | synthesized id of the active track; `null` on `texttrackchange` disable  |
+| `activeCueText`     | `cuechange.cues[0].text` (cues rendered in kino's overlay)               |
+| `pip`               | `enterpictureinpicture` / `leavepictureinpicture`                        |
+| `fullscreen`        | `fullscreenchange.fullscreen` / `document.fullscreenElement`             |
 | `error`             | `error` → `{ code: 0, message: name ? `${name}: ${message}` : message }` |
-| `readyState`        | 4 once `loaded` fires, else 0                                    |
-| `storyboard`        | null — no scrub-preview source                                  |
+| `readyState`        | 4 once `loaded` fires, else 0                                            |
+| `storyboard`        | null — no scrub-preview source                                           |
 
 `bufferstart`/`bufferend` keep `paused` honest during a mid-playback stall so
 the poster cover doesn't flash (same intent as YouTube's `BUFFERING` handling).
@@ -144,14 +144,14 @@ numeric code**, so `code` is a fixed `0` and `name` is folded into the message.
 
 ## Capabilities
 
-| Capability      | Value                                       | Reason                                                    |
-| --------------- | ------------------------------------------- | --------------------------------------------------------- |
-| `canSetRate`    | true (best-effort — see note)               | `setPlaybackRate` works on Pro/Business; can't be probed cheaply. |
-| `canFullscreen` | true                                        | We fullscreen the kino wrapper; the iframe is inside it.   |
-| `canPiP`        | `!!document.pictureInPictureEnabled`        | SDK `requestPictureInPicture` where the browser allows it. |
-| `canSetQuality` | `getQualities().length > 0` (set at `loaded`) | Quality API is plan-gated; an empty/failed call ⇒ no menu. |
-| `hasTextTracks` | `getTextTracks().length > 0` (set at `loaded`) | `getTextTracks` returns the caption list.              |
-| `hasStoryboard` | false                                       | No scrub-preview source.                                  |
+| Capability      | Value                                          | Reason                                                            |
+| --------------- | ---------------------------------------------- | ----------------------------------------------------------------- |
+| `canSetRate`    | true (best-effort — see note)                  | `setPlaybackRate` works on Pro/Business; can't be probed cheaply. |
+| `canFullscreen` | true                                           | We fullscreen the kino wrapper; the iframe is inside it.          |
+| `canPiP`        | `!!document.pictureInPictureEnabled`           | SDK `requestPictureInPicture` where the browser allows it.        |
+| `canSetQuality` | `getQualities().length > 0` (set at `loaded`)  | Quality API is plan-gated; an empty/failed call ⇒ no menu.        |
+| `hasTextTracks` | `getTextTracks().length > 0` (set at `loaded`) | `getTextTracks` returns the caption list.                         |
+| `hasStoryboard` | false                                          | No scrub-preview source.                                          |
 
 `canSetQuality` and `hasTextTracks` start `false` and flip on once the `loaded`
 handler reads non-empty lists — so a plan that lacks the quality API simply
@@ -169,19 +169,19 @@ All gated on `ready`; all Promise calls carry `.catch(() => {})`; state changes
 land via the echo event, not an optimistic patch (except `seek`, which patches
 `seeking` immediately for responsiveness).
 
-| Action            | Implementation                                                      |
-| ----------------- | ------------------------------------------------------------------ |
-| `play / pause`    | `player.play() / player.pause()`                                   |
-| `seek(t)`         | `player.setCurrentTime(t)`; patch `seeking: true`                  |
-| `setRate(r)`      | store `desiredRate = r`; `player.setPlaybackRate(r)` — `rate` patched on `playbackratechange` |
-| `setVolume(v)`    | `player.setVolume(v)` — `0..1`, no scaling                          |
-| `setMuted(m)`     | `player.setMuted(m)` — `muted` patched on `volumechange`            |
-| `setQuality(id)`  | `player.setQuality(id)` (`"auto"` for adaptive) — patched on `qualitychange` |
-| `setTextTrack(id)`| resolve id → `{language, kind}`; `enableTextTrack(language, kind, false)` or `disableTextTrack()` |
-| `enterFullscreen` | `wrapper.requestFullscreen()` (kino wrapper, controls stay on top)  |
-| `exitFullscreen`  | `document.exitFullscreen()`                                         |
-| `enterPiP`        | `player.requestPictureInPicture()`                                 |
-| `exitPiP`         | `player.exitPictureInPicture()`                                    |
+| Action             | Implementation                                                                                    |
+| ------------------ | ------------------------------------------------------------------------------------------------- |
+| `play / pause`     | `player.play() / player.pause()`                                                                  |
+| `seek(t)`          | `player.setCurrentTime(t)`; patch `seeking: true`                                                 |
+| `setRate(r)`       | store `desiredRate = r`; `player.setPlaybackRate(r)` — `rate` patched on `playbackratechange`     |
+| `setVolume(v)`     | `player.setVolume(v)` — `0..1`, no scaling                                                        |
+| `setMuted(m)`      | `player.setMuted(m)` — `muted` patched on `volumechange`                                          |
+| `setQuality(id)`   | `player.setQuality(id)` (`"auto"` for adaptive) — patched on `qualitychange`                      |
+| `setTextTrack(id)` | resolve id → `{language, kind}`; `enableTextTrack(language, kind, false)` or `disableTextTrack()` |
+| `enterFullscreen`  | `wrapper.requestFullscreen()` (kino wrapper, controls stay on top)                                |
+| `exitFullscreen`   | `document.exitFullscreen()`                                                                       |
+| `enterPiP`         | `player.requestPictureInPicture()`                                                                |
+| `exitPiP`          | `player.exitPictureInPicture()`                                                                   |
 
 ### Quality mapping
 

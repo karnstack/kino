@@ -42,10 +42,12 @@
 ## Task 1: Source parsing + URL helper + options type
 
 **Files:**
+
 - Create: `src/vimeo/provider.ts`
 - Test: `src/vimeo/provider.test.ts`
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces:
   - `type VimeoProviderOptions = { videoId: string; hash?: string; metadata?: { videoId?: string; videoTitle?: string; viewerUserId?: string }; autoPlay?: boolean; muted?: boolean; loop?: boolean; defaultRate?: number }`
@@ -159,11 +161,13 @@ git commit -m "feat(vimeo): source parsing + embed-url helper"
 ## Task 2: SDK loader, lifecycle, and the test fake
 
 **Files:**
+
 - Modify: `src/vimeo/provider.ts`
 - Create: `src/vimeo/fake-vimeo.ts`
 - Test: `src/vimeo/provider.test.ts`
 
 **Interfaces:**
+
 - Consumes: `VimeoProviderOptions`, `parseVimeoSource`, `playerUrl` (Task 1).
 - Produces:
   - `function createVimeoProvider(opts: VimeoProviderOptions): Provider`
@@ -288,7 +292,9 @@ export class FakeVimeoPlayer {
 
 export function installFakeVimeo() {
   FakeVimeoPlayer.instances = []
-  ;(window as unknown as { Vimeo?: unknown }).Vimeo = { Player: FakeVimeoPlayer }
+  ;(window as unknown as { Vimeo?: unknown }).Vimeo = {
+    Player: FakeVimeoPlayer,
+  }
 }
 
 export function uninstallFakeVimeo() {
@@ -440,7 +446,9 @@ export type VimeoPlayer = {
   disableTextTrack(): Promise<unknown>
   requestPictureInPicture(): Promise<unknown>
   exitPictureInPicture(): Promise<unknown>
-  loadVideo(idOrOpts: number | string | { id?: number | string; url?: string }): Promise<unknown>
+  loadVideo(
+    idOrOpts: number | string | { id?: number | string; url?: string },
+  ): Promise<unknown>
   destroy(): Promise<unknown>
 }
 type VimeoNamespace = {
@@ -609,10 +617,12 @@ git commit -m "feat(vimeo): SDK loader, player lifecycle, test fake"
 ## Task 3: Event-driven state sync
 
 **Files:**
+
 - Modify: `src/vimeo/provider.ts`
 - Test: `src/vimeo/provider.test.ts`
 
 **Interfaces:**
+
 - Consumes: the `createPlayer` / `patch` from Task 2.
 - Produces: a `bindEvents(p: VimeoPlayer)` step inside `createPlayer` registering all playback events. No new exports.
 
@@ -697,52 +707,58 @@ Expected: FAIL — e.g. `timeupdate` does not update state yet.
 In `provider.ts`, replace the temporary single `p.on("play", ...)` line in `createPlayer` with a `bindEvents(p)` call, and add the function inside `createVimeoProvider` (so it closes over `patch`/`state`/`desiredRate`):
 
 ```ts
-  const bindEvents = (p: VimeoPlayer) => {
-    p.on("play", () => patch({ paused: false, ended: false }))
-    p.on("pause", () => patch({ paused: true }))
-    p.on("ended", () => patch({ paused: true, ended: true }))
-    p.on("bufferstart", () => patch({ paused: false }))
-    p.on("bufferend", () => {})
-    p.on("timeupdate", (d) => {
-      const e = d as { seconds: number; duration: number }
-      patch({
-        currentTime: e.seconds ?? 0,
-        duration: e.duration ?? state.duration,
-        seeking: false,
-        readyState: 4,
-      })
+const bindEvents = (p: VimeoPlayer) => {
+  p.on("play", () => patch({ paused: false, ended: false }))
+  p.on("pause", () => patch({ paused: true }))
+  p.on("ended", () => patch({ paused: true, ended: true }))
+  p.on("bufferstart", () => patch({ paused: false }))
+  p.on("bufferend", () => {})
+  p.on("timeupdate", (d) => {
+    const e = d as { seconds: number; duration: number }
+    patch({
+      currentTime: e.seconds ?? 0,
+      duration: e.duration ?? state.duration,
+      seeking: false,
+      readyState: 4,
     })
-    p.on("progress", (d) => {
-      const e = d as { duration: number; percent: number }
-      const duration = e.duration ?? state.duration
-      patch({ buffered: duration > 0 ? [[0, e.percent * duration]] : [] })
+  })
+  p.on("progress", (d) => {
+    const e = d as { duration: number; percent: number }
+    const duration = e.duration ?? state.duration
+    patch({ buffered: duration > 0 ? [[0, e.percent * duration]] : [] })
+  })
+  p.on("seeking", () => patch({ seeking: true }))
+  p.on("seeked", (d) => {
+    const e = d as { seconds?: number }
+    patch({
+      seeking: false,
+      ended: false,
+      currentTime: e?.seconds ?? state.currentTime,
     })
-    p.on("seeking", () => patch({ seeking: true }))
-    p.on("seeked", (d) => {
-      const e = d as { seconds?: number }
-      patch({ seeking: false, ended: false, currentTime: e?.seconds ?? state.currentTime })
-    })
-    p.on("volumechange", (d) => {
-      const e = d as { volume: number; muted?: boolean }
-      patch({ volume: e.volume, muted: e.muted ?? state.muted })
-    })
-    p.on("playbackratechange", (d) => {
-      const e = d as { playbackRate: number }
-      desiredRate = e.playbackRate
-      patch({ rate: e.playbackRate })
-    })
-    p.on("fullscreenchange", (d) => {
-      const e = d as { fullscreen: boolean }
-      patch({ fullscreen: !!e.fullscreen })
-    })
-    p.on("enterpictureinpicture", () => patch({ pip: true }))
-    p.on("leavepictureinpicture", () => patch({ pip: false }))
-    p.on("error", (d) => {
-      const e = d as { name?: string; message?: string }
-      const message = e.name ? `${e.name}: ${e.message ?? ""}`.trim() : (e.message ?? "Vimeo playback error")
-      patch({ error: { code: 0, message } })
-    })
-  }
+  })
+  p.on("volumechange", (d) => {
+    const e = d as { volume: number; muted?: boolean }
+    patch({ volume: e.volume, muted: e.muted ?? state.muted })
+  })
+  p.on("playbackratechange", (d) => {
+    const e = d as { playbackRate: number }
+    desiredRate = e.playbackRate
+    patch({ rate: e.playbackRate })
+  })
+  p.on("fullscreenchange", (d) => {
+    const e = d as { fullscreen: boolean }
+    patch({ fullscreen: !!e.fullscreen })
+  })
+  p.on("enterpictureinpicture", () => patch({ pip: true }))
+  p.on("leavepictureinpicture", () => patch({ pip: false }))
+  p.on("error", (d) => {
+    const e = d as { name?: string; message?: string }
+    const message = e.name
+      ? `${e.name}: ${e.message ?? ""}`.trim()
+      : (e.message ?? "Vimeo playback error")
+    patch({ error: { code: 0, message } })
+  })
+}
 ```
 
 Call `bindEvents(p)` in `createPlayer` right after `player = p`.
@@ -764,10 +780,12 @@ git commit -m "feat(vimeo): event-driven state sync"
 ## Task 4: `loaded` handler — duration, qualities, tracks, capabilities
 
 **Files:**
+
 - Modify: `src/vimeo/provider.ts`
 - Test: `src/vimeo/provider.test.ts`
 
 **Interfaces:**
+
 - Consumes: Task 2/3 internals.
 - Produces: an async `onLoaded()` bound to the `loaded` event; sets duration, `qualities`/`activeQualityId`, `textTracks`, capability flips, re-asserts rate/mute, and media-session title. A `mapQualities(raw)` and `mapTracks(raw)` helper.
 
@@ -816,7 +834,10 @@ describe("loaded handler", () => {
     await flush()
     const s = provider.getState()
     expect(s.capabilities.hasTextTracks).toBe(true)
-    expect(s.textTracks.map((t) => t.id)).toEqual(["en.captions", "en.subtitles"])
+    expect(s.textTracks.map((t) => t.id)).toEqual([
+      "en.captions",
+      "en.subtitles",
+    ])
     provider.destroy()
   })
 })
@@ -872,44 +893,44 @@ function mapTracks(
 Add the media-session helper (copy from youtube's `setSessionMetadata`) and an `onLoaded` inside `createVimeoProvider`, bound in `bindEvents`:
 
 ```ts
-  const setSessionMetadata = (title: string) => {
-    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return
-    if (typeof MediaMetadata === "undefined") return
-    try {
-      navigator.mediaSession.metadata = new MediaMetadata({ title })
-    } catch {
-      /* ignore */
-    }
+const setSessionMetadata = (title: string) => {
+  if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return
+  if (typeof MediaMetadata === "undefined") return
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({ title })
+  } catch {
+    /* ignore */
   }
+}
 
-  const onLoaded = async () => {
-    if (!player) return
-    const p = player
-    const [duration, rawQualities, rawTracks, muted] = await Promise.all([
-      p.getDuration().catch(() => 0),
-      p.getQualities().catch(() => []),
-      p.getTextTracks().catch(() => []),
-      p.getMuted().catch(() => false),
-    ])
-    if (destroyed) return
-    void p.setPlaybackRate(desiredRate).catch(() => {})
-    const { qualities, activeId } = mapQualities(rawQualities)
-    const tracks = mapTracks(rawTracks)
-    setSessionMetadata(opts.metadata?.videoTitle ?? "Video")
-    patch({
-      duration: duration || state.duration,
-      readyState: 4,
-      muted,
-      qualities,
-      activeQualityId: activeId,
-      textTracks: tracks,
-      capabilities: {
-        ...state.capabilities,
-        canSetQuality: qualities.length > 0,
-        hasTextTracks: tracks.length > 0,
-      },
-    })
-  }
+const onLoaded = async () => {
+  if (!player) return
+  const p = player
+  const [duration, rawQualities, rawTracks, muted] = await Promise.all([
+    p.getDuration().catch(() => 0),
+    p.getQualities().catch(() => []),
+    p.getTextTracks().catch(() => []),
+    p.getMuted().catch(() => false),
+  ])
+  if (destroyed) return
+  void p.setPlaybackRate(desiredRate).catch(() => {})
+  const { qualities, activeId } = mapQualities(rawQualities)
+  const tracks = mapTracks(rawTracks)
+  setSessionMetadata(opts.metadata?.videoTitle ?? "Video")
+  patch({
+    duration: duration || state.duration,
+    readyState: 4,
+    muted,
+    qualities,
+    activeQualityId: activeId,
+    textTracks: tracks,
+    capabilities: {
+      ...state.capabilities,
+      canSetQuality: qualities.length > 0,
+      hasTextTracks: tracks.length > 0,
+    },
+  })
+}
 ```
 
 Bind in `bindEvents`: `p.on("loaded", () => void onLoaded())`. Also add `p.on("qualitychange", (d) => patch({ activeQualityId: (d as { quality: string }).quality }))`.
@@ -931,10 +952,12 @@ git commit -m "feat(vimeo): loaded handler — duration, qualities, tracks, capa
 ## Task 5: Actions
 
 **Files:**
+
 - Modify: `src/vimeo/provider.ts`
 - Test: `src/vimeo/provider.test.ts`
 
 **Interfaces:**
+
 - Consumes: `player`, `ready`, `desiredRate`, `patch`.
 - Produces: the fully-implemented `actions` object (replaces the Task 2 stub bodies). Captions action (`setTextTrack`) is stubbed here and completed in Task 6.
 
@@ -999,32 +1022,32 @@ Expected: FAIL — stub actions record nothing.
 Replace the stub `actions` object body in `createVimeoProvider`:
 
 ```ts
-  const actions: PlayerActions = {
-    play: () => void player?.play().catch(() => {}),
-    pause: () => void player?.pause().catch(() => {}),
-    seek: (t) => {
-      patch({ seeking: true })
-      void player?.setCurrentTime(t).catch(() => {})
-    },
-    setRate: (r) => {
-      desiredRate = r
-      // No optimistic patch — rate moves on the playbackratechange echo, so a
-      // plan-gated rejection never leaves the UI showing a rate that didn't take.
-      void player?.setPlaybackRate(r).catch(() => {})
-    },
-    setVolume: (v) => void player?.setVolume(v).catch(() => {}),
-    setMuted: (m) => void player?.setMuted(m).catch(() => {}),
-    setQuality: (id) => void player?.setQuality(id).catch(() => {}),
-    setTextTrack: () => {}, // Task 6
-    enterFullscreen: (wrapper) => {
-      if (wrapper.requestFullscreen) void wrapper.requestFullscreen()
-    },
-    exitFullscreen: () => {
-      if (document.fullscreenElement) void document.exitFullscreen?.()
-    },
-    enterPiP: () => void player?.requestPictureInPicture().catch(() => {}),
-    exitPiP: () => void player?.exitPictureInPicture().catch(() => {}),
-  }
+const actions: PlayerActions = {
+  play: () => void player?.play().catch(() => {}),
+  pause: () => void player?.pause().catch(() => {}),
+  seek: (t) => {
+    patch({ seeking: true })
+    void player?.setCurrentTime(t).catch(() => {})
+  },
+  setRate: (r) => {
+    desiredRate = r
+    // No optimistic patch — rate moves on the playbackratechange echo, so a
+    // plan-gated rejection never leaves the UI showing a rate that didn't take.
+    void player?.setPlaybackRate(r).catch(() => {})
+  },
+  setVolume: (v) => void player?.setVolume(v).catch(() => {}),
+  setMuted: (m) => void player?.setMuted(m).catch(() => {}),
+  setQuality: (id) => void player?.setQuality(id).catch(() => {}),
+  setTextTrack: () => {}, // Task 6
+  enterFullscreen: (wrapper) => {
+    if (wrapper.requestFullscreen) void wrapper.requestFullscreen()
+  },
+  exitFullscreen: () => {
+    if (document.fullscreenElement) void document.exitFullscreen?.()
+  },
+  enterPiP: () => void player?.requestPictureInPicture().catch(() => {}),
+  exitPiP: () => void player?.exitPictureInPicture().catch(() => {}),
+}
 ```
 
 (`actions` is referenced by the returned object; defining it before the `return` is fine since the return already references `actions`.)
@@ -1046,10 +1069,12 @@ git commit -m "feat(vimeo): player actions"
 ## Task 6: Captions — cue rendering + track selection
 
 **Files:**
+
 - Modify: `src/vimeo/provider.ts`
 - Test: `src/vimeo/provider.test.ts`
 
 **Interfaces:**
+
 - Consumes: `mapTracks` ids (Task 4), `player`, `patch`, `state`.
 - Produces: real `setTextTrack` + `cuechange`/`texttrackchange` handling. A `trackRef(id)` lookup that resolves a synthesized id back to `{ language, kind }`.
 
@@ -1064,7 +1089,12 @@ describe("captions", () => {
     const r = await ready({ videoId: "1" })
     r.player._textTracks = [
       { label: "English", language: "en", kind: "captions", mode: "disabled" },
-      { label: "Français", language: "fr", kind: "subtitles", mode: "disabled" },
+      {
+        label: "Français",
+        language: "fr",
+        kind: "subtitles",
+        mode: "disabled",
+      },
     ]
     r.player.emit("loaded")
     await flush()
@@ -1129,21 +1159,21 @@ Replace `setTextTrack: () => {}` in `actions`:
 Add to `bindEvents`:
 
 ```ts
-    p.on("cuechange", (d) => {
-      const e = d as { cues?: Array<{ text?: string }> }
-      patch({ activeCueText: e.cues?.[0]?.text ?? "" })
-    })
-    p.on("texttrackchange", (d) => {
-      const e = d as { language: string | null; kind: string | null }
-      if (e.language == null) {
-        patch({ activeTextTrackId: null, activeCueText: "" })
-        return
-      }
-      const match = state.textTracks.find(
-        (t) => t.lang === e.language && t.kind === e.kind,
-      )
-      patch({ activeTextTrackId: match?.id ?? state.activeTextTrackId })
-    })
+p.on("cuechange", (d) => {
+  const e = d as { cues?: Array<{ text?: string }> }
+  patch({ activeCueText: e.cues?.[0]?.text ?? "" })
+})
+p.on("texttrackchange", (d) => {
+  const e = d as { language: string | null; kind: string | null }
+  if (e.language == null) {
+    patch({ activeTextTrackId: null, activeCueText: "" })
+    return
+  }
+  const match = state.textTracks.find(
+    (t) => t.lang === e.language && t.kind === e.kind,
+  )
+  patch({ activeTextTrackId: match?.id ?? state.activeTextTrackId })
+})
 ```
 
 - [ ] **Step 4: Run to verify it passes**
@@ -1163,10 +1193,12 @@ git commit -m "feat(vimeo): captions — overlay cues + track selection"
 ## Task 7: `swapSource` + the hash channel
 
 **Files:**
+
 - Modify: `src/vimeo/provider.ts`
 - Test: `src/vimeo/provider.test.ts`
 
 **Interfaces:**
+
 - Consumes: `parseVimeoSource`, `playerUrl`, `player`, `ready`, `desiredRate`, `patch`.
 - Produces: the optional `swapSource(opts: SourceOptions)` method on the returned provider. It reads the packed `src` string (bare id, or a `?h=` URL when unlisted).
 
@@ -1254,11 +1286,13 @@ git commit -m "feat(vimeo): swapSource with hash channel"
 ## Task 8: `<VimeoPlayer>` React wrapper + entry re-export
 
 **Files:**
+
 - Create: `src/vimeo/vimeo-player.tsx`
 - Create: `src/vimeo.ts`
 - Test: `src/vimeo/vimeo-player.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `createVimeoProvider`, `VimeoProviderOptions`, `parseVimeoSource`, `playerUrl`.
 - Produces: `function VimeoPlayer(props): JSX.Element`, `type VimeoPlayerProps`. `src/vimeo.ts` re-exports everything public.
 
@@ -1437,10 +1471,12 @@ git commit -m "feat(vimeo): VimeoPlayer React wrapper + entry"
 ## Task 9: Build wiring
 
 **Files:**
+
 - Modify: `package.json` (`exports`, `keywords`)
 - Modify: `tsdown.config.ts` (`entry.vimeo`)
 
 **Interfaces:**
+
 - Consumes: `src/vimeo.ts` (Task 8).
 - Produces: published `@karnstack/kino/vimeo` entry.
 
@@ -1468,9 +1504,11 @@ In `tsdown.config.ts`, add to `entry`:
 - [ ] **Step 3: Verify the build, types, lint, and tests all pass**
 
 Run:
+
 ```bash
 pnpm build && pnpm typecheck && pnpm lint && pnpm test
 ```
+
 Expected: `dist/vimeo.js` and `dist/vimeo.d.ts` emitted; typecheck clean; lint clean; all tests PASS.
 
 - [ ] **Step 4: Commit**
@@ -1485,10 +1523,12 @@ git commit -m "build(vimeo): wire ./vimeo entry point"
 ## Task 10: Docs, demo, changeset
 
 **Files:**
+
 - Modify: `README.md`, `demo/pages/providers.tsx`, `demo/pages/install.tsx`, `demo/pages/overview.tsx`, `demo/player-studio.tsx`
 - Create: `.changeset/vimeo-provider.md`
 
 **Interfaces:**
+
 - Consumes: the shipped provider + `<VimeoPlayer>`.
 - Produces: docs/demo that advertise four shipped providers.
 
@@ -1560,9 +1600,11 @@ the lower-level `createVimeoProvider`.
 - [ ] **Step 5: Verify the demo builds + full check**
 
 Run:
+
 ```bash
 pnpm build && pnpm typecheck && pnpm lint && pnpm test
 ```
+
 Expected: all clean/PASS. (Optionally `pnpm dev` and eyeball the Vimeo studio tab per the headless-screenshot workflow.)
 
 - [ ] **Step 6: Commit**
