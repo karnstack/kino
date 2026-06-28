@@ -17,6 +17,7 @@
     "player",
     "react",
     "mux",
+    "youtube",
     "hls",
     "video-player"
   ],
@@ -44,6 +45,10 @@
     "./native": {
       "types": "./dist/native.d.ts",
       "import": "./dist/native.js"
+    },
+    "./youtube": {
+      "types": "./dist/youtube.d.ts",
+      "import": "./dist/youtube.js"
     },
     "./styles.css": "./dist/styles.css"
   },

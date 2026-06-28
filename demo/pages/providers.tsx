@@ -27,9 +27,11 @@ const PROVIDERS: ProviderCard[] = [
   },
   {
     name: "YouTube",
-    status: "planned",
+    status: "shipped",
+    entry: "@karnstack/kino/youtube",
     detail:
-      "Embed-backed playback wrapped in the same kino chrome, so a YouTube source feels native to the player.",
+      "The YouTube IFrame Player API wrapped in the same kino chrome — kino owns the controls, keyboard map, and captions menu. Quality and PiP follow YouTube's API limits.",
+    importLine: 'import { YouTubePlayer } from "@karnstack/kino/youtube"',
   },
   {
     name: "Vimeo",
