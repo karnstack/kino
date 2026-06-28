@@ -81,6 +81,61 @@ const CAPABILITIES = [
   },
 ]
 
+const markdown = `# Make it yours.
+
+The quickest knob is the accentColor prop. For deeper control, every visual is driven by CSS custom properties on the .kino root — override them in your own stylesheet or pass a theme object inline.
+
+## Accent prop
+
+\`\`\`tsx
+${ACCENT_SNIPPET}
+\`\`\`
+
+## Custom properties
+
+| Property | Default | Role |
+|---|---|---|
+| --kino-accent | oklch(50.8% 0.118 165.612) | Progress, active items, ranges |
+| --kino-radius | 12px | Corner radius of glass surfaces |
+| --kino-surface | color-mix(in oklab, black 55%, transparent) | Glass surface fill |
+| --kino-surface-strong | color-mix(in oklab, black 70%, transparent) | Stronger surface (idle play) |
+| --kino-border | color-mix(in oklab, white 14%, transparent) | Hairline borders |
+| --kino-text | oklch(98% 0 0) | Primary text and icons |
+| --kino-text-dim | color-mix(in oklab, white 65%, transparent) | Secondary text (timecode) |
+| --kino-blur | 18px | Backdrop blur radius |
+| --kino-shadow | 0 8px 40px rgba(0,0,0,0.45) | Surface drop shadow |
+| --kino-ease | cubic-bezier(0.22, 1, 0.36, 1) | Shared transition easing |
+
+\`\`\`css
+${CSS_SNIPPET}
+\`\`\`
+
+## Keyboard
+
+Shortcuts are ignored while a text field is focused, and modifier combinations pass straight through.
+
+| Key | Action |
+|---|---|
+| Space / K | Play / pause |
+| < / > | Decrease / increase playback rate |
+| M | Toggle mute |
+| C | Toggle captions |
+| S | Open the speed menu |
+| F | Toggle fullscreen |
+| 0 – 9 | Seek to 0% – 90% of the duration |
+
+## Capability gating
+
+Each provider reports a capability set, and every control checks it before rendering — so the chrome only ever shows what the current engine and platform can actually do.
+
+**01 — Quality switching.** Hidden when the engine exposes no renditions, and off on iOS where the system owns adaptive playback.
+
+**02 — Fullscreen.** Custom-chrome fullscreen is off on iOS — the platform uses its native fullscreen for the underlying video.
+
+**03 — Picture-in-picture.** Hidden when the browser does not support the PiP API.
+
+**04 — Captions.** The captions menu appears only when the media actually carries subtitle or caption tracks.`
+
 export function ThemingPage() {
   return (
     <div className="flex flex-col gap-16">
@@ -88,6 +143,7 @@ export function ThemingPage() {
         eyebrow="Theming"
         title="Make it yours."
         lead="The quickest knob is the accentColor prop. For deeper control, every visual is driven by CSS custom properties on the .kino root — override them in your own stylesheet or pass a theme object inline."
+        markdown={markdown}
       />
 
       <section className="flex flex-col gap-6">

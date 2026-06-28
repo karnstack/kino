@@ -183,6 +183,12 @@ function Footer() {
           >
             npm
           </a>
+          <a
+            href="/llms.txt"
+            className="font-normal text-paper-dim transition-colors hover:text-paper"
+          >
+            llms.txt
+          </a>
         </div>
       </div>
     </footer>
