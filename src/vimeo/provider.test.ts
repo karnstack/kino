@@ -429,6 +429,40 @@ describe("captions", () => {
   })
 })
 
+describe("picture-in-picture allow attribute", () => {
+  beforeEach(() => installFakeVimeo())
+  afterEach(() => uninstallFakeVimeo())
+
+  // Regression: the Vimeo SDK creates the iframe with only
+  // allow="autoplay; encrypted-media". Without "picture-in-picture" the browser
+  // silently rejects requestPictureInPicture() inside the cross-origin frame
+  // (Permissions Policy enforcement at the iframe boundary). kino must patch
+  // the attribute via MutationObserver before the frame navigation completes.
+  it("patches allow=picture-in-picture on the SDK-injected iframe", async () => {
+    const provider = createVimeoProvider({ videoId: "1" })
+    const container = mount(provider)
+    await flush()
+    const iframe = container.querySelector("iframe")
+    expect(iframe).not.toBeNull()
+    expect(iframe?.getAttribute("allow")).toContain("picture-in-picture")
+    provider.destroy()
+  })
+
+  it("appends to the SDK's existing allow tokens without dropping them", async () => {
+    // The fake injects allow="autoplay; encrypted-media" like the real SDK.
+    const provider = createVimeoProvider({ videoId: "1" })
+    const container = mount(provider)
+    await flush()
+    const allow = container.querySelector("iframe")!.getAttribute("allow") ?? ""
+    expect(allow).toContain("autoplay")
+    expect(allow).toContain("encrypted-media")
+    expect(allow).toContain("picture-in-picture")
+    // Appended once, not duplicated.
+    expect(allow.split("picture-in-picture").length - 1).toBe(1)
+    provider.destroy()
+  })
+})
+
 describe("swapSource", () => {
   beforeEach(() => installFakeVimeo())
   afterEach(() => uninstallFakeVimeo())

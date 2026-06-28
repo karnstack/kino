@@ -24,7 +24,11 @@ export class FakeVimeoPlayer {
     this.el = el
     this.opts = opts
     FakeVimeoPlayer.instances.push(this)
-    el.appendChild(document.createElement("iframe")) // the SDK injects an iframe
+    // The SDK injects an iframe; mirror the real default allow list (which omits
+    // picture-in-picture) so tests exercise the provider's PiP allow patch.
+    const iframe = document.createElement("iframe")
+    iframe.setAttribute("allow", "autoplay; encrypted-media")
+    el.appendChild(iframe)
   }
 
   on(event: string, fn: Handler) {

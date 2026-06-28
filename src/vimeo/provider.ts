@@ -155,6 +155,8 @@ export function createVimeoProvider(opts: VimeoProviderOptions): Provider {
   let player: VimeoPlayer | null = null
   let destroyed = false
   let desiredRate = opts.defaultRate ?? 1
+  // Watches for the SDK-injected iframe so we can grant it PiP (see createPlayer).
+  let pipObserver: MutationObserver | null = null
 
   let state: MediaState = {
     ...defaultState(),
@@ -341,6 +343,35 @@ export function createVimeoProvider(opts: VimeoProviderOptions): Provider {
     }
     if (initial.hash) ctorOpts.url = playerUrl(initial.id, initial.hash)
     else ctorOpts.id = initial.id
+
+    // The Vimeo SDK programmatically creates the iframe with only
+    // allow="autoplay; encrypted-media" — "picture-in-picture" is absent.
+    // Browsers enforce Permissions Policy at the iframe boundary: without it,
+    // requestPictureInPicture() inside the cross-origin player.vimeo.com frame
+    // is silently rejected regardless of user gesture. Patch the attribute as
+    // soon as the SDK inserts the iframe so the delegation is present before
+    // the frame's document loads (Permissions Policy is evaluated at navigation
+    // time, not at call time).
+    pipObserver = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        for (const node of m.addedNodes) {
+          if (node instanceof HTMLIFrameElement) {
+            const current = node.getAttribute("allow") ?? ""
+            if (!current.includes("picture-in-picture")) {
+              node.setAttribute(
+                "allow",
+                current ? `${current}; picture-in-picture` : "picture-in-picture",
+              )
+            }
+            pipObserver?.disconnect()
+            pipObserver = null
+            return
+          }
+        }
+      }
+    })
+    pipObserver.observe(host, { childList: true, subtree: true })
+
     const p = new v.Player(host, ctorOpts)
     player = p
     void p.ready().then(() => {
@@ -389,6 +420,8 @@ export function createVimeoProvider(opts: VimeoProviderOptions): Provider {
     actions,
     destroy() {
       destroyed = true
+      pipObserver?.disconnect()
+      pipObserver = null
       document.removeEventListener("fullscreenchange", onFullscreenChange)
       try {
         void player?.destroy()
