@@ -185,3 +185,50 @@ describe("state sync", () => {
     provider.destroy()
   })
 })
+
+describe("loaded handler", () => {
+  beforeEach(() => installFakeVimeo())
+  afterEach(() => uninstallFakeVimeo())
+
+  it("reads duration and flips no capabilities when lists are empty", async () => {
+    const { provider, player } = await ready({ videoId: "1" })
+    player._duration = 90
+    player.emit("loaded")
+    await flush()
+    expect(provider.getState().duration).toBe(90)
+    expect(provider.getState().capabilities.canSetQuality).toBe(false)
+    expect(provider.getState().capabilities.hasTextTracks).toBe(false)
+    provider.destroy()
+  })
+
+  it("maps qualities with height parsed from id, not label", async () => {
+    const { provider, player } = await ready({ videoId: "1" })
+    player._qualities = [
+      { id: "auto", label: "Auto", active: true },
+      { id: "2160p", label: "4K", active: false },
+      { id: "1080p", label: "1080p", active: false },
+    ]
+    player.emit("loaded")
+    await flush()
+    const s = provider.getState()
+    expect(s.capabilities.canSetQuality).toBe(true)
+    expect(s.activeQualityId).toBe("auto")
+    const uhd = s.qualities.find((q) => q.id === "2160p")!
+    expect(uhd.height).toBe(2160) // NOT 4 from "4K"
+    provider.destroy()
+  })
+
+  it("maps text tracks with synthesized ids and flips hasTextTracks", async () => {
+    const { provider, player } = await ready({ videoId: "1" })
+    player._textTracks = [
+      { label: "English", language: "en", kind: "captions", mode: "disabled" },
+      { label: "English", language: "en", kind: "subtitles", mode: "disabled" },
+    ]
+    player.emit("loaded")
+    await flush()
+    const s = provider.getState()
+    expect(s.capabilities.hasTextTracks).toBe(true)
+    expect(s.textTracks.map((t) => t.id)).toEqual(["en.captions", "en.subtitles"])
+    provider.destroy()
+  })
+})

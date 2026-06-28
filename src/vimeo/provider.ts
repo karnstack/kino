@@ -1,5 +1,5 @@
 import { defaultState } from "../core/fake-provider"
-import type { MediaState, PlayerActions, Provider } from "../core/types"
+import type { MediaState, PlayerActions, Provider, QualityLevel, TextTrackInfo } from "../core/types"
 
 export type VimeoProviderOptions = {
   // A numeric Vimeo id, or any vimeo.com / player.vimeo.com URL —
@@ -110,6 +110,40 @@ function readyVimeo(): VimeoNamespace | null {
   return v && typeof v.Player === "function" ? v : null
 }
 
+function mapQualities(
+  raw: Array<{ id: string; label: string; active: boolean }>,
+): { qualities: QualityLevel[]; activeId: string } {
+  const qualities = raw.map((q) => ({
+    id: q.id,
+    height: parseInt(q.id, 10) || 0, // id is "2160p"; label "4K" would parse to 4
+    bitrate: 0, // Vimeo exposes no bitrate
+    selected: q.active,
+  }))
+  const active = raw.find((q) => q.active)?.id ?? "auto"
+  return { qualities, activeId: active }
+}
+
+// getTextTracks() objects have no id; synthesize a stable one. Disambiguate
+// same-language/same-kind duplicates with an index suffix.
+function mapTracks(
+  raw: Array<{ label: string; language: string; kind: string; mode: string }>,
+): TextTrackInfo[] {
+  const seen = new Map<string, number>()
+  return raw.map((t) => {
+    const base = `${t.language}.${t.kind}`
+    const n = seen.get(base) ?? 0
+    seen.set(base, n + 1)
+    const id = n === 0 ? base : `${base}.${n}`
+    return {
+      id,
+      kind: t.kind,
+      label: t.label || t.language,
+      lang: t.language,
+      mode: t.mode === "showing" ? "showing" : "disabled",
+    }
+  })
+}
+
 export function createVimeoProvider(opts: VimeoProviderOptions): Provider {
   const explicit = parseVimeoSource(opts.videoId)
   const initial = { id: explicit.id, hash: opts.hash ?? explicit.hash }
@@ -159,6 +193,45 @@ export function createVimeoProvider(opts: VimeoProviderOptions): Provider {
     exitPiP: () => {},
   }
 
+  const setSessionMetadata = (title: string) => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return
+    if (typeof MediaMetadata === "undefined") return
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({ title })
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const onLoaded = async () => {
+    if (!player) return
+    const p = player
+    const [duration, rawQualities, rawTracks, muted] = await Promise.all([
+      p.getDuration().catch(() => 0),
+      p.getQualities().catch(() => []),
+      p.getTextTracks().catch(() => []),
+      p.getMuted().catch(() => false),
+    ])
+    if (destroyed) return
+    void p.setPlaybackRate(desiredRate).catch(() => {})
+    const { qualities, activeId } = mapQualities(rawQualities)
+    const tracks = mapTracks(rawTracks)
+    setSessionMetadata(opts.metadata?.videoTitle ?? "Video")
+    patch({
+      duration: duration || state.duration,
+      readyState: 4,
+      muted,
+      qualities,
+      activeQualityId: activeId,
+      textTracks: tracks,
+      capabilities: {
+        ...state.capabilities,
+        canSetQuality: qualities.length > 0,
+        hasTextTracks: tracks.length > 0,
+      },
+    })
+  }
+
   const bindEvents = (p: VimeoPlayer) => {
     p.on("play", () => patch({ paused: false, ended: false }))
     p.on("pause", () => patch({ paused: true }))
@@ -204,6 +277,8 @@ export function createVimeoProvider(opts: VimeoProviderOptions): Provider {
       const message = e.name ? `${e.name}: ${e.message ?? ""}`.trim() : (e.message ?? "Vimeo playback error")
       patch({ error: { code: 0, message } })
     })
+    p.on("loaded", () => void onLoaded())
+    p.on("qualitychange", (d) => patch({ activeQualityId: (d as { quality: string }).quality }))
   }
 
   const createPlayer = (v: VimeoNamespace, host: HTMLElement) => {
