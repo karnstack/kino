@@ -46,6 +46,17 @@ export function Clip() {
   )
 }`
 
+const VIMEO_SNIPPET = `import { VimeoPlayer } from "@karnstack/kino/vimeo"
+import "@karnstack/kino/styles.css"
+
+export function Clip() {
+  return (
+    <div style={{ aspectRatio: "16 / 9" }}>
+      <VimeoPlayer videoId="291235566" />
+    </div>
+  )
+}`
+
 type Prop = [string, string, string]
 
 const SHARED_PROPS: Prop[] = [
@@ -116,6 +127,125 @@ const YOUTUBE_PROPS: Prop[] = [
   ...SHARED_PROPS,
 ]
 
+const VIMEO_PROPS: Prop[] = [
+  ["videoId", "string", "Vimeo video id or any Vimeo share URL. Required."],
+  ["hash", "string", "Privacy hash for unlisted videos."],
+  ["autoPlay", "boolean", "Start playback on mount."],
+  ["muted", "boolean", "Start muted."],
+  ["loop", "boolean", "Loop playback."],
+  ["defaultRate", "number", "Initial playback rate."],
+  [
+    "metadata",
+    "{ videoId?, videoTitle?, viewerUserId? }",
+    "OS media-session metadata.",
+  ],
+  ...SHARED_PROPS,
+]
+
+const markdown = `# Up and running.
+
+kino is a single package with per-provider entry points. React 19 is a peer dependency; the Mux engine is pulled in transitively, while the native and YouTube providers need nothing extra — YouTube loads the IFrame API at runtime.
+
+## Add the package
+
+\`\`\`bash
+pnpm add @karnstack/kino
+\`\`\`
+
+Import the stylesheet once with \`import "@karnstack/kino/styles.css"\`, then give the player a sized container — it fills the full width and height of its parent.
+
+## Quick start
+
+### Mux
+
+\`\`\`tsx
+${MUX_SNIPPET}
+\`\`\`
+
+### Native
+
+\`\`\`tsx
+${NATIVE_SNIPPET}
+\`\`\`
+
+### YouTube
+
+\`\`\`tsx
+${YOUTUBE_SNIPPET}
+\`\`\`
+
+### Vimeo
+
+\`\`\`tsx
+${VIMEO_SNIPPET}
+\`\`\`
+
+## API
+
+### MuxPlayer
+
+| Prop | Type | Description |
+|---|---|---|
+| playbackId | string | Mux playback id. Required. |
+| tokens | { playback?, thumbnail?, storyboard? } | Signed-playback tokens, minted server-side. |
+| poster | string | Override the derived Mux thumbnail. |
+| metadata | { videoId?, videoTitle?, viewerUserId? } | Mux Data metadata. |
+| autoPlay | boolean | Start playback on mount. |
+| defaultRate | number | Initial playback rate. |
+| accentColor | string | Accent color — any CSS color. |
+| theme | Record<string, string> | Inline CSS custom properties on the root. |
+| placeholder | string | Blur-up still painted until the poster loads. |
+| className | string | Extra class on the .kino root. |
+
+### NativePlayer
+
+| Prop | Type | Description |
+|---|---|---|
+| src | string | Raw media URL — mp4, webm, ogg. Required. |
+| poster | string | Poster image URL. |
+| tracks | NativeTextTrack[] | Sidecar subtitle / caption tracks. |
+| autoPlay | boolean | Start playback on mount. |
+| muted | boolean | Start muted. |
+| loop | boolean | Loop playback. |
+| defaultRate | number | Initial playback rate. |
+| crossOrigin | "anonymous" \\| "use-credentials" | CORS mode for cross-origin media and tracks. |
+| metadata | { videoId?, videoTitle?, viewerUserId? } | OS media-session metadata. |
+| accentColor | string | Accent color — any CSS color. |
+| theme | Record<string, string> | Inline CSS custom properties on the root. |
+| placeholder | string | Blur-up still painted until the poster loads. |
+| className | string | Extra class on the .kino root. |
+
+### YouTubePlayer
+
+| Prop | Type | Description |
+|---|---|---|
+| videoId | string | Video id or watch / youtu.be / embed / shorts URL. Required. |
+| autoPlay | boolean | Start playback on mount. |
+| muted | boolean | Start muted. |
+| loop | boolean | Loop playback. |
+| defaultRate | number | Initial playback rate. |
+| metadata | { videoId?, videoTitle?, viewerUserId? } | OS media-session metadata. |
+| accentColor | string | Accent color — any CSS color. |
+| theme | Record<string, string> | Inline CSS custom properties on the root. |
+| placeholder | string | Blur-up still painted until the poster loads. |
+| className | string | Extra class on the .kino root. |
+
+### VimeoPlayer
+
+| Prop | Type | Description |
+|---|---|---|
+| videoId | string | Vimeo video id or any Vimeo share URL. Required. |
+| hash | string | Privacy hash for unlisted videos. |
+| autoPlay | boolean | Start playback on mount. |
+| muted | boolean | Start muted. |
+| loop | boolean | Loop playback. |
+| defaultRate | number | Initial playback rate. |
+| metadata | { videoId?, videoTitle?, viewerUserId? } | OS media-session metadata. |
+| accentColor | string | Accent color — any CSS color. |
+| theme | Record<string, string> | Inline CSS custom properties on the root. |
+| placeholder | string | Blur-up still painted until the poster loads. |
+| className | string | Extra class on the .kino root. |`
+
 const propRows = (props: Prop[]) =>
   props.map(([name, type, desc]) => ({
     key: name,
@@ -129,6 +259,7 @@ export function InstallPage() {
         eyebrow="Install"
         title="Up and running."
         lead="kino is a single package with per-provider entry points. React 19 is a peer dependency; the Mux engine is pulled in transitively, while the native and YouTube providers need nothing extra — YouTube loads the IFrame API at runtime."
+        markdown={markdown}
       />
 
       <section className="flex flex-col gap-6">
@@ -161,6 +292,10 @@ export function InstallPage() {
           <div className="flex flex-col gap-3">
             <h3 className="text-lg font-medium text-paper">YouTube</h3>
             <CodeBlock code={YOUTUBE_SNIPPET} label="youtube.tsx" />
+          </div>
+          <div className="flex flex-col gap-3">
+            <h3 className="text-lg font-medium text-paper">Vimeo</h3>
+            <CodeBlock code={VIMEO_SNIPPET} label="vimeo.tsx" />
           </div>
         </div>
       </section>
@@ -197,6 +332,15 @@ export function InstallPage() {
           <Table
             head={["Prop", "Type", "Description"]}
             rows={propRows(YOUTUBE_PROPS)}
+          />
+        </div>
+        <div className="flex flex-col gap-4">
+          <h3 className="font-mono text-sm tracking-wide text-paper-faint uppercase">
+            VimeoPlayer
+          </h3>
+          <Table
+            head={["Prop", "Type", "Description"]}
+            rows={propRows(VIMEO_PROPS)}
           />
         </div>
       </section>

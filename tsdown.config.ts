@@ -6,6 +6,7 @@ export default defineConfig({
     mux: "src/mux.ts",
     native: "src/native.ts",
     youtube: "src/youtube.ts",
+    vimeo: "src/vimeo.ts",
   },
   format: ["esm"],
   dts: true,

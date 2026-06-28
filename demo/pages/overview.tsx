@@ -4,6 +4,7 @@ import {
   btnPrimary,
   btnSecondary,
   CopyButton,
+  CopyMarkdownButton,
   Eyebrow,
   FrameNumber,
 } from "../ui"
@@ -11,12 +12,30 @@ import { ArrowRightIcon } from "../icons"
 
 const INSTALL = "pnpm add @karnstack/kino"
 
+const markdown = `# Glass chrome for every video.
+
+kino is a themeable React video player with a pluggable-provider architecture. The same translucent, keyboard-first UI sits over Mux, raw files, YouTube, and Vimeo — behind a small typed surface.
+
+\`\`\`bash
+${INSTALL}
+\`\`\`
+
+## Why kino
+
+**01 — Pluggable providers.** One UI contract, many engines. Mux HLS, raw files, YouTube, and Vimeo all ship today.
+
+**02 — Keyboard-first.** Play, seek, speed, captions, and fullscreen are all driven from the keyboard out of the box.
+
+**03 — Themeable.** Set the accent with a single prop, or repaint every surface through CSS custom properties.
+
+**04 — Capability-aware.** Controls hide themselves when the active engine or platform can't support them — never a dead button.`
+
 const HIGHLIGHTS = [
   {
     n: "01",
     term: "Pluggable providers",
     detail:
-      "One UI contract, many engines. Mux HLS, raw files, and YouTube ship today; Vimeo is next.",
+      "One UI contract, many engines. Mux HLS, raw files, YouTube, and Vimeo all ship today.",
   },
   {
     n: "02",
@@ -42,7 +61,10 @@ export function OverviewPage() {
   return (
     <div className="flex flex-col gap-20 lg:gap-28">
       <section className="flex flex-col gap-7 pt-2">
-        <Eyebrow>React video player</Eyebrow>
+        <div className="flex items-start justify-between gap-4">
+          <Eyebrow>React video player</Eyebrow>
+          <CopyMarkdownButton markdown={markdown} />
+        </div>
         <div>
           <h1 className="max-w-[18ch] font-display text-5xl font-semibold tracking-tight text-balance text-paper sm:text-6xl">
             Glass chrome for every video.
@@ -50,7 +72,7 @@ export function OverviewPage() {
           <p className="mt-6 max-w-[56ch] text-lg/8 text-pretty text-paper-dim">
             kino is a themeable React video player with a pluggable-provider
             architecture. The same translucent, keyboard-first UI sits over Mux,
-            raw files, and YouTube — behind a small typed surface.
+            raw files, YouTube, and Vimeo — behind a small typed surface.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">

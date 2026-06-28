@@ -2,10 +2,11 @@ import { useState, type CSSProperties } from "react"
 import { MuxPlayer } from "../src/mux/mux-player"
 import { NativePlayer } from "../src/native/native-player"
 import { YouTubePlayer } from "../src/youtube/youtube-player"
+import { VimeoPlayer } from "../src/vimeo/vimeo-player"
 import { CheckIcon } from "./icons"
 import { TouchTarget } from "./ui"
 
-export type Mode = "mux" | "native" | "youtube"
+export type Mode = "mux" | "vimeo" | "native" | "youtube"
 
 // Public sample assets so the studio plays real media with no account or signed
 // tokens — anyone who clones the repo gets the full UI.
@@ -24,6 +25,13 @@ const NATIVE_SAMPLE = {
 const YOUTUBE_SAMPLE = {
   id: "aqz-KE-bpKQ",
   label: "Big Buck Bunny · YouTube",
+} as const
+
+// A public Vimeo staff-pick video so the Vimeo tab plays for anyone who clones
+// the repo.
+const VIMEO_SAMPLE = {
+  id: "291235566",
+  label: "Vimeo staff pick · Vimeo",
 } as const
 
 export const DEFAULT_ACCENT = "#f4b942"
@@ -55,19 +63,27 @@ export function PlayerStudio({
   const [accent, setAccent] = useState<string>(DEFAULT_ACCENT)
   const [radius, setRadius] = useState(DEFAULT_RADIUS)
 
+  // The Source picker swaps the Mux playback id; the embed providers each play a
+  // single fixed sample, so it only applies to Mux.
+  const sourceVisible = showSource && mode === "mux"
+
   const activeSample = SAMPLES.find((s) => s.id === source)
   const label =
     mode === "native"
       ? NATIVE_SAMPLE.label
       : mode === "youtube"
         ? YOUTUBE_SAMPLE.label
-        : activeSample?.label
+        : mode === "vimeo"
+          ? VIMEO_SAMPLE.label
+          : activeSample?.label
   const code =
     mode === "native"
       ? NATIVE_SAMPLE.src
       : mode === "youtube"
         ? YOUTUBE_SAMPLE.id
-        : source
+        : mode === "vimeo"
+          ? VIMEO_SAMPLE.id
+          : source
 
   return (
     <div className="flex flex-col gap-5">
@@ -93,6 +109,13 @@ export function PlayerStudio({
             <YouTubePlayer
               key="youtube"
               videoId={YOUTUBE_SAMPLE.id}
+              accentColor={accent}
+              theme={{ "--kino-radius": `${radius}px` }}
+            />
+          ) : mode === "vimeo" ? (
+            <VimeoPlayer
+              key="vimeo"
+              videoId={VIMEO_SAMPLE.id}
               accentColor={accent}
               theme={{ "--kino-radius": `${radius}px` }}
             />
@@ -129,6 +152,7 @@ export function PlayerStudio({
             {(
               [
                 { id: "mux", label: "Mux · HLS" },
+                { id: "vimeo", label: "Vimeo · Embed" },
                 { id: "native", label: "Native · mp4" },
                 { id: "youtube", label: "YouTube · Embed" },
               ] as const
@@ -154,7 +178,7 @@ export function PlayerStudio({
           </div>
         </Control>
 
-        {showSource && (
+        {sourceVisible && (
           <Control
             label="Source"
             className={showRadius ? undefined : "sm:col-span-2"}
@@ -198,7 +222,7 @@ export function PlayerStudio({
 
         <Control
           label="Accent"
-          className={showSource ? undefined : "sm:col-span-2"}
+          className={sourceVisible ? undefined : "sm:col-span-2"}
         >
           <div className="flex flex-wrap items-center gap-2.5">
             {ACCENTS.map((a) => {

@@ -106,6 +106,26 @@ export function CopyButton({
   )
 }
 
+/* Copies a page's markdown representation for pasting into an LLM. */
+export function CopyMarkdownButton({ markdown }: { markdown: string }) {
+  const { copied, copy } = useCopied()
+  return (
+    <button
+      type="button"
+      onClick={() => copy(markdown)}
+      aria-label={copied ? "Copied" : "Copy page as Markdown"}
+      className="relative inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-mono text-[0.8125rem] text-paper-dim ring-1 ring-white/10 transition-colors hover:bg-white/5 hover:text-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leader"
+    >
+      {copied ? (
+        <CheckIcon className="size-3.5 text-leader" />
+      ) : (
+        <CopyIcon className="size-3.5" />
+      )}
+      {copied ? "Copied" : "Copy as Markdown"}
+    </button>
+  )
+}
+
 /* The Shiki-highlighted (or plain fallback) body shared by the code surfaces. */
 function CodeBody({ code, html }: { code: string; html: string | null }) {
   return html ? (
@@ -243,14 +263,19 @@ export function PageHeader({
   eyebrow,
   title,
   lead,
+  markdown,
 }: {
   eyebrow: string
   title: string
   lead: string
+  markdown?: string
 }) {
   return (
     <header className="flex flex-col gap-4">
-      <Eyebrow>{eyebrow}</Eyebrow>
+      <div className="flex items-start justify-between gap-4">
+        <Eyebrow>{eyebrow}</Eyebrow>
+        {markdown && <CopyMarkdownButton markdown={markdown} />}
+      </div>
       <h1 className="max-w-[20ch] font-display text-4xl font-semibold tracking-tight text-balance text-paper sm:text-5xl">
         {title}
       </h1>

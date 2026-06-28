@@ -35,9 +35,11 @@ const PROVIDERS: ProviderCard[] = [
   },
   {
     name: "Vimeo",
-    status: "planned",
+    status: "shipped",
+    entry: "@karnstack/kino/vimeo",
     detail:
-      "The Vimeo player SDK adapted to the kino provider contract, sharing the glass UI and keyboard map.",
+      "The Vimeo Player SDK under the same kino chrome — quality, styled captions, and rate. Chromeless playback needs a paid Vimeo plan.",
+    importLine: 'import { VimeoPlayer } from "@karnstack/kino/vimeo"',
   },
 ]
 
@@ -52,6 +54,44 @@ const PROVIDER_CONTRACT = `export interface Provider {
   swapSource?(opts: SourceOptions): void
 }`
 
+const markdown = `# One UI, many engines.
+
+kino ships the player UI and a provider contract. Each provider adapts a streaming engine to that contract, so the same glass chrome can sit on top of any backend.
+
+## Providers
+
+**Mux** (\`@karnstack/kino/mux\`) — Adaptive HLS through the @mux/mux-video element — renditions, storyboard scrub previews, captions, and signed playback.
+
+\`\`\`ts
+import { MuxPlayer } from "@karnstack/kino/mux"
+\`\`\`
+
+**Native** (\`@karnstack/kino/native\`) — A native <video> element over any raw mp4, webm, or ogg URL. No streaming engine, no account, nothing to register.
+
+\`\`\`ts
+import { NativePlayer } from "@karnstack/kino/native"
+\`\`\`
+
+**YouTube** (\`@karnstack/kino/youtube\`) — The YouTube IFrame Player API wrapped in the same kino chrome — kino owns the controls, keyboard map, and captions menu. Quality and PiP follow YouTube's API limits.
+
+\`\`\`ts
+import { YouTubePlayer } from "@karnstack/kino/youtube"
+\`\`\`
+
+**Vimeo** (\`@karnstack/kino/vimeo\`) — The Vimeo Player SDK under the same kino chrome — quality, styled captions, and rate. Chromeless playback needs a paid Vimeo plan.
+
+\`\`\`ts
+import { VimeoPlayer } from "@karnstack/kino/vimeo"
+\`\`\`
+
+## The contract
+
+A provider is a handful of methods. Implement \`mount\`, a \`getState\` / \`subscribe\` pair, an \`actions\` object, and \`destroy\`. The UI reads everything through this surface — it never talks to an engine directly.
+
+\`\`\`ts
+${PROVIDER_CONTRACT}
+\`\`\``
+
 export function ProvidersPage() {
   return (
     <div className="flex flex-col gap-16">
@@ -59,6 +99,7 @@ export function ProvidersPage() {
         eyebrow="Architecture"
         title="One UI, many engines."
         lead="kino ships the player UI and a provider contract. Each provider adapts a streaming engine to that contract, so the same glass chrome can sit on top of any backend."
+        markdown={markdown}
       />
 
       <section className="flex flex-col gap-6">
