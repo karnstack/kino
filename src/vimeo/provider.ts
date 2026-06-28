@@ -177,20 +177,31 @@ export function createVimeoProvider(opts: VimeoProviderOptions): Provider {
   const onFullscreenChange = () =>
     patch({ fullscreen: document.fullscreenElement != null })
 
-  // Stub actions; later tasks replace this object's bodies.
   const actions: PlayerActions = {
-    play: () => {},
-    pause: () => {},
-    seek: () => {},
-    setRate: () => {},
-    setVolume: () => {},
-    setMuted: () => {},
-    setQuality: () => {},
-    setTextTrack: () => {},
-    enterFullscreen: () => {},
-    exitFullscreen: () => {},
-    enterPiP: () => {},
-    exitPiP: () => {},
+    play: () => void player?.play().catch(() => {}),
+    pause: () => void player?.pause().catch(() => {}),
+    seek: (t) => {
+      patch({ seeking: true })
+      void player?.setCurrentTime(t).catch(() => {})
+    },
+    setRate: (r) => {
+      desiredRate = r
+      // No optimistic patch — rate moves on the playbackratechange echo, so a
+      // plan-gated rejection never leaves the UI showing a rate that didn't take.
+      void player?.setPlaybackRate(r).catch(() => {})
+    },
+    setVolume: (v) => void player?.setVolume(v).catch(() => {}),
+    setMuted: (m) => void player?.setMuted(m).catch(() => {}),
+    setQuality: (id) => void player?.setQuality(id).catch(() => {}),
+    setTextTrack: () => {}, // Task 6
+    enterFullscreen: (wrapper) => {
+      if (wrapper.requestFullscreen) void wrapper.requestFullscreen()
+    },
+    exitFullscreen: () => {
+      if (document.fullscreenElement) void document.exitFullscreen?.()
+    },
+    enterPiP: () => void player?.requestPictureInPicture().catch(() => {}),
+    exitPiP: () => void player?.exitPictureInPicture().catch(() => {}),
   }
 
   const setSessionMetadata = (title: string) => {

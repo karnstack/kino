@@ -232,3 +232,50 @@ describe("loaded handler", () => {
     provider.destroy()
   })
 })
+
+describe("actions", () => {
+  beforeEach(() => installFakeVimeo())
+  afterEach(() => uninstallFakeVimeo())
+  const names = (p: FakeVimeoPlayer) => p.calls.map((c) => c[0])
+
+  it("play/pause/seek call the SDK; seek patches seeking immediately", async () => {
+    const { provider, player } = await ready({ videoId: "1" })
+    provider.actions.play()
+    provider.actions.pause()
+    provider.actions.seek(42)
+    expect(names(player)).toEqual(["play", "pause", "setCurrentTime"])
+    expect(player.calls.find((c) => c[0] === "setCurrentTime")![1]).toBe(42)
+    expect(provider.getState().seeking).toBe(true)
+    provider.destroy()
+  })
+
+  it("setVolume passes 0..1 unscaled", async () => {
+    const { provider, player } = await ready({ videoId: "1" })
+    provider.actions.setVolume(0.4)
+    expect(player.calls).toContainEqual(["setVolume", 0.4])
+    provider.destroy()
+  })
+
+  it("setRate does NOT patch rate optimistically (waits for the event)", async () => {
+    const { provider, player } = await ready({ videoId: "1" })
+    provider.actions.setRate(2)
+    expect(player.calls).toContainEqual(["setPlaybackRate", 2])
+    expect(provider.getState().rate).toBe(1) // unchanged until the echo event
+    player.emit("playbackratechange", { playbackRate: 2 })
+    expect(provider.getState().rate).toBe(2)
+    provider.destroy()
+  })
+
+  it("setQuality + PiP call the SDK", async () => {
+    const { provider, player } = await ready({ videoId: "1" })
+    provider.actions.setQuality("1080p")
+    provider.actions.enterPiP()
+    provider.actions.exitPiP()
+    expect(names(player)).toEqual([
+      "setQuality",
+      "requestPictureInPicture",
+      "exitPictureInPicture",
+    ])
+    provider.destroy()
+  })
+})
