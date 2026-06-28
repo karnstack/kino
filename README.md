@@ -5,7 +5,7 @@
 <p align="center">
   A themeable React video player with a pluggable-provider architecture —
   translucent glass chrome, keyboard-first controls, and a small typed surface.
-  Mux is the first provider.
+  Mux, raw files, and YouTube are built in.
 </p>
 
 <p align="center">
@@ -24,7 +24,7 @@
 
 > **[Try it live → kino.karnstack.com](https://kino.karnstack.com)** — drop in any public Mux playback ID, pick an accent, and play with the real glass UI.
 
-kino ships the player UI and a provider contract. Each provider adapts a streaming engine to that contract, so the same glass chrome can sit on top of different backends. The Mux provider is built on the `@mux/mux-video` custom element.
+kino ships the player UI and a provider contract. Each provider adapts a streaming engine to that contract, so the same glass chrome can sit on top of different backends. Three providers ship today: **Mux** (adaptive HLS via `@mux/mux-video`), **Native** (a plain `<video>` over any raw file URL), and **YouTube** (the IFrame Player API wrapped in the same chrome). Each lives behind its own entry point, so you only pull in the engine you use.
 
 ## Install
 
@@ -106,6 +106,32 @@ Pass sidecar subtitles/captions via `tracks`, and kino renders the cues in its o
 
 `NativePlayer` also takes `autoPlay`, `muted`, `loop`, `defaultRate`, and `crossOrigin` (set the last when the media or a caption track is cross-origin). Quality switching hides itself since a raw file carries no rendition ladder.
 
+## Playing a YouTube video
+
+For a YouTube source, use the YouTube provider. It drives the YouTube IFrame Player API under the same glass chrome, with kino owning the controls and keyboard map (the native YouTube UI is hidden).
+
+```tsx
+import { YouTubePlayer } from "@karnstack/kino/youtube"
+import "@karnstack/kino/styles.css"
+
+export function Clip() {
+  return (
+    <div style={{ aspectRatio: "16 / 9" }}>
+      <YouTubePlayer
+        videoId="dQw4w9WgXcQ"
+        accentColor="oklch(50.8% 0.118 165.612)"
+      />
+    </div>
+  )
+}
+```
+
+`videoId` accepts a bare id or any `watch`, `youtu.be`, `embed`, or `shorts` URL — kino resolves it (the `parseYouTubeId` helper is exported if you want it directly). It also takes `autoPlay`, `muted`, `loop`, `defaultRate`, and `metadata`.
+
+Speed, fullscreen, and captions work. The captions menu lists the video's own subtitle tracks; YouTube renders the cues itself inside the embed, so they appear in YouTube's style rather than kino's caption overlay.
+
+kino plays YouTube through the official IFrame Player API and, per YouTube's terms, **doesn't obscure the player**: before playback and while paused, YouTube shows its own thumbnail, play button, title, and logo, and kino's controls sit alongside them. A few things the API simply doesn't expose, so kino hides those controls: **manual quality** (YouTube dropped it — playback is always automatic), **picture-in-picture**, and **scrub-preview thumbnails** (storyboards aren't available to embeds).
+
 ## Theming
 
 The quickest knob is the `accentColor` prop, which drives the scrubber fill, active menu items, and range controls.
@@ -175,7 +201,7 @@ pnpm lint       # eslint
 
 ## Roadmap
 
-- More providers: YouTube and Vimeo
+- More providers: Vimeo
 - AirPlay support
 - Chapters
 - Documented headless primitives for fully custom chrome

@@ -16,7 +16,7 @@ const HIGHLIGHTS = [
     n: "01",
     term: "Pluggable providers",
     detail:
-      "One UI contract, many engines. Mux HLS and raw files ship today; YouTube and Vimeo are next.",
+      "One UI contract, many engines. Mux HLS, raw files, and YouTube ship today; Vimeo is next.",
   },
   {
     n: "02",
@@ -50,7 +50,7 @@ export function OverviewPage() {
           <p className="mt-6 max-w-[56ch] text-lg/8 text-pretty text-paper-dim">
             kino is a themeable React video player with a pluggable-provider
             architecture. The same translucent, keyboard-first UI sits over Mux,
-            raw files, and more — behind a small typed surface.
+            raw files, and YouTube — behind a small typed surface.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">

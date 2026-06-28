@@ -1,10 +1,11 @@
 import { useState, type CSSProperties } from "react"
 import { MuxPlayer } from "../src/mux/mux-player"
 import { NativePlayer } from "../src/native/native-player"
+import { YouTubePlayer } from "../src/youtube/youtube-player"
 import { CheckIcon } from "./icons"
 import { TouchTarget } from "./ui"
 
-export type Mode = "mux" | "native"
+export type Mode = "mux" | "native" | "youtube"
 
 // Public sample assets so the studio plays real media with no account or signed
 // tokens — anyone who clones the repo gets the full UI.
@@ -16,6 +17,13 @@ const SAMPLES = [
 const NATIVE_SAMPLE = {
   src: "https://www.papytane.com/mp4/accrobra.mp4",
   label: "accrobra · mp4",
+} as const
+
+// A public, embeddable Creative Commons video so the YouTube tab plays for
+// anyone who clones the repo.
+const YOUTUBE_SAMPLE = {
+  id: "aqz-KE-bpKQ",
+  label: "Big Buck Bunny · YouTube",
 } as const
 
 export const DEFAULT_ACCENT = "#f4b942"
@@ -48,8 +56,18 @@ export function PlayerStudio({
   const [radius, setRadius] = useState(DEFAULT_RADIUS)
 
   const activeSample = SAMPLES.find((s) => s.id === source)
-  const label = mode === "native" ? NATIVE_SAMPLE.label : activeSample?.label
-  const code = mode === "native" ? NATIVE_SAMPLE.src : source
+  const label =
+    mode === "native"
+      ? NATIVE_SAMPLE.label
+      : mode === "youtube"
+        ? YOUTUBE_SAMPLE.label
+        : activeSample?.label
+  const code =
+    mode === "native"
+      ? NATIVE_SAMPLE.src
+      : mode === "youtube"
+        ? YOUTUBE_SAMPLE.id
+        : source
 
   return (
     <div className="flex flex-col gap-5">
@@ -68,6 +86,13 @@ export function PlayerStudio({
             <NativePlayer
               key="native"
               src={NATIVE_SAMPLE.src}
+              accentColor={accent}
+              theme={{ "--kino-radius": `${radius}px` }}
+            />
+          ) : mode === "youtube" ? (
+            <YouTubePlayer
+              key="youtube"
+              videoId={YOUTUBE_SAMPLE.id}
               accentColor={accent}
               theme={{ "--kino-radius": `${radius}px` }}
             />
@@ -105,6 +130,7 @@ export function PlayerStudio({
               [
                 { id: "mux", label: "Mux · HLS" },
                 { id: "native", label: "Native · mp4" },
+                { id: "youtube", label: "YouTube · Embed" },
               ] as const
             ).map((p) => {
               const active = mode === p.id

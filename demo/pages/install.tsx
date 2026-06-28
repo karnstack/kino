@@ -35,6 +35,17 @@ export function Clip() {
   )
 }`
 
+const YOUTUBE_SNIPPET = `import { YouTubePlayer } from "@karnstack/kino/youtube"
+import "@karnstack/kino/styles.css"
+
+export function Clip() {
+  return (
+    <div style={{ aspectRatio: "16 / 9" }}>
+      <YouTubePlayer videoId="dQw4w9WgXcQ" />
+    </div>
+  )
+}`
+
 type Prop = [string, string, string]
 
 const SHARED_PROPS: Prop[] = [
@@ -87,6 +98,24 @@ const NATIVE_PROPS: Prop[] = [
   ...SHARED_PROPS,
 ]
 
+const YOUTUBE_PROPS: Prop[] = [
+  [
+    "videoId",
+    "string",
+    "Video id or watch / youtu.be / embed / shorts URL. Required.",
+  ],
+  ["autoPlay", "boolean", "Start playback on mount."],
+  ["muted", "boolean", "Start muted."],
+  ["loop", "boolean", "Loop playback."],
+  ["defaultRate", "number", "Initial playback rate."],
+  [
+    "metadata",
+    "{ videoId?, videoTitle?, viewerUserId? }",
+    "OS media-session metadata.",
+  ],
+  ...SHARED_PROPS,
+]
+
 const propRows = (props: Prop[]) =>
   props.map(([name, type, desc]) => ({
     key: name,
@@ -99,7 +128,7 @@ export function InstallPage() {
       <PageHeader
         eyebrow="Install"
         title="Up and running."
-        lead="kino is a single package with per-provider entry points. React 19 is a peer dependency; the Mux engine is pulled in transitively, and the file provider needs nothing extra."
+        lead="kino is a single package with per-provider entry points. React 19 is a peer dependency; the Mux engine is pulled in transitively, while the native and YouTube providers need nothing extra — YouTube loads the IFrame API at runtime."
       />
 
       <section className="flex flex-col gap-6">
@@ -129,6 +158,10 @@ export function InstallPage() {
             <h3 className="text-lg font-medium text-paper">Native</h3>
             <CodeBlock code={NATIVE_SNIPPET} label="native.tsx" />
           </div>
+          <div className="flex flex-col gap-3">
+            <h3 className="text-lg font-medium text-paper">YouTube</h3>
+            <CodeBlock code={YOUTUBE_SNIPPET} label="youtube.tsx" />
+          </div>
         </div>
       </section>
 
@@ -155,6 +188,15 @@ export function InstallPage() {
           <Table
             head={["Prop", "Type", "Description"]}
             rows={propRows(NATIVE_PROPS)}
+          />
+        </div>
+        <div className="flex flex-col gap-4">
+          <h3 className="font-mono text-sm tracking-wide text-paper-faint uppercase">
+            YouTubePlayer
+          </h3>
+          <Table
+            head={["Prop", "Type", "Description"]}
+            rows={propRows(YOUTUBE_PROPS)}
           />
         </div>
       </section>

@@ -28,11 +28,21 @@
   box-sizing: border-box;
 }
 .kino mux-video,
-.kino video {
+.kino video,
+/* The YouTube provider mounts an <iframe> here; size it like the video. */
+.kino .kino-video-host iframe {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+  border: 0;
+}
+/* Let kino's gesture layer own every pointer interaction. Without this the
+   YouTube iframe surfaces its own hover chrome — title, "More videos", a second
+   progress bar — on top of kino's controls. Killing pointer events on the
+   iframe stops YouTube from ever seeing a hover, so only kino's UI shows. */
+.kino .kino-video-host iframe {
+  pointer-events: none;
 }
 .kino .kino-placeholder {
   position: absolute;
