@@ -18,6 +18,7 @@
     "react",
     "mux",
     "youtube",
+    "vimeo",
     "hls",
     "video-player"
   ],
@@ -49,6 +50,10 @@
     "./youtube": {
       "types": "./dist/youtube.d.ts",
       "import": "./dist/youtube.js"
+    },
+    "./vimeo": {
+      "types": "./dist/vimeo.d.ts",
+      "import": "./dist/vimeo.js"
     },
     "./styles.css": "./dist/styles.css"
   },
