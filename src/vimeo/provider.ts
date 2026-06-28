@@ -1,5 +1,5 @@
 import { defaultState } from "../core/fake-provider"
-import type { MediaState, PlayerActions, Provider, QualityLevel, TextTrackInfo } from "../core/types"
+import type { MediaState, PlayerActions, Provider, QualityLevel, TextTrackInfo, SourceOptions } from "../core/types"
 
 export type VimeoProviderOptions = {
   // A numeric Vimeo id, or any vimeo.com / player.vimeo.com URL —
@@ -355,6 +355,23 @@ export function createVimeoProvider(opts: VimeoProviderOptions): Provider {
     subscribe: (l) => {
       listeners.add(l)
       return () => listeners.delete(l)
+    },
+    swapSource(next: SourceOptions) {
+      if (!player || next.src == null) return
+      const { id, hash } = parseVimeoSource(next.src)
+      void player
+        .loadVideo(hash ? { url: playerUrl(id, hash) } : Number(id))
+        .then(() => void player?.setPlaybackRate(desiredRate).catch(() => {}))
+        .catch(() => {})
+      if (next.metadata?.videoTitle != null)
+        setSessionMetadata(next.metadata.videoTitle)
+      patch({
+        currentTime: 0,
+        duration: 0,
+        ended: false,
+        seeking: false,
+        error: null,
+      })
     },
     actions,
     destroy() {

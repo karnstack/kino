@@ -326,3 +326,33 @@ describe("captions", () => {
     provider.destroy()
   })
 })
+
+describe("swapSource", () => {
+  beforeEach(() => installFakeVimeo())
+  afterEach(() => uninstallFakeVimeo())
+
+  it("loads a public id and resets progress + rate", async () => {
+    const { provider, player } = await ready({ videoId: "1", defaultRate: 1.5 })
+    player.emit("timeupdate", { seconds: 30, duration: 60, percent: 0.5 })
+    provider.swapSource!({ src: "987654321" })
+    await flush()
+    expect(player.calls).toContainEqual(["loadVideo", 987654321])
+    expect(player.calls).toContainEqual(["setPlaybackRate", 1.5])
+    expect(provider.getState().currentTime).toBe(0)
+    expect(provider.getState().ended).toBe(false)
+    provider.destroy()
+  })
+
+  it("loads an unlisted source by url when src carries a hash", async () => {
+    const { provider, player } = await ready({ videoId: "1" })
+    provider.swapSource!({
+      src: "https://player.vimeo.com/video/987654321?h=newhash",
+    })
+    await flush()
+    expect(player.calls).toContainEqual([
+      "loadVideo",
+      { url: "https://player.vimeo.com/video/987654321?h=newhash" },
+    ])
+    provider.destroy()
+  })
+})
