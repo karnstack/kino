@@ -45,7 +45,9 @@ type MuxVideoEl = HTMLVideoElement & {
 }
 
 export function createMuxProvider(opts: MuxProviderOptions): Provider {
-  const ios = typeof navigator !== "undefined" && detectIOS(navigator.userAgent)
+  const ios =
+    typeof navigator !== "undefined" &&
+    detectIOS(navigator.userAgent, navigator.maxTouchPoints)
   let el: MuxVideoEl | null = null
   let renditions: MuxVideoEl["videoRenditions"] | null = null
   let renditionsBound = false

@@ -19,6 +19,11 @@ export type NativePlayerProps = NativeProviderOptions & {
  * kino's glass chrome over a plain HTML <video> element, playing a raw media
  * URL (mp4, webm, ogg, …) directly. Use this when you have a file URL rather
  * than a Mux playback id.
+ *
+ * Only `src`, `poster`, and `metadata.videoTitle` are reactive (they flow
+ * through `swapSource`). `tracks`, `crossOrigin`, `muted`, `loop`, and
+ * `defaultRate` are read once when the provider is created — changing them later
+ * is a no-op. Remount (e.g. via `key`) if you need them to change.
  */
 export function NativePlayer({
   accentColor,
@@ -50,7 +55,9 @@ export function NativePlayer({
       poster: opts.poster,
       metadata: opts.metadata,
     })
-  }, [opts.src, opts.poster])
+    // Depend on the primitive title (not the metadata object) so a title-only
+    // change refreshes the OS media session without re-swapping every render.
+  }, [opts.src, opts.poster, opts.metadata?.videoTitle])
 
   return (
     <Player

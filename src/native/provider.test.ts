@@ -70,6 +70,39 @@ test("mount appends a <track> for each supplied caption track", () => {
   p.destroy()
 })
 
+test("a default track becomes the active text track on mount", () => {
+  const p = createNativeProvider({
+    src: "clip.mp4",
+    tracks: [
+      { src: "en.vtt", srclang: "en", label: "English" },
+      { src: "fr.vtt", srclang: "fr", label: "Français", default: true },
+    ],
+  })
+  mount(p)
+  expect(p.getState().activeTextTrackId).toBe("kino-track-1")
+  p.destroy()
+})
+
+test("no active text track when none is marked default", () => {
+  const p = createNativeProvider({
+    src: "clip.mp4",
+    tracks: [{ src: "en.vtt", srclang: "en", label: "English" }],
+  })
+  mount(p)
+  expect(p.getState().activeTextTrackId).toBeNull()
+  p.destroy()
+})
+
+test("playback rate survives a source swap", () => {
+  const p = createNativeProvider({ src: "first.mp4" })
+  const { el } = mount(p)
+  p.actions.setRate(2)
+  p.swapSource?.({ src: "second.mp4" })
+  expect(el.playbackRate).toBe(2)
+  expect(p.getState().rate).toBe(2)
+  p.destroy()
+})
+
 test("setRate reflects immediately in state", () => {
   const p = createNativeProvider({ src: "clip.mp4" })
   mount(p)

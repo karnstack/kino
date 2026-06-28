@@ -35,7 +35,9 @@ export type NativeProviderOptions = {
 }
 
 export function createNativeProvider(opts: NativeProviderOptions): Provider {
-  const ios = typeof navigator !== "undefined" && detectIOS(navigator.userAgent)
+  const ios =
+    typeof navigator !== "undefined" &&
+    detectIOS(navigator.userAgent, navigator.maxTouchPoints)
   const tracks = opts.tracks ?? []
   let el: HTMLVideoElement | null = null
   let state: MediaState = {
@@ -204,14 +206,18 @@ export function createNativeProvider(opts: NativeProviderOptions): Provider {
     set("seekto", (d) => {
       if (typeof d.seekTime === "number") actions.seek(d.seekTime)
     })
-    if (typeof MediaMetadata !== "undefined") {
-      try {
-        ms.metadata = new MediaMetadata({
-          title: opts.metadata?.videoTitle ?? "Video",
-        })
-      } catch {
-        /* ignore */
-      }
+    setSessionMetadata(opts.metadata?.videoTitle ?? "Video")
+  }
+  // Set the OS media-session title (lock screen / media keys overlay). Called at
+  // setup and again on a source swap so the title doesn't go stale.
+  const setSessionMetadata = (title: string) => {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator))
+      return
+    if (typeof MediaMetadata === "undefined") return
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({ title })
+    } catch {
+      /* ignore */
     }
   }
   const teardownMediaSession = () => {
@@ -353,6 +359,8 @@ export function createNativeProvider(opts: NativeProviderOptions): Provider {
       if (!el || next.src == null) return
       el.src = next.src
       if (next.poster != null) el.poster = next.poster
+      if (next.metadata?.videoTitle != null)
+        setSessionMetadata(next.metadata.videoTitle)
       reload()
       el.playbackRate = desiredRate
       patch({
