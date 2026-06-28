@@ -24,7 +24,7 @@
 
 > **[Try it live → kino.karnstack.com](https://kino.karnstack.com)** — drop in any public Mux playback ID, pick an accent, and play with the real glass UI.
 
-kino ships the player UI and a provider contract. Each provider adapts a streaming engine to that contract, so the same glass chrome can sit on top of different backends. Three providers ship today: **Mux** (adaptive HLS via `@mux/mux-video`), **Native** (a plain `<video>` over any raw file URL), and **YouTube** (the IFrame Player API wrapped in the same chrome). Each lives behind its own entry point, so you only pull in the engine you use.
+kino ships the player UI and a provider contract. Each provider adapts a streaming engine to that contract, so the same glass chrome can sit on top of different backends. Four providers ship today: **Mux** (adaptive HLS via `@mux/mux-video`), **Native** (a plain `<video>` over any raw file URL), **YouTube** (the IFrame Player API wrapped in the same chrome), and **Vimeo** (the Vimeo Player SDK under the same chrome). Each lives behind its own entry point, so you only pull in the engine you use.
 
 ## Install
 
@@ -132,6 +132,27 @@ Speed, fullscreen, and captions work. The captions menu lists the video's own su
 
 kino plays YouTube through the official IFrame Player API and, per YouTube's terms, **doesn't obscure the player**: before playback and while paused, YouTube shows its own thumbnail, play button, title, and logo, and kino's controls sit alongside them. A few things the API simply doesn't expose, so kino hides those controls: **manual quality** (YouTube dropped it — playback is always automatic), **picture-in-picture**, and **scrub-preview thumbnails** (storyboards aren't available to embeds).
 
+## Playing a Vimeo video
+
+For a Vimeo source, use the Vimeo provider. It drives the Vimeo Player SDK under the same glass chrome, with kino owning the controls and keyboard map.
+
+```tsx
+import { VimeoPlayer } from "@karnstack/kino/vimeo"
+import "@karnstack/kino/styles.css"
+
+export default function Watch() {
+  return <VimeoPlayer videoId="291235566" accentColor="#00adef" />
+}
+```
+
+For an unlisted video, pass the hash (or a share URL that contains it):
+
+```tsx
+<VimeoPlayer videoId="123456789" hash="abcdef0123" />
+```
+
+Chromeless playback (kino owning the controls) requires a paid Vimeo plan.
+
 ## Theming
 
 The quickest knob is the `accentColor` prop, which drives the scrubber fill, active menu items, and range controls.
@@ -201,7 +222,6 @@ pnpm lint       # eslint
 
 ## Roadmap
 
-- More providers: Vimeo
 - AirPlay support
 - Chapters
 - Documented headless primitives for fully custom chrome

@@ -35,9 +35,11 @@ const PROVIDERS: ProviderCard[] = [
   },
   {
     name: "Vimeo",
-    status: "planned",
+    status: "shipped",
+    entry: "@karnstack/kino/vimeo",
     detail:
-      "The Vimeo player SDK adapted to the kino provider contract, sharing the glass UI and keyboard map.",
+      "The Vimeo Player SDK under the same kino chrome — quality, styled captions, picture-in-picture, and rate. Chromeless playback needs a paid Vimeo plan.",
+    importLine: 'import { VimeoPlayer } from "@karnstack/kino/vimeo"',
   },
 ]
 
