@@ -41,3 +41,33 @@ test("clicking the track seeks", () => {
   })
   expect(provider.getState().currentTime).toBe(50)
 })
+
+test("clicking the scrubber padding (off the thin track) also seeks", () => {
+  const provider = createFakeProvider({ duration: 100, currentTime: 0 })
+  render(
+    <PlayerContext.Provider value={provider}>
+      <Scrubber />
+    </PlayerContext.Provider>,
+  )
+  const track = screen.getByTestId("kino-track")
+  const scrubber = track.parentElement as HTMLElement
+  // time mapping is derived from the track rect; stub it
+  track.getBoundingClientRect = () => ({
+    left: 0,
+    width: 200,
+    top: 0,
+    height: 4,
+    right: 200,
+    bottom: 4,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  })
+  // pointer lands on the scrubber's vertical padding, not the thin track line
+  act(() => {
+    scrubber.dispatchEvent(
+      new MouseEvent("pointerdown", { clientX: 100, bubbles: true }),
+    )
+  })
+  expect(provider.getState().currentTime).toBe(50)
+})
