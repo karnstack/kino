@@ -94,6 +94,7 @@ export function Scrubber() {
       className="kino-scrubber"
       onPointerMove={onPointerMove}
       onPointerLeave={() => setHover(null)}
+      onPointerDown={onPointerDown}
     >
       {hover && (
         <div
@@ -128,7 +129,6 @@ export function Scrubber() {
         aria-valuemax={Math.floor(duration) || 0}
         aria-valuenow={Math.floor(currentTime)}
         aria-valuetext={formatTime(currentTime)}
-        onPointerDown={onPointerDown}
       >
         {buffered.map(([s, e], i) => (
           <div
