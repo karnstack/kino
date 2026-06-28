@@ -29,7 +29,8 @@ export function KinoMark({ className }: { className?: string }) {
   )
 }
 
-// Mark + wordmark lockup for the playground header.
+// Mark + wordmark lockup. Amber film-leader chip with a dark glyph, paired with
+// a Fraunces wordmark so the brand reads editorial/cinematic.
 export function KinoLogo({ className }: { className?: string }) {
   return (
     <span
@@ -37,10 +38,10 @@ export function KinoLogo({ className }: { className?: string }) {
         .filter(Boolean)
         .join(" ")}
     >
-      <span className="grid size-8 place-items-center rounded-[9px] bg-(--accent) text-white">
+      <span className="grid size-8 place-items-center rounded-[9px] bg-leader text-ink">
         <KinoMark className="size-5" />
       </span>
-      <span className="text-[19px] font-semibold tracking-tight text-white">
+      <span className="font-display text-[1.375rem] leading-none font-semibold tracking-tight text-paper">
         kino
       </span>
     </span>

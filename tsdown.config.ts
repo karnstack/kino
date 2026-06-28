@@ -1,7 +1,7 @@
 import { defineConfig } from "tsdown"
 
 export default defineConfig({
-  entry: { index: "src/index.ts", mux: "src/mux.ts" },
+  entry: { index: "src/index.ts", mux: "src/mux.ts", native: "src/native.ts" },
   format: ["esm"],
   dts: true,
   clean: true,

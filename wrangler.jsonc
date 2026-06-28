@@ -8,5 +8,8 @@
   "compatibility_date": "2026-06-27",
   "assets": {
     "directory": "./demo/dist",
+    // Multi-page docs site served by a client-side router — serve index.html
+    // for unknown paths so deep links and refreshes resolve.
+    "not_found_handling": "single-page-application",
   },
 }
