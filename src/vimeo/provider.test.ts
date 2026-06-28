@@ -218,6 +218,21 @@ describe("loaded handler", () => {
     provider.destroy()
   })
 
+  it("excludes Vimeo's auto pseudo-quality so no 0p row appears", async () => {
+    const { provider, player } = await ready({ videoId: "1" })
+    player._qualities = [
+      { id: "auto", label: "Auto", active: true },
+      { id: "1080p", label: "1080p", active: false },
+    ]
+    player.emit("loaded")
+    await flush()
+    const s = provider.getState()
+    expect(s.qualities.map((q) => q.id)).toEqual(["1080p"]) // no "auto"/0p row
+    expect(s.qualities.every((q) => q.height > 0)).toBe(true)
+    expect(s.activeQualityId).toBe("auto") // still tracks auto as the active id
+    provider.destroy()
+  })
+
   it("maps text tracks with synthesized ids and flips hasTextTracks", async () => {
     const { provider, player } = await ready({ videoId: "1" })
     player._textTracks = [
@@ -256,11 +271,25 @@ describe("actions", () => {
     provider.destroy()
   })
 
-  it("setRate does NOT patch rate optimistically (waits for the event)", async () => {
+  it("setRate calls the SDK and does not patch rate synchronously", async () => {
     const { provider, player } = await ready({ videoId: "1" })
     provider.actions.setRate(2)
     expect(player.calls).toContainEqual(["setPlaybackRate", 2])
-    expect(provider.getState().rate).toBe(1) // unchanged until the echo event
+    expect(provider.getState().rate).toBe(1) // no optimistic patch
+    provider.destroy()
+  })
+
+  it("patches rate when setPlaybackRate resolves, even without a playbackratechange echo", async () => {
+    const { provider } = await ready({ videoId: "1" })
+    provider.actions.setRate(1.5)
+    expect(provider.getState().rate).toBe(1) // not synchronous
+    await flush() // setPlaybackRate promise resolves; Vimeo emits no echo
+    expect(provider.getState().rate).toBe(1.5)
+    provider.destroy()
+  })
+
+  it("also reflects a native-control playbackratechange echo", async () => {
+    const { provider, player } = await ready({ videoId: "1" })
     player.emit("playbackratechange", { playbackRate: 2 })
     expect(provider.getState().rate).toBe(2)
     provider.destroy()

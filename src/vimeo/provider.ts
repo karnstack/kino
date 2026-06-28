@@ -113,12 +113,17 @@ function readyVimeo(): VimeoNamespace | null {
 function mapQualities(
   raw: Array<{ id: string; label: string; active: boolean }>,
 ): { qualities: QualityLevel[]; activeId: string } {
-  const qualities = raw.map((q) => ({
-    id: q.id,
-    height: parseInt(q.id, 10) || 0, // id is "2160p"; label "4K" would parse to 4
-    bitrate: 0, // Vimeo exposes no bitrate
-    selected: q.active,
-  }))
+  const qualities = raw
+    // Drop Vimeo's "auto" pseudo-quality: kino renders its own Auto row, and
+    // parseInt("auto") would surface a bogus "0p" rendition that also matches
+    // activeQualityId === "auto", double-checking the menu.
+    .filter((q) => parseInt(q.id, 10) > 0)
+    .map((q) => ({
+      id: q.id,
+      height: parseInt(q.id, 10), // id is "2160p"; label "4K" would parse to 4
+      bitrate: 0, // Vimeo exposes no bitrate
+      selected: q.active,
+    }))
   const active = raw.find((q) => q.active)?.id ?? "auto"
   return { qualities, activeId: active }
 }
@@ -186,9 +191,14 @@ export function createVimeoProvider(opts: VimeoProviderOptions): Provider {
     },
     setRate: (r) => {
       desiredRate = r
-      // No optimistic patch — rate moves on the playbackratechange echo, so a
-      // plan-gated rejection never leaves the UI showing a rate that didn't take.
-      void player?.setPlaybackRate(r).catch(() => {})
+      // Patch rate when setPlaybackRate resolves (confirms it took). Vimeo does
+      // not emit playbackratechange for a programmatic rate change, so relying
+      // on the echo alone leaves the control stuck at the old rate while the
+      // video plays at the new one.
+      void player
+        ?.setPlaybackRate(r)
+        .then(() => patch({ rate: r }))
+        .catch(() => {})
     },
     setVolume: (v) => void player?.setVolume(v).catch(() => {}),
     setMuted: (m) => void player?.setMuted(m).catch(() => {}),
