@@ -1,5 +1,14 @@
 # @karnstack/kino
 
+## 0.4.0
+
+### Minor Changes
+
+- 4e01744: Add a Vimeo provider (`@karnstack/kino/vimeo`) — the Vimeo Player SDK under
+  kino's chrome with quality selection, styled captions, and playback rate.
+  Supports unlisted videos via a `hash`. Import `VimeoPlayer` or the lower-level
+  `createVimeoProvider`.
+
 ## 0.3.0
 
 ### Minor Changes
