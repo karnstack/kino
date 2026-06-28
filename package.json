@@ -41,6 +41,10 @@
       "types": "./dist/mux.d.ts",
       "import": "./dist/mux.js"
     },
+    "./native": {
+      "types": "./dist/native.d.ts",
+      "import": "./dist/native.js"
+    },
     "./styles.css": "./dist/styles.css"
   },
   "scripts": {
@@ -83,6 +87,7 @@
     "prettier": "^3.3.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "shiki": "^4.3.0",
     "tailwindcss": "^4.3.1",
     "tsdown": "^0.22.3",
     "typescript": "^5.7.0",

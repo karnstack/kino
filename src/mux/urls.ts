@@ -1,3 +1,5 @@
+export { detectIOS } from "../util/platform"
+
 const IMAGE_HOST = "https://image.mux.com"
 
 export function buildImageUrl(
@@ -8,8 +10,4 @@ export function buildImageUrl(
 ): string {
   const base = `${IMAGE_HOST}/${playbackId}/${kind}.${ext}`
   return token ? `${base}?token=${token}` : base
-}
-
-export function detectIOS(ua: string): boolean {
-  return /iPhone|iPad|iPod/.test(ua)
 }

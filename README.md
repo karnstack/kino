@@ -67,6 +67,45 @@ Before the poster and first frame load, the video box is empty. Pass a small `pl
 
 The poster itself stays the signed Mux thumbnail (kino derives it from `playbackId` + the `thumbnail` token), so `placeholder` is purely the instant low-res layer underneath.
 
+## Playing a raw URL
+
+For a plain media URL (mp4, webm, ogg, …) — no Mux account or HLS engine — use the native provider. It puts the same glass chrome over a native `<video>` element, so this entry pulls in none of the Mux engine.
+
+```tsx
+import { NativePlayer } from "@karnstack/kino/native"
+import "@karnstack/kino/styles.css"
+
+export function Clip() {
+  return (
+    <div style={{ aspectRatio: "16 / 9" }}>
+      <NativePlayer
+        src="https://example.com/clip.mp4"
+        poster="https://example.com/clip.jpg"
+        accentColor="oklch(50.8% 0.118 165.612)"
+      />
+    </div>
+  )
+}
+```
+
+Pass sidecar subtitles/captions via `tracks`, and kino renders the cues in its own styled overlay:
+
+```tsx
+<NativePlayer
+  src="https://example.com/clip.mp4"
+  tracks={[
+    {
+      src: "https://example.com/en.vtt",
+      srclang: "en",
+      label: "English",
+      default: true,
+    },
+  ]}
+/>
+```
+
+`NativePlayer` also takes `autoPlay`, `muted`, `loop`, `defaultRate`, and `crossOrigin` (set the last when the media or a caption track is cross-origin). Quality switching hides itself since a raw file carries no rendition ladder.
+
 ## Theming
 
 The quickest knob is the `accentColor` prop, which drives the scrubber fill, active menu items, and range controls.
@@ -136,7 +175,7 @@ pnpm lint       # eslint
 
 ## Roadmap
 
-- More providers: YouTube, file, and Vimeo
+- More providers: YouTube and Vimeo
 - AirPlay support
 - Chapters
 - Documented headless primitives for fully custom chrome

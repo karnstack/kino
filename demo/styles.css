@@ -1,28 +1,116 @@
 @import "tailwindcss";
 
-/* Geist + Geist Mono: precise, Swiss-flavored, developer-grade — and the mono
-   pairs with the player's own tabular time readout. Loaded via <link> in index.html. */
+/* ─────────────────────────────────────────────────────────────────────────
+   kino docs — "Cinema / projection" design language.
+   Warm near-black projection booth, film-leader amber + countdown red,
+   Fraunces editorial serif over Geist body and Geist Mono labels.
+   Fonts loaded via <link> in index.html.
+   ───────────────────────────────────────────────────────────────────────── */
 @theme {
   --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
   --font-mono:
     "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-display: "Fraunces", "Geist", Georgia, "Times New Roman", serif;
+
+  /* Warm near-black surfaces — projector booth, not a blue dark theme. */
+  --color-ink: #0a0807;
+  --color-ink-raised: #15110d;
+  --color-ink-well: #1d1813;
+
+  /* Warm paper text on the dark stock. */
+  --color-paper: #f3ede1;
+  --color-paper-dim: #a89e8e;
+  --color-paper-faint: #6e655a;
+
+  /* Accents: SMPTE film-leader amber, with a countdown-red second voice. */
+  --color-leader: #f4b942;
+  --color-leader-deep: #d99a2b;
+  --color-count: #e3492f;
+
+  --radius-frame: 14px;
 }
 
 @layer base {
   html {
+    /* Dark-only site: keep native scrollbars/controls in the dark scheme. */
     color-scheme: dark;
+    font-optical-sizing: auto;
+    scroll-behavior: smooth;
   }
   body {
     margin: 0;
-    min-height: 100vh;
-    /* Soft cinema spotlight bleeding from the top, fading to near-black. */
+    min-height: 100dvh;
+    color: var(--color-paper);
+    /* Warm projector beam bleeding from the top, fading into the dark stock. */
     background:
-      radial-gradient(1100px 560px at 50% -8%, #16202e, #0a0d12 60%) no-repeat,
-      #0a0d12;
+      radial-gradient(
+          1000px 560px at 50% -8%,
+          color-mix(in oklab, var(--color-leader) 12%, transparent),
+          transparent 60%
+        )
+        no-repeat,
+      var(--color-ink);
     background-attachment: fixed;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
+  ::selection {
+    background: color-mix(in oklab, var(--color-leader) 30%, transparent);
+    color: #fff;
+  }
+}
+
+/* Faint film grain over the whole frame — unifies the surfaces with stock
+   texture. A fixed-size noise tile only stays fine on high-density displays; on
+   1x screens each cell doubles and reads as coarse blotches, so the grain is
+   off by default and only painted (subtly) at >=1.5dppx where it stays crisp.
+   Low-density screens fall back to the clean spotlight gradient alone. */
+@utility film-grain {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  opacity: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  @media (min-resolution: 1.5dppx) {
+    opacity: 0.22;
+    mix-blend-mode: soft-light;
+  }
+}
+
+/* A run of film-perforation holes — used as a section rule / framing motif. */
+@utility sprockets {
+  background-image: repeating-linear-gradient(
+    to right,
+    transparent 0,
+    transparent 7px,
+    color-mix(in oklab, var(--color-paper) 16%, transparent) 7px,
+    color-mix(in oklab, var(--color-paper) 16%, transparent) 13px,
+    transparent 13px,
+    transparent 20px
+  );
+}
+
+/* Thin, themed scrollbar for code blocks — replaces the chunky default that
+   shows up when a long line overflows. */
+.code-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--color-paper) 18%, transparent)
+    transparent;
+}
+.code-scroll::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.code-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.code-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-paper) 16%, transparent);
+}
+.code-scroll::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--color-paper) 26%, transparent);
 }
 
 /* Range slider (corner-radius control) — themed to the live accent. Lives
