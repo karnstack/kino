@@ -6,7 +6,7 @@ import { VimeoPlayer } from "../src/vimeo/vimeo-player"
 import { CheckIcon } from "./icons"
 import { TouchTarget } from "./ui"
 
-export type Mode = "mux" | "native" | "youtube" | "vimeo"
+export type Mode = "mux" | "vimeo" | "native" | "youtube"
 
 // Public sample assets so the studio plays real media with no account or signed
 // tokens — anyone who clones the repo gets the full UI.
@@ -62,6 +62,10 @@ export function PlayerStudio({
   const [source, setSource] = useState<string>(SAMPLES[0].id)
   const [accent, setAccent] = useState<string>(DEFAULT_ACCENT)
   const [radius, setRadius] = useState(DEFAULT_RADIUS)
+
+  // The Source picker swaps the Mux playback id; the embed providers each play a
+  // single fixed sample, so it only applies to Mux.
+  const sourceVisible = showSource && mode === "mux"
 
   const activeSample = SAMPLES.find((s) => s.id === source)
   const label =
@@ -148,9 +152,9 @@ export function PlayerStudio({
             {(
               [
                 { id: "mux", label: "Mux · HLS" },
+                { id: "vimeo", label: "Vimeo · Embed" },
                 { id: "native", label: "Native · mp4" },
                 { id: "youtube", label: "YouTube · Embed" },
-                { id: "vimeo", label: "Vimeo · Embed" },
               ] as const
             ).map((p) => {
               const active = mode === p.id
@@ -174,7 +178,7 @@ export function PlayerStudio({
           </div>
         </Control>
 
-        {showSource && (
+        {sourceVisible && (
           <Control
             label="Source"
             className={showRadius ? undefined : "sm:col-span-2"}
@@ -218,7 +222,7 @@ export function PlayerStudio({
 
         <Control
           label="Accent"
-          className={showSource ? undefined : "sm:col-span-2"}
+          className={sourceVisible ? undefined : "sm:col-span-2"}
         >
           <div className="flex flex-wrap items-center gap-2.5">
             {ACCENTS.map((a) => {
