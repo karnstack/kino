@@ -1,3 +1,6 @@
+import { defaultState } from "../core/fake-provider"
+import type { MediaState, PlayerActions, Provider } from "../core/types"
+
 export type VimeoProviderOptions = {
   // A numeric Vimeo id, or any vimeo.com / player.vimeo.com URL —
   // parseVimeoSource resolves it.
@@ -33,4 +36,180 @@ export function parseVimeoSource(input: string): { id: string; hash?: string } {
 // The documented SDK embed URL that carries an unlisted hash.
 export function playerUrl(id: string, hash: string): string {
   return `https://player.vimeo.com/video/${id}?h=${hash}`
+}
+
+// Narrow structural view of the Vimeo Player SDK surface we touch. Hand-rolled
+// (like youtube's YTPlayer) so the provider needs no runtime dep or typings.
+type VimeoEventHandler = (data?: unknown) => void
+export type VimeoPlayer = {
+  on(event: string, handler: VimeoEventHandler): void
+  off(event: string, handler?: VimeoEventHandler): void
+  ready(): Promise<void>
+  play(): Promise<unknown>
+  pause(): Promise<unknown>
+  setCurrentTime(seconds: number): Promise<number>
+  getDuration(): Promise<number>
+  getVolume(): Promise<number>
+  setVolume(volume: number): Promise<number>
+  getMuted(): Promise<boolean>
+  setMuted(muted: boolean): Promise<boolean>
+  setPlaybackRate(rate: number): Promise<number>
+  getQualities(): Promise<Array<{ id: string; label: string; active: boolean }>>
+  setQuality(id: string): Promise<string>
+  getTextTracks(): Promise<
+    Array<{ label: string; language: string; kind: string; mode: string }>
+  >
+  enableTextTrack(
+    language: string,
+    kind?: string,
+    showing?: boolean,
+  ): Promise<unknown>
+  disableTextTrack(): Promise<unknown>
+  requestPictureInPicture(): Promise<unknown>
+  exitPictureInPicture(): Promise<unknown>
+  loadVideo(idOrOpts: number | string | { id?: number | string; url?: string }): Promise<unknown>
+  destroy(): Promise<unknown>
+}
+type VimeoNamespace = {
+  Player: new (el: HTMLElement, opts: Record<string, unknown>) => VimeoPlayer
+}
+type VimeoWindow = Window & typeof globalThis & { Vimeo?: VimeoNamespace }
+
+const SDK_SRC = "https://player.vimeo.com/api/player.js"
+
+// Lazily load player.js exactly once; resolve when window.Vimeo.Player exists.
+// There is no global ready callback (unlike YouTube), so we resolve on the
+// script's load event. An already-present window.Vimeo short-circuits.
+let apiPromise: Promise<VimeoNamespace> | null = null
+function loadVimeoAPI(): Promise<VimeoNamespace> {
+  const w = window as VimeoWindow
+  if (w.Vimeo?.Player) return Promise.resolve(w.Vimeo)
+  if (apiPromise) return apiPromise
+  apiPromise = new Promise<VimeoNamespace>((resolve, reject) => {
+    const finish = () => {
+      if (w.Vimeo?.Player) resolve(w.Vimeo)
+      else reject(new Error("Vimeo SDK loaded but window.Vimeo is missing"))
+    }
+    const existing = document.querySelector(`script[src="${SDK_SRC}"]`)
+    if (existing) {
+      existing.addEventListener("load", finish)
+      return
+    }
+    const script = document.createElement("script")
+    script.src = SDK_SRC
+    script.async = true
+    script.addEventListener("load", finish)
+    document.head.appendChild(script)
+  })
+  return apiPromise
+}
+
+function readyVimeo(): VimeoNamespace | null {
+  if (typeof window === "undefined") return null
+  const v = (window as VimeoWindow).Vimeo
+  return v && typeof v.Player === "function" ? v : null
+}
+
+export function createVimeoProvider(opts: VimeoProviderOptions): Provider {
+  const explicit = parseVimeoSource(opts.videoId)
+  const initial = { id: explicit.id, hash: opts.hash ?? explicit.hash }
+  let player: VimeoPlayer | null = null
+  let destroyed = false
+  const desiredRate = opts.defaultRate ?? 1
+
+  let state: MediaState = {
+    ...defaultState(),
+    rate: desiredRate,
+    muted: opts.muted ?? false,
+    capabilities: {
+      canSetRate: true, // best-effort: setPlaybackRate is plan-gated, can't probe
+      hasStoryboard: false,
+      canPiP: !!(
+        typeof document !== "undefined" && document.pictureInPictureEnabled
+      ),
+      canFullscreen: true,
+      // Flip on at `loaded` once getQualities/getTextTracks return non-empty.
+      canSetQuality: false,
+      hasTextTracks: false,
+    },
+  }
+  const listeners = new Set<() => void>()
+  const emit = () => listeners.forEach((l) => l())
+  const patch = (p: Partial<MediaState>) => {
+    state = { ...state, ...p }
+    emit()
+  }
+
+  const onFullscreenChange = () =>
+    patch({ fullscreen: document.fullscreenElement != null })
+
+  // Stub actions; later tasks replace this object's bodies.
+  const actions: PlayerActions = {
+    play: () => {},
+    pause: () => {},
+    seek: () => {},
+    setRate: () => {},
+    setVolume: () => {},
+    setMuted: () => {},
+    setQuality: () => {},
+    setTextTrack: () => {},
+    enterFullscreen: () => {},
+    exitFullscreen: () => {},
+    enterPiP: () => {},
+    exitPiP: () => {},
+  }
+
+  const createPlayer = (v: VimeoNamespace, host: HTMLElement) => {
+    const ctorOpts: Record<string, unknown> = {
+      controls: false, // kino owns the chrome (paid-plan feature)
+      autoplay: !!opts.autoPlay,
+      muted: !!opts.muted,
+      loop: !!opts.loop,
+      playsinline: true,
+      dnt: true,
+      keyboard: false,
+    }
+    if (initial.hash) ctorOpts.url = playerUrl(initial.id, initial.hash)
+    else ctorOpts.id = initial.id
+    const p = new v.Player(host, ctorOpts)
+    player = p
+    void p.ready().then(() => {
+      if (destroyed) return
+    })
+    p.on("play", () => patch({ paused: false, ended: false }))
+  }
+
+  return {
+    mount(container) {
+      const host = document.createElement("div")
+      container.appendChild(host)
+      document.addEventListener("fullscreenchange", onFullscreenChange)
+      const v = readyVimeo()
+      if (v) {
+        createPlayer(v, host)
+      } else {
+        void loadVimeoAPI().then((loaded) => {
+          if (destroyed) return
+          if (host.isConnected) createPlayer(loaded, host)
+        })
+      }
+    },
+    getState: () => state,
+    subscribe: (l) => {
+      listeners.add(l)
+      return () => listeners.delete(l)
+    },
+    actions,
+    destroy() {
+      destroyed = true
+      document.removeEventListener("fullscreenchange", onFullscreenChange)
+      try {
+        void player?.destroy()
+      } catch {
+        /* already gone */
+      }
+      player = null
+      listeners.clear()
+    },
+  }
 }

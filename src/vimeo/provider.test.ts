@@ -1,5 +1,11 @@
-import { describe, it, expect } from "vitest"
-import { parseVimeoSource, playerUrl } from "./provider"
+import { describe, it, expect, afterEach, beforeEach } from "vitest"
+import { parseVimeoSource, playerUrl, createVimeoProvider } from "./provider"
+import {
+  FakeVimeoPlayer,
+  installFakeVimeo,
+  uninstallFakeVimeo,
+  flush,
+} from "./fake-vimeo"
 
 describe("parseVimeoSource", () => {
   it("passes a bare numeric id through", () => {
@@ -31,5 +37,86 @@ describe("playerUrl", () => {
     expect(playerUrl("123456789", "abc")).toBe(
       "https://player.vimeo.com/video/123456789?h=abc",
     )
+  })
+})
+
+const mount = (provider: ReturnType<typeof createVimeoProvider>) => {
+  const host = document.createElement("div")
+  document.body.appendChild(host)
+  provider.mount(host)
+  return host
+}
+
+describe("createVimeoProvider lifecycle", () => {
+  beforeEach(() => installFakeVimeo())
+  afterEach(() => uninstallFakeVimeo())
+
+  it("constructs a player with the numeric id for a public video", async () => {
+    const provider = createVimeoProvider({ videoId: "123456789" })
+    mount(provider)
+    await flush()
+    expect(FakeVimeoPlayer.instances).toHaveLength(1)
+    expect(FakeVimeoPlayer.instances[0]!.opts.id).toBe("123456789")
+    expect(FakeVimeoPlayer.instances[0]!.opts.url).toBeUndefined()
+    expect(FakeVimeoPlayer.instances[0]!.opts.controls).toBe(false)
+    provider.destroy()
+  })
+
+  it("constructs with the ?h= url when a hash is present", async () => {
+    const provider = createVimeoProvider({
+      videoId: "123456789",
+      hash: "abc",
+    })
+    mount(provider)
+    await flush()
+    expect(FakeVimeoPlayer.instances[0]!.opts.url).toBe(
+      "https://player.vimeo.com/video/123456789?h=abc",
+    )
+    expect(FakeVimeoPlayer.instances[0]!.opts.id).toBeUndefined()
+    provider.destroy()
+  })
+
+  it("exposes default state before any event", () => {
+    const provider = createVimeoProvider({ videoId: "1" })
+    const s = provider.getState()
+    expect(s.paused).toBe(true)
+    expect(s.currentTime).toBe(0)
+    provider.destroy()
+  })
+
+  it("tears down the player on destroy", async () => {
+    const provider = createVimeoProvider({ videoId: "1" })
+    mount(provider)
+    await flush()
+    const player = FakeVimeoPlayer.instances[0]!
+    provider.destroy()
+    expect(player.calls.map((c) => c[0])).toContain("destroy")
+  })
+
+  it("does not leave a live player if destroyed before the SDK loads", async () => {
+    // No window.Vimeo yet -> loader path. Capture the injected <script>.
+    uninstallFakeVimeo()
+    delete (window as unknown as { Vimeo?: unknown }).Vimeo
+    const provider = createVimeoProvider({ videoId: "1" })
+    mount(provider)
+    provider.destroy() // before the script "loads"
+    installFakeVimeo()
+    const script = document.querySelector(
+      'script[src="https://player.vimeo.com/api/player.js"]',
+    ) as HTMLScriptElement | null
+    script?.dispatchEvent(new Event("load"))
+    await flush()
+    expect(FakeVimeoPlayer.instances).toHaveLength(0)
+  })
+
+  it("notifies subscribers on state change", async () => {
+    const provider = createVimeoProvider({ videoId: "1" })
+    mount(provider)
+    await flush()
+    let calls = 0
+    provider.subscribe(() => calls++)
+    FakeVimeoPlayer.instances[0]!.emit("play")
+    expect(calls).toBeGreaterThan(0)
+    provider.destroy()
   })
 })
