@@ -115,7 +115,7 @@ export function createVimeoProvider(opts: VimeoProviderOptions): Provider {
   const initial = { id: explicit.id, hash: opts.hash ?? explicit.hash }
   let player: VimeoPlayer | null = null
   let destroyed = false
-  const desiredRate = opts.defaultRate ?? 1
+  let desiredRate = opts.defaultRate ?? 1
 
   let state: MediaState = {
     ...defaultState(),
@@ -159,6 +159,53 @@ export function createVimeoProvider(opts: VimeoProviderOptions): Provider {
     exitPiP: () => {},
   }
 
+  const bindEvents = (p: VimeoPlayer) => {
+    p.on("play", () => patch({ paused: false, ended: false }))
+    p.on("pause", () => patch({ paused: true }))
+    p.on("ended", () => patch({ paused: true, ended: true }))
+    p.on("bufferstart", () => patch({ paused: false }))
+    p.on("bufferend", () => {})
+    p.on("timeupdate", (d) => {
+      const e = d as { seconds: number; duration: number }
+      patch({
+        currentTime: e.seconds ?? 0,
+        duration: e.duration ?? state.duration,
+        seeking: false,
+        readyState: 4,
+      })
+    })
+    p.on("progress", (d) => {
+      const e = d as { duration: number; percent: number }
+      const duration = e.duration ?? state.duration
+      patch({ buffered: duration > 0 ? [[0, e.percent * duration]] : [] })
+    })
+    p.on("seeking", () => patch({ seeking: true }))
+    p.on("seeked", (d) => {
+      const e = d as { seconds?: number }
+      patch({ seeking: false, ended: false, currentTime: e?.seconds ?? state.currentTime })
+    })
+    p.on("volumechange", (d) => {
+      const e = d as { volume: number; muted?: boolean }
+      patch({ volume: e.volume, muted: e.muted ?? state.muted })
+    })
+    p.on("playbackratechange", (d) => {
+      const e = d as { playbackRate: number }
+      desiredRate = e.playbackRate
+      patch({ rate: e.playbackRate })
+    })
+    p.on("fullscreenchange", (d) => {
+      const e = d as { fullscreen: boolean }
+      patch({ fullscreen: !!e.fullscreen })
+    })
+    p.on("enterpictureinpicture", () => patch({ pip: true }))
+    p.on("leavepictureinpicture", () => patch({ pip: false }))
+    p.on("error", (d) => {
+      const e = d as { name?: string; message?: string }
+      const message = e.name ? `${e.name}: ${e.message ?? ""}`.trim() : (e.message ?? "Vimeo playback error")
+      patch({ error: { code: 0, message } })
+    })
+  }
+
   const createPlayer = (v: VimeoNamespace, host: HTMLElement) => {
     const ctorOpts: Record<string, unknown> = {
       controls: false, // kino owns the chrome (paid-plan feature)
@@ -176,7 +223,7 @@ export function createVimeoProvider(opts: VimeoProviderOptions): Provider {
     void p.ready().then(() => {
       if (destroyed) return
     })
-    p.on("play", () => patch({ paused: false, ended: false }))
+    bindEvents(p)
   }
 
   return {

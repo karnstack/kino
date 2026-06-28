@@ -120,3 +120,68 @@ describe("createVimeoProvider lifecycle", () => {
     provider.destroy()
   })
 })
+
+const ready = async (o: Parameters<typeof createVimeoProvider>[0]) => {
+  const provider = createVimeoProvider(o)
+  mount(provider)
+  await flush()
+  return { provider, player: FakeVimeoPlayer.instances.at(-1)! }
+}
+
+describe("state sync", () => {
+  beforeEach(() => installFakeVimeo())
+  afterEach(() => uninstallFakeVimeo())
+
+  it("play/pause/ended set paused + ended", async () => {
+    const { provider, player } = await ready({ videoId: "1" })
+    player.emit("play")
+    expect(provider.getState().paused).toBe(false)
+    player.emit("pause")
+    expect(provider.getState().paused).toBe(true)
+    player.emit("ended")
+    expect(provider.getState().ended).toBe(true)
+    provider.destroy()
+  })
+
+  it("bufferstart keeps paused false (no poster flash)", async () => {
+    const { provider, player } = await ready({ videoId: "1" })
+    player.emit("play")
+    player.emit("bufferstart")
+    expect(provider.getState().paused).toBe(false)
+    provider.destroy()
+  })
+
+  it("timeupdate updates currentTime + duration", async () => {
+    const { provider, player } = await ready({ videoId: "1" })
+    player.emit("timeupdate", { seconds: 12, duration: 100, percent: 0.12 })
+    expect(provider.getState().currentTime).toBe(12)
+    expect(provider.getState().duration).toBe(100)
+    provider.destroy()
+  })
+
+  it("progress maps to buffered ranges", async () => {
+    const { provider, player } = await ready({ videoId: "1" })
+    player.emit("timeupdate", { seconds: 0, duration: 200, percent: 0 })
+    player.emit("progress", { seconds: 0, duration: 200, percent: 0.5 })
+    expect(provider.getState().buffered).toEqual([[0, 100]])
+    provider.destroy()
+  })
+
+  it("volumechange reads volume AND muted", async () => {
+    const { provider, player } = await ready({ videoId: "1" })
+    player.emit("volumechange", { volume: 0.3, muted: true })
+    expect(provider.getState().volume).toBe(0.3)
+    expect(provider.getState().muted).toBe(true)
+    provider.destroy()
+  })
+
+  it("error folds name into the message with code 0", async () => {
+    const { provider, player } = await ready({ videoId: "1" })
+    player.emit("error", { name: "PrivacyError", message: "not allowed" })
+    expect(provider.getState().error).toEqual({
+      code: 0,
+      message: "PrivacyError: not allowed",
+    })
+    provider.destroy()
+  })
+})
