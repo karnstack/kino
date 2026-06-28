@@ -266,7 +266,7 @@ export function createVimeoProvider(opts: VimeoProviderOptions): Provider {
     p.on("play", () => patch({ paused: false, ended: false }))
     p.on("pause", () => patch({ paused: true }))
     p.on("ended", () => patch({ paused: true, ended: true }))
-    p.on("bufferstart", () => patch({ paused: false }))
+    p.on("bufferstart", () => { if (!state.seeking) patch({ paused: false }) })
     p.on("bufferend", () => {})
     p.on("timeupdate", (d) => {
       const e = d as { seconds: number; duration: number }
@@ -282,7 +282,10 @@ export function createVimeoProvider(opts: VimeoProviderOptions): Provider {
       const duration = e.duration ?? state.duration
       patch({ buffered: duration > 0 ? [[0, e.percent * duration]] : [] })
     })
-    p.on("seeking", () => patch({ seeking: true }))
+    p.on("seeking", (d) => {
+      const e = d as { seconds?: number }
+      patch({ seeking: true, currentTime: e?.seconds ?? state.currentTime })
+    })
     p.on("seeked", (d) => {
       const e = d as { seconds?: number }
       patch({ seeking: false, ended: false, currentTime: e?.seconds ?? state.currentTime })

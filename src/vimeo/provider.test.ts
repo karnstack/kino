@@ -264,6 +264,79 @@ describe("actions", () => {
     provider.destroy()
   })
 
+  // Regression: seeking event from SDK must update currentTime to the target
+  // position immediately. Without this, the scrubber stays at the pre-seek
+  // position for the entire buffering window (several seconds on an unbuffered
+  // seek), which the user sees as a "seek that didn't take / laggy seek".
+  it("SDK seeking event immediately advances currentTime to the target", async () => {
+    const { provider, player } = await ready({ videoId: "1" })
+    player.emit("timeupdate", { seconds: 30, duration: 120 })
+    expect(provider.getState().currentTime).toBe(30)
+
+    provider.actions.seek(90)
+    player.emit("seeking", { seconds: 90, duration: 120 })
+
+    expect(provider.getState().seeking).toBe(true)
+    expect(provider.getState().currentTime).toBe(90) // scrubber must show target
+    provider.destroy()
+  })
+
+  // Regression: currentTime stays at the target during the buffering window
+  // (no timeupdate/seeked yet) so the scrubber does not snap back.
+  it("currentTime holds at seek target during the buffering window", async () => {
+    const { provider, player } = await ready({ videoId: "1" })
+    player.emit("timeupdate", { seconds: 30, duration: 120 })
+    provider.actions.seek(90)
+    player.emit("seeking", { seconds: 90, duration: 120 })
+    player.emit("bufferstart") // buffering starts for the unbuffered region
+
+    // During buffering: scrubber must remain at 90, not snap back to 30
+    expect(provider.getState().currentTime).toBe(90)
+    expect(provider.getState().seeking).toBe(true)
+
+    // Once buffering finishes and seeked fires, seeking clears
+    player.emit("bufferend")
+    player.emit("seeked", { seconds: 90 })
+    expect(provider.getState().currentTime).toBe(90)
+    expect(provider.getState().seeking).toBe(false)
+    provider.destroy()
+  })
+
+  // Regression: bufferstart during a paused seek must not corrupt paused flag.
+  // Previously bufferstart unconditionally patched paused:false. If the user
+  // was paused and sought into an unbuffered region, bufferstart would flip
+  // paused to false; after seeked cleared seeking, the player was physically
+  // paused but kino state said paused:false (no further events to correct it).
+  it("bufferstart during a paused seek does not flip paused to false", async () => {
+    const { provider, player } = await ready({ videoId: "1" })
+    expect(provider.getState().paused).toBe(true) // default: paused
+
+    provider.actions.seek(90)
+    player.emit("seeking", { seconds: 90, duration: 120 })
+    player.emit("bufferstart") // fires because target is unbuffered
+
+    expect(provider.getState().paused).toBe(true) // must stay paused
+    expect(provider.getState().seeking).toBe(true)
+
+    player.emit("bufferend")
+    player.emit("seeked", { seconds: 90 })
+    expect(provider.getState().paused).toBe(true) // still paused after seek
+    expect(provider.getState().seeking).toBe(false)
+    provider.destroy()
+  })
+
+  // Ensure the original intent of bufferstart is preserved: during active
+  // playback a buffer stall must keep paused:false (no poster-image flash).
+  it("bufferstart during active playback keeps paused false", async () => {
+    const { provider, player } = await ready({ videoId: "1" })
+    player.emit("play")
+    expect(provider.getState().paused).toBe(false)
+
+    player.emit("bufferstart") // buffer stall mid-playback (not a seek)
+    expect(provider.getState().paused).toBe(false)
+    provider.destroy()
+  })
+
   it("setVolume passes 0..1 unscaled", async () => {
     const { provider, player } = await ready({ videoId: "1" })
     provider.actions.setVolume(0.4)
