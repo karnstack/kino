@@ -279,3 +279,50 @@ describe("actions", () => {
     provider.destroy()
   })
 })
+
+describe("captions", () => {
+  beforeEach(() => installFakeVimeo())
+  afterEach(() => uninstallFakeVimeo())
+
+  const withTracks = async () => {
+    const r = await ready({ videoId: "1" })
+    r.player._textTracks = [
+      { label: "English", language: "en", kind: "captions", mode: "disabled" },
+      { label: "Français", language: "fr", kind: "subtitles", mode: "disabled" },
+    ]
+    r.player.emit("loaded")
+    await flush()
+    return r
+  }
+
+  it("setTextTrack(id) enables the track with showing:false", async () => {
+    const { provider, player } = await withTracks()
+    provider.actions.setTextTrack("fr.subtitles")
+    expect(player.calls).toContainEqual([
+      "enableTextTrack",
+      ["fr", "subtitles", false],
+    ])
+    expect(provider.getState().activeTextTrackId).toBe("fr.subtitles")
+    provider.destroy()
+  })
+
+  it("setTextTrack(null) disables and clears the cue", async () => {
+    const { provider, player } = await withTracks()
+    provider.actions.setTextTrack("en.captions")
+    provider.actions.setTextTrack(null)
+    expect(player.calls.map((c) => c[0])).toContain("disableTextTrack")
+    expect(provider.getState().activeTextTrackId).toBe(null)
+    expect(provider.getState().activeCueText).toBe("")
+    provider.destroy()
+  })
+
+  it("cuechange renders the cue text in the overlay", async () => {
+    const { provider, player } = await withTracks()
+    provider.actions.setTextTrack("en.captions")
+    player.emit("cuechange", { cues: [{ text: "Hello there" }] })
+    expect(provider.getState().activeCueText).toBe("Hello there")
+    player.emit("cuechange", { cues: [] })
+    expect(provider.getState().activeCueText).toBe("")
+    provider.destroy()
+  })
+})

@@ -193,7 +193,16 @@ export function createVimeoProvider(opts: VimeoProviderOptions): Provider {
     setVolume: (v) => void player?.setVolume(v).catch(() => {}),
     setMuted: (m) => void player?.setMuted(m).catch(() => {}),
     setQuality: (id) => void player?.setQuality(id).catch(() => {}),
-    setTextTrack: () => {}, // Task 6
+    setTextTrack: (id) => {
+      if (id == null) {
+        patch({ activeTextTrackId: null, activeCueText: "" })
+        void player?.disableTextTrack().catch(() => {})
+        return
+      }
+      const ref = state.textTracks.find((t) => t.id === id)
+      patch({ activeTextTrackId: id })
+      if (ref) void player?.enableTextTrack(ref.lang, ref.kind, false).catch(() => {})
+    },
     enterFullscreen: (wrapper) => {
       if (wrapper.requestFullscreen) void wrapper.requestFullscreen()
     },
@@ -290,6 +299,21 @@ export function createVimeoProvider(opts: VimeoProviderOptions): Provider {
     })
     p.on("loaded", () => void onLoaded())
     p.on("qualitychange", (d) => patch({ activeQualityId: (d as { quality: string }).quality }))
+    p.on("cuechange", (d) => {
+      const e = d as { cues?: Array<{ text?: string }> }
+      patch({ activeCueText: e.cues?.[0]?.text ?? "" })
+    })
+    p.on("texttrackchange", (d) => {
+      const e = d as { language: string | null; kind: string | null }
+      if (e.language == null) {
+        patch({ activeTextTrackId: null, activeCueText: "" })
+        return
+      }
+      const match = state.textTracks.find(
+        (t) => t.lang === e.language && t.kind === e.kind,
+      )
+      patch({ activeTextTrackId: match?.id ?? state.activeTextTrackId })
+    })
   }
 
   const createPlayer = (v: VimeoNamespace, host: HTMLElement) => {
