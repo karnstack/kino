@@ -38,7 +38,7 @@ const PROVIDERS: ProviderCard[] = [
     status: "shipped",
     entry: "@karnstack/kino/vimeo",
     detail:
-      "The Vimeo Player SDK under the same kino chrome — quality, styled captions, picture-in-picture, and rate. Chromeless playback needs a paid Vimeo plan.",
+      "The Vimeo Player SDK under the same kino chrome — quality, styled captions, and rate. Chromeless playback needs a paid Vimeo plan.",
     importLine: 'import { VimeoPlayer } from "@karnstack/kino/vimeo"',
   },
 ]
@@ -78,7 +78,7 @@ import { NativePlayer } from "@karnstack/kino/native"
 import { YouTubePlayer } from "@karnstack/kino/youtube"
 \`\`\`
 
-**Vimeo** (\`@karnstack/kino/vimeo\`) — The Vimeo Player SDK under the same kino chrome — quality, styled captions, picture-in-picture, and rate. Chromeless playback needs a paid Vimeo plan.
+**Vimeo** (\`@karnstack/kino/vimeo\`) — The Vimeo Player SDK under the same kino chrome — quality, styled captions, and rate. Chromeless playback needs a paid Vimeo plan.
 
 \`\`\`ts
 import { VimeoPlayer } from "@karnstack/kino/vimeo"
