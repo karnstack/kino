@@ -183,7 +183,7 @@ export function Lesson() {
 }
 ```
 
-`src` is the full host page URL with any auth token already encoded; as everywhere else in kino, the player never talks to your auth layer. `ScenesPlayer` also takes `defaultRate`, `autoPlay`, `muted`, `metadata`, and the shared chrome props (`accentColor`, `theme`, `className`, `placeholder`, `children`). Options are read once per `src`; when `src` changes the component remounts internally, rebuilding the iframe from scratch.
+`src` is the full host page URL with any auth token already encoded; as everywhere else in kino, the player never talks to your auth layer. `ScenesPlayer` also takes `defaultRate`, `autoPlay`, `muted`, and the shared chrome props (`accentColor`, `theme`, `className`, `placeholder`, `children`). `metadata` is accepted for parity with the other players but is reserved and currently unused. Options are read once per `src`; when `src` changes the component remounts internally, rebuilding the iframe from scratch.
 
 Captions are a sidecar VTT fetched and rendered by the parent in kino's own caption overlay, so the host page never deals with text tracks.
 
@@ -201,10 +201,13 @@ createSceneHost({
   container: document.getElementById("stage")!,
   manifest,
   loadScene: (id) => import(`./scenes/${id}.tsx`),
-  // Origin of the embedding page. Defaults to "*"; lock it down in production.
+  // Origin of the embedding page: targets outgoing posts and filters
+  // incoming commands. Defaults to "*"; lock it down in production.
   parentOrigin: "https://app.example.com",
 })
 ```
+
+The demo ships a runnable reference: [`demo/scenes-host.html`](demo/scenes-host.html) + [`demo/src/scenes-host.tsx`](demo/src/scenes-host.tsx) is a complete host page (scenes, manifest, boot), and [`demo/scenes.html`](demo/scenes.html) + [`demo/src/scenes-demo.tsx`](demo/src/scenes-demo.tsx) embeds it with `ScenesPlayer`.
 
 `loadScene` resolves a scene id to a module whose default export is the scene component (`SceneModule`). Inside a scene, `useSceneTimeline()` returns the scene clock: `t` is scene-local seconds, and `cue(id)`, `between(from, to)`, `progress()`, and `currentWord()` are all pure over it, so a scene's output is a function of time and scrubbing just works.
 
@@ -229,7 +232,7 @@ type SceneManifest = {
   duration: number // total lesson length in seconds
   scenes: Array<{
     id: string
-    src: string // module URL, absolute or relative to the manifest
+    src: string // informational; the host loads modules via loadScene
     start: number // global seconds, inclusive
     end: number // global seconds, exclusive
     cues: Cues // named cue marks + word timings for this scene
@@ -241,11 +244,11 @@ type SceneManifest = {
 }
 ```
 
-A scene owns `[start, end)` on the lesson clock. `end` includes the trailing silence after the scene's narration; the scene-local clock clamps to the narration length, so the scene holds its final settled state through the gap.
+A scene owns `[start, end)` on the lesson clock. `end` includes the trailing silence after the scene's narration; the scene-local clock clamps to the narration length, so the scene holds its final settled state through the gap. Scenes should tile the clock with no gaps; the host warns once at startup if they do not. `src` records where a scene module lives for tooling, but the host actually loads modules through the `loadScene` callback.
 
 ### The wire protocol
 
-The two halves speak a `postMessage` protocol namespaced with `kino:`, so the host page can share a window with unrelated message traffic. You only touch it if you build a custom host. The parent accepts events only from its own iframe's origin and window; the host accepts commands only from its parent window and targets `parentOrigin` when posting.
+The two halves speak a `postMessage` protocol namespaced with `kino:`, so the host page can share a window with unrelated message traffic. You only touch it if you build a custom host. The parent accepts events only from its own iframe's origin and window; the host accepts commands only from its parent window, drops them when their origin does not match a locked-down `parentOrigin`, and targets `parentOrigin` when posting.
 
 | Message                                             | Direction     | Meaning                                                                       |
 | --------------------------------------------------- | ------------- | ----------------------------------------------------------------------------- |
@@ -257,7 +260,7 @@ The two halves speak a `postMessage` protocol namespaced with `kino:`, so the ho
 | `kino:scenechange`                                  | host → parent | The active scene mounted. Fires for the initial scene too, not only on swaps. |
 | `kino:error`                                        | host → parent | The audio failed, or a scene module failed to load.                           |
 
-`kino:state` snapshots are authoritative: the parent applies them wholesale, patching time and rate optimistically between ticks so the scrubber tracks the pointer. A scene module that fails to load posts `kino:error` once and is memoized as failed for the life of the host; nothing retries it. Recovery is rebuilding the iframe, which is exactly what changing `src` on `ScenesPlayer` does.
+`kino:state` snapshots are authoritative: the parent applies them wholesale, patching time optimistically between ticks so the scrubber tracks the pointer, and holding a just-set rate until the host echoes it back so a stale snapshot cannot flicker the speed menu. A scene module that fails to load posts `kino:error` once and is memoized as failed for the life of the host; nothing retries it. Recovery is rebuilding the iframe, which is exactly what changing `src` on `ScenesPlayer` does.
 
 ### Scrubbing and animations
 

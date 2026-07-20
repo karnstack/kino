@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentType } from "react"
+import { useEffect, useMemo, useState, type ComponentType } from "react"
 import { createRoot, type Root } from "react-dom/client"
 import { sceneAt, localTime } from "./lesson-timeline"
 import { TimelineContext, type TimelineContextValue } from "./timeline-context"
@@ -16,7 +16,8 @@ export type SceneHostOptions = {
   container: HTMLElement
   manifest: SceneManifest
   loadScene: (id: string) => Promise<SceneModule>
-  // Origin of the embedding page for postMessage targeting/filtering.
+  // Origin of the embedding page. Targets outgoing posts AND filters
+  // incoming commands: messages whose origin does not match are dropped.
   // "*" accepts any parent; lock this down in production hosts.
   parentOrigin?: string
   // The lesson bundle wires MotionGlobalConfig.skipAnimations here so
@@ -34,6 +35,18 @@ const STATE_HZ = 10
 export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
   const { container, manifest, loadScene } = opts
   const parentOrigin = opts.parentOrigin ?? "*"
+
+  // Dev-time sanity: the timeline mapping assumes scenes tile the lesson
+  // clock. Warn once at startup, listing every gap or overlap.
+  const gaps: string[] = []
+  for (let i = 1; i < manifest.scenes.length; i++) {
+    const prev = manifest.scenes[i - 1]
+    const cur = manifest.scenes[i]
+    if (prev && cur && cur.start !== prev.end)
+      gaps.push(`"${prev.id}" ends at ${prev.end} but "${cur.id}" starts at ${cur.start}`)
+  }
+  if (gaps.length > 0)
+    console.warn(`kino scenes: manifest is not contiguous: ${gaps.join("; ")}`)
 
   const audio = document.createElement("audio")
   audio.setAttribute("src", manifest.audio[0]?.src ?? "")
@@ -119,7 +132,10 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
   audio.addEventListener("error", onError)
 
   const onCommand = (ev: MessageEvent) => {
-    // Only the embedding page may drive playback.
+    // Only the embedding page may drive playback: the message must come from
+    // the parent window, and when parentOrigin is locked down, from that
+    // origin.
+    if (parentOrigin !== "*" && ev.origin !== parentOrigin) return
     if (ev.source !== window.parent) return
     const msg = ev.data as HostCommand
     if (msg == null || typeof msg !== "object") return
@@ -241,17 +257,22 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
     useEffect(() => {
       post({ type: "kino:scenechange", id: scene.id })
     }, [scene.id])
-    const value: TimelineContextValue = {
-      cues: scene.cues,
-      duration: scene.cues.audioDuration,
-      getTime: () => localTime(scene, time),
-      subscribe: (fn) => {
-        timeListeners.add(fn)
-        return () => {
-          timeListeners.delete(fn)
-        }
-      },
-    }
+    // Stable per scene: a fresh context value every clock tick would make
+    // every useSyncExternalStore consumer resubscribe at frame rate.
+    const value = useMemo<TimelineContextValue>(
+      () => ({
+        cues: scene.cues,
+        duration: scene.cues.audioDuration,
+        getTime: () => localTime(scene, time),
+        subscribe: (fn) => {
+          timeListeners.add(fn)
+          return () => {
+            timeListeners.delete(fn)
+          }
+        },
+      }),
+      [scene],
+    )
     return (
       <TimelineContext.Provider value={value}>
         <Component />
@@ -282,6 +303,13 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
       audio.removeEventListener("error", onError)
       audio.pause()
       audio.removeAttribute("src")
+      // load() runs the resource selection algorithm and releases the source.
+      // jsdom doesn't implement it; swallow that.
+      try {
+        audio.load()
+      } catch {
+        /* jsdom / unsupported */
+      }
       root.unmount()
       mount.remove()
       audio.remove()

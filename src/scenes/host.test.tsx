@@ -7,8 +7,9 @@ import type { SceneManifest } from "./protocol"
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true
 
-// jsdom implements neither play() nor pause() on media elements, and has no
-// ResizeObserver (the host observes the container for stage scaling).
+// jsdom implements neither play(), pause(), nor load() on media elements,
+// and has no ResizeObserver (the host observes the container for stage
+// scaling).
 beforeAll(() => {
   globalThis.ResizeObserver = class {
     observe() {}
@@ -28,6 +29,18 @@ beforeAll(() => {
       this.dispatchEvent(new Event("pause"))
     },
   })
+  Object.defineProperty(HTMLMediaElement.prototype, "load", {
+    configurable: true,
+    value(this: HTMLMediaElement) {},
+  })
+})
+
+// makeHost swaps window.parent.postMessage for a capturing stub; restore the
+// real one after every test regardless of how the test exits.
+const realParentPostMessage = window.parent.postMessage
+
+afterEach(() => {
+  window.parent.postMessage = realParentPostMessage
 })
 
 const manifest: SceneManifest = {
@@ -60,7 +73,6 @@ function makeHost(overrides?: Partial<SceneHostOptions>) {
   const container = document.createElement("div")
   document.body.appendChild(container)
   const posted: unknown[] = []
-  const origPost = window.parent.postMessage.bind(window.parent)
   window.parent.postMessage = ((msg: unknown) =>
     posted.push(msg)) as typeof window.parent.postMessage
   let host: ReturnType<typeof createSceneHost>
@@ -78,16 +90,17 @@ function makeHost(overrides?: Partial<SceneHostOptions>) {
     posted,
     host: host!,
     audio: () => container.querySelector("audio") as HTMLAudioElement,
-    cleanup: () => {
-      window.parent.postMessage = origPost
-    },
   }
 }
 
-function command(data: unknown) {
+function command(data: unknown, origin?: string) {
   act(() => {
     window.dispatchEvent(
-      new MessageEvent("message", { data, source: window.parent }),
+      new MessageEvent("message", {
+        data,
+        source: window.parent,
+        ...(origin === undefined ? {} : { origin }),
+      }),
     )
   })
 }
@@ -105,7 +118,6 @@ test("host mounts audio element and posts ready with manifest duration", async (
   expect(h.audio().getAttribute("src")).toBe("/audio.m4a")
   expect(h.posted).toContainEqual({ type: "kino:ready", duration: 12 })
   act(() => h.host.destroy())
-  h.cleanup()
 })
 
 test("host renders the scene owning currentTime and swaps at the boundary", async () => {
@@ -121,7 +133,6 @@ test("host renders the scene owning currentTime and swaps at the boundary", asyn
   expect(h.container.querySelector("[data-scene='01']")).toBe(null)
   expect(h.posted).toContainEqual({ type: "kino:scenechange", id: "02" })
   act(() => h.host.destroy())
-  h.cleanup()
 })
 
 test("play/pause/seek/rate commands drive the audio element", async () => {
@@ -135,7 +146,6 @@ test("play/pause/seek/rate commands drive the audio element", async () => {
   command({ type: "kino:setMuted", muted: true })
   expect(h.audio().muted).toBe(true)
   act(() => h.host.destroy())
-  h.cleanup()
 })
 
 test("seek toggles onSeekingChange until the element settles", async () => {
@@ -149,7 +159,6 @@ test("seek toggles onSeekingChange until the element settles", async () => {
   })
   expect(calls).toEqual([true, false])
   act(() => h.host.destroy())
-  h.cleanup()
 })
 
 test("messages not from the parent window are ignored", async () => {
@@ -170,7 +179,18 @@ test("messages not from the parent window are ignored", async () => {
   expect(h.audio().currentTime).toBe(0)
   foreign.remove()
   act(() => h.host.destroy())
-  h.cleanup()
+})
+
+test("with parentOrigin locked down, commands from other origins are ignored", async () => {
+  const h = makeHost({ parentOrigin: "https://app.example.com" })
+  await flush()
+  // Parent source but wrong origin: dropped before any command handling.
+  command({ type: "kino:seek", time: 3 }, "https://evil.example.com")
+  expect(h.audio().currentTime).toBe(0)
+  // Same command from the configured origin goes through.
+  command({ type: "kino:seek", time: 3 }, "https://app.example.com")
+  expect(h.audio().currentTime).toBe(3)
+  act(() => h.host.destroy())
 })
 
 test("a persistently failing scene load posts kino:error once and never retries", async () => {
@@ -201,7 +221,6 @@ test("a persistently failing scene load posts kino:error once and never retries"
   ])
   expect(loads).toBe(1)
   act(() => h.host.destroy())
-  h.cleanup()
 })
 
 test("destroy unmounts and stops posting", async () => {
@@ -214,5 +233,4 @@ test("destroy unmounts and stops posting", async () => {
     h.audio()
   })
   expect(h.posted.length).toBe(before)
-  h.cleanup()
 })

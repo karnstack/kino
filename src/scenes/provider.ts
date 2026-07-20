@@ -19,13 +19,28 @@ const TRACK_ID = "captions"
 // owns the audio element and the scene DOM; this side only speaks the wire
 // protocol and adapts it to kino's Provider contract.
 export function createScenesProvider(opts: ScenesProviderOptions): Provider {
-  const origin = new URL(
-    opts.src,
-    typeof location !== "undefined" ? location.href : undefined,
-  ).origin
+  // Resolved lazily in mount(): on a server there is no location to resolve
+  // a relative src against, and mount only ever runs in a browser. Before
+  // mount nothing sends or receives, so the empty origin is never used.
+  let origin = ""
+  const resolveOrigin = (): string => {
+    try {
+      return new URL(
+        opts.src,
+        typeof location !== "undefined" ? location.href : undefined,
+      ).origin
+    } catch {
+      throw new Error(
+        `kino scenes: could not resolve the host origin from src "${opts.src}"; a relative src requires a browser environment or an absolute URL`,
+      )
+    }
+  }
   let iframe: HTMLIFrameElement | null = null
   let vttCues: VttCue[] = []
   let desiredRate = opts.defaultRate ?? 1
+  // Rate held while a setRate command is in flight, so a stale host snapshot
+  // taken before the command landed doesn't flicker the speed menu back.
+  let pendingRate: number | null = null
 
   let state: MediaState = {
     ...defaultState(),
@@ -73,15 +88,21 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
         })
         break
       case "kino:state":
-        // The host's snapshot is authoritative once it arrives, including
-        // rate; setRate still reflects optimistically between ticks.
+        // The host's snapshot is authoritative once it arrives, except while
+        // a setRate is in flight: hold the optimistic rate until the host
+        // echoes it back, then let snapshots flow through wholly again.
+        if (pendingRate !== null && msg.state.rate === pendingRate)
+          pendingRate = null
         patch({
           ...msg.state,
+          ...(pendingRate !== null ? { rate: pendingRate } : {}),
           activeCueText: readCueText(msg.state.currentTime),
         })
         break
       case "kino:error":
-        patch({ error: { code: 0, message: msg.message } })
+        // MediaState.error.code is numeric; carry the host's string code
+        // ("media" | "scene") in the message so it survives the adaptation.
+        patch({ error: { code: 0, message: `[${msg.code}] ${msg.message}` } })
         break
       case "kino:scenechange":
         // Not surfaced in MediaState yet; chapters UI is a later addition.
@@ -101,6 +122,7 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
       patch({ currentTime: t, activeCueText: readCueText(t) })
     },
     setRate: (r) => {
+      pendingRate = r
       desiredRate = r
       send({ type: "kino:setRate", rate: r })
       patch({ rate: r })
@@ -162,6 +184,7 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
 
   return {
     mount(container) {
+      origin = resolveOrigin()
       iframe = document.createElement("iframe")
       iframe.src = opts.src
       // Delegate the parent's user activation into the frame; without this

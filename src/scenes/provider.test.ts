@@ -24,6 +24,25 @@ function fromHost(iframe: HTMLIFrameElement, data: HostEvent) {
 
 const SRC = "https://scenes.example.com/l/demo?token=abc"
 
+// A full host snapshot with the rate under test; other fields are inert.
+function snapshot(rate: number): HostEvent {
+  return {
+    type: "kino:state",
+    state: {
+      currentTime: 0,
+      duration: 40.5,
+      paused: false,
+      buffered: [],
+      seeking: false,
+      ended: false,
+      rate,
+      volume: 1,
+      muted: false,
+      readyState: 4,
+    },
+  }
+}
+
 test("mount creates an iframe with autoplay/fullscreen delegation", () => {
   const p = createScenesProvider({ src: SRC })
   const { iframe } = mount(p)
@@ -135,6 +154,38 @@ test("actions post protocol commands to the host", () => {
   expect(posted).toContainEqual({ type: "kino:setMuted", muted: true })
   // setRate reflects immediately so the speed menu doesn't flicker.
   expect(p.getState().rate).toBe(2)
+  p.destroy()
+})
+
+test("a stale snapshot cannot revert an in-flight setRate", () => {
+  const p = createScenesProvider({ src: SRC })
+  const { iframe } = mount(p)
+  p.actions.setRate(2)
+  expect(p.getState().rate).toBe(2)
+  // Snapshot taken before the setRate command landed in the host.
+  fromHost(iframe, snapshot(1))
+  expect(p.getState().rate).toBe(2)
+  // The host echoes the new rate back: the hold clears.
+  fromHost(iframe, snapshot(2))
+  expect(p.getState().rate).toBe(2)
+  // Later host-driven rate changes flow through untouched again.
+  fromHost(iframe, snapshot(1.25))
+  expect(p.getState().rate).toBe(1.25)
+  p.destroy()
+})
+
+test("host errors carry the string code bracketed into the message", () => {
+  const p = createScenesProvider({ src: SRC })
+  const { iframe } = mount(p)
+  fromHost(iframe, {
+    type: "kino:error",
+    code: "scene",
+    message: "scene 01 failed to load",
+  })
+  expect(p.getState().error).toEqual({
+    code: 0,
+    message: "[scene] scene 01 failed to load",
+  })
   p.destroy()
 })
 

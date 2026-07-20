@@ -19,11 +19,12 @@ export type Cues = {
   words: CueWord[]
 }
 
-export const emptyCues: Cues = {
+// Shared fallback; frozen so no scene can mutate it for everyone else.
+export const emptyCues: Cues = Object.freeze({
   audioDuration: 0,
-  cues: [],
-  words: [],
-}
+  cues: Object.freeze([] as CueMark[]) as CueMark[],
+  words: Object.freeze([] as CueWord[]) as CueWord[],
+})
 
 // The scene-facing clock. Scenes call these every render; all methods are
 // pure over (cues, duration, t) so a scene's output is a function of time.

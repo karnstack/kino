@@ -33,6 +33,21 @@ test("parseVtt handles MM:SS.mmm timestamps without hours", () => {
   expect(cues[0]?.end).toBe(4.25)
 })
 
+test("parseVtt accepts comma decimal separators", () => {
+  const cues = parseVtt("WEBVTT\n\n00:03,000 --> 00:04,250\nhi\n")
+  expect(cues[0]?.start).toBe(3)
+  expect(cues[0]?.end).toBe(4.25)
+})
+
+test("parseVtt handles CRLF line endings", () => {
+  const src =
+    "WEBVTT\r\n\r\n1\r\n00:00:00.000 --> 00:00:02.500\r\nOne server.\r\n\r\n00:00:02.500 --> 00:00:05.000\r\nTen users.\r\n"
+  const cues = parseVtt(src)
+  expect(cues).toHaveLength(2)
+  expect(cues[0]).toEqual({ start: 0, end: 2.5, text: "One server." })
+  expect(cues[1]).toEqual({ start: 2.5, end: 5, text: "Ten users." })
+})
+
 test("cueTextAt returns the covering cue text or empty string", () => {
   const cues = parseVtt(vtt)
   expect(cueTextAt(cues, 1)).toBe("One server.")
