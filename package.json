@@ -55,6 +55,10 @@
       "types": "./dist/vimeo.d.ts",
       "import": "./dist/vimeo.js"
     },
+    "./scenes": {
+      "types": "./dist/scenes.d.ts",
+      "import": "./dist/scenes.js"
+    },
     "./styles.css": "./dist/styles.css"
   },
   "scripts": {

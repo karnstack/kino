@@ -1,0 +1,66 @@
+import type { Cues } from "./cues"
+
+// A lesson is one audio file plus React scene modules mapped onto its
+// timeline. start/end are global seconds; end includes the trailing silence
+// gap after the scene's narration, during which the scene holds its final
+// settled state.
+export type SceneManifestScene = {
+  id: string
+  // Module URL resolving to { default: React.ComponentType }. Absolute, or
+  // relative to the manifest URL.
+  src: string
+  start: number
+  end: number
+  cues: Cues
+}
+
+export type SceneManifest = {
+  version: 1
+  slug: string
+  title?: string
+  duration: number
+  scenes: SceneManifestScene[]
+  audio: Array<{ bitrate: number; src: string }>
+  captions?: string
+  poster?: string
+  chapters?: Array<{ id: string; title: string; start: number }>
+}
+
+// Wire protocol, parent -> host. Types are namespaced with "kino:" so the
+// host page can share a window with unrelated postMessage traffic.
+export type HostCommand =
+  | {
+      type: "kino:init"
+      rate: number
+      volume: number
+      muted: boolean
+      autoPlay: boolean
+    }
+  | { type: "kino:play" }
+  | { type: "kino:pause" }
+  | { type: "kino:seek"; time: number }
+  | { type: "kino:setRate"; rate: number }
+  | { type: "kino:setVolume"; volume: number }
+  | { type: "kino:setMuted"; muted: boolean }
+
+// Host -> parent. `state` is emitted at ~10Hz while playing and immediately
+// on every transition (play/pause/seek/ended/rate), which is enough
+// precision for caption sync (~250ms) and the scrubber.
+export type HostMediaState = {
+  currentTime: number
+  duration: number
+  paused: boolean
+  buffered: Array<[number, number]>
+  seeking: boolean
+  ended: boolean
+  rate: number
+  volume: number
+  muted: boolean
+  readyState: number
+}
+
+export type HostEvent =
+  | { type: "kino:ready"; duration: number }
+  | { type: "kino:state"; state: HostMediaState }
+  | { type: "kino:scenechange"; id: string }
+  | { type: "kino:error"; code: string; message: string }

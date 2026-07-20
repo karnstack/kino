@@ -7,6 +7,7 @@ export default defineConfig({
     native: "src/native.ts",
     youtube: "src/youtube.ts",
     vimeo: "src/vimeo.ts",
+    scenes: "src/scenes.ts",
   },
   format: ["esm"],
   dts: true,
