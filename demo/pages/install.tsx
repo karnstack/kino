@@ -60,13 +60,13 @@ export function Clip() {
 const SCENES_SNIPPET = `import { ScenesPlayer } from "@karnstack/kino/scenes"
 import "@karnstack/kino/styles.css"
 
-export function Lesson() {
+export function Watch() {
   return (
     <div style={{ aspectRatio: "16 / 9" }}>
       <ScenesPlayer
-        src="https://lessons.example.com/host?lesson=intro"
+        src="https://scenes.example.com/host?sequence=intro"
         captions={{
-          src: "https://lessons.example.com/intro.vtt",
+          src: "https://scenes.example.com/intro.vtt",
           label: "English",
           srclang: "en",
         }}
@@ -232,7 +232,7 @@ ${VIMEO_SNIPPET}
 ${SCENES_SNIPPET}
 \`\`\`
 
-The lesson itself is a host page served from anywhere. It bundles the scene components and boots the host runtime, which owns the audio element and the scene DOM.
+The sequence itself is a host page served from anywhere. It bundles the scene components and boots the host runtime, which owns the audio element and the scene DOM.
 
 \`\`\`tsx
 ${SCENES_HOST_SNIPPET}
@@ -372,11 +372,11 @@ export function InstallPage() {
           </div>
           <div className="flex flex-col gap-3">
             <h3 className="text-lg font-medium text-paper">Scenes</h3>
-            <CodeBlock code={SCENES_SNIPPET} label="lesson.tsx" />
+            <CodeBlock code={SCENES_SNIPPET} label="scenes.tsx" />
             <p className="max-w-[60ch] text-base/7 text-pretty text-paper-dim">
-              The lesson itself is a host page served from anywhere. It bundles
-              the scene components and boots the host runtime, which owns the
-              audio element and the scene DOM.
+              The sequence itself is a host page served from anywhere. It
+              bundles the scene components and boots the host runtime, which
+              owns the audio element and the scene DOM.
             </p>
             <CodeBlock code={SCENES_HOST_SNIPPET} label="host.tsx" />
           </div>

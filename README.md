@@ -24,7 +24,7 @@
 
 > **[Try it live → kino.karnstack.com](https://kino.karnstack.com)** — drop in any public Mux playback ID, pick an accent, and play with the real glass UI.
 
-kino ships the player UI and a provider contract. Each provider adapts a streaming engine to that contract, so the same glass chrome can sit on top of different backends. Five providers ship today: **Mux** (adaptive HLS via `@mux/mux-video`), **Native** (a plain `<video>` over any raw file URL), **YouTube** (the IFrame Player API wrapped in the same chrome), **Vimeo** (the Vimeo Player SDK under the same chrome), and **Scenes** (audio-driven React scene lessons in an iframe under the same chrome). Each lives behind its own entry point, so you only pull in the engine you use.
+kino ships the player UI and a provider contract. Each provider adapts a streaming engine to that contract, so the same glass chrome can sit on top of different backends. Five providers ship today: **Mux** (adaptive HLS via `@mux/mux-video`), **Native** (a plain `<video>` over any raw file URL), **YouTube** (the IFrame Player API wrapped in the same chrome), **Vimeo** (the Vimeo Player SDK under the same chrome), and **Scenes** (audio-driven React scene sequences in an iframe under the same chrome). Each lives behind its own entry point, so you only pull in the engine you use.
 
 ## Install
 
@@ -153,11 +153,11 @@ For an unlisted video, pass the hash (or a share URL that contains it):
 
 Chromeless playback (kino owning the controls) requires a paid Vimeo plan.
 
-## Playing a scene lesson
+## Playing a scene sequence
 
-The scenes provider plays something that is not a video at all: an audio file is the master clock, and a manifest maps time ranges of that audio onto React components ("scenes") rendered as live DOM. kino's chrome scrubs, seeks, captions, and speed-shifts the lesson exactly like any other source, but every frame is resolution-independent DOM instead of pixels.
+The scenes provider plays something that is not a video at all: an audio file is the master clock, and a manifest maps time ranges of that audio onto React components ("scenes") rendered as live DOM. kino's chrome scrubs, seeks, captions, and speed-shifts the sequence exactly like any other source, but every frame is resolution-independent DOM instead of pixels.
 
-A scene lesson has two halves:
+A scene sequence has two halves:
 
 - **In your app**, `ScenesPlayer` puts the glass chrome over an iframe and drives it through a small `postMessage` protocol. (`createScenesProvider` is the underlying provider if you want custom chrome.)
 - **In the iframe** (the "host page"), `createSceneHost` owns the `<audio>` element and the scene DOM. It lazy-loads scene modules, preloads the next scene while the current one plays, scales a fixed 1920x1080 stage to the viewport, and streams playback state back to the parent.
@@ -166,13 +166,13 @@ A scene lesson has two halves:
 import { ScenesPlayer } from "@karnstack/kino/scenes"
 import "@karnstack/kino/styles.css"
 
-export function Lesson() {
+export function Watch() {
   return (
     <div style={{ aspectRatio: "16 / 9" }}>
       <ScenesPlayer
-        src="https://lessons.example.com/host?lesson=intro&token=..."
+        src="https://scenes.example.com/host?sequence=intro&token=..."
         captions={{
-          src: "https://lessons.example.com/intro.vtt",
+          src: "https://scenes.example.com/intro.vtt",
           label: "English",
           srclang: "en",
         }}
@@ -191,7 +191,7 @@ kino sets `allow="autoplay; fullscreen"` on the iframe it creates. That delegate
 
 ### The host page
 
-The host page is a page you serve from anywhere (same origin or not) that bundles the lesson's scene components and boots the host runtime:
+The host page is a page you serve from anywhere (same origin or not) that bundles the sequence's scene components and boots the host runtime:
 
 ```tsx
 import { createSceneHost } from "@karnstack/kino/scenes"
@@ -222,14 +222,14 @@ export default function Intro() {
 
 ### The manifest
 
-The manifest describes the whole lesson: audio sources, total duration, and the scene list with global time ranges.
+The manifest describes the whole sequence: audio sources, total duration, and the scene list with global time ranges.
 
 ```ts
 type SceneManifest = {
   version: 1
   slug: string
   title?: string
-  duration: number // total lesson length in seconds
+  duration: number // total sequence length in seconds
   scenes: Array<{
     id: string
     src: string // informational; the host loads modules via loadScene
@@ -244,7 +244,7 @@ type SceneManifest = {
 }
 ```
 
-A scene owns `[start, end)` on the lesson clock. `end` includes the trailing silence after the scene's narration; the scene-local clock clamps to the narration length, so the scene holds its final settled state through the gap. Scenes should tile the clock with no gaps; the host warns once at startup if they do not. `src` records where a scene module lives for tooling, but the host actually loads modules through the `loadScene` callback.
+A scene owns `[start, end)` on the sequence clock. `end` includes the trailing silence after the scene's narration; the scene-local clock clamps to the narration length, so the scene holds its final settled state through the gap. Scenes should tile the clock with no gaps; the host warns once at startup if they do not. `src` records where a scene module lives for tooling, but the host actually loads modules through the `loadScene` callback.
 
 ### The wire protocol
 
@@ -252,7 +252,7 @@ The two halves speak a `postMessage` protocol namespaced with `kino:`, so the ho
 
 | Message                                             | Direction     | Meaning                                                                       |
 | --------------------------------------------------- | ------------- | ----------------------------------------------------------------------------- |
-| `kino:ready`                                        | host → parent | The host booted; carries the lesson duration.                                 |
+| `kino:ready`                                        | host → parent | The host booted; carries the sequence duration.                               |
 | `kino:init`                                         | parent → host | Reply to `kino:ready`: initial rate, volume, mute, and autoplay intent.       |
 | `kino:play` / `kino:pause` / `kino:seek`            | parent → host | Transport. `kino:seek` carries a global time in seconds.                      |
 | `kino:setRate` / `kino:setVolume` / `kino:setMuted` | parent → host | Mirror the corresponding chrome controls.                                     |
@@ -264,7 +264,7 @@ The two halves speak a `postMessage` protocol namespaced with `kino:`, so the ho
 
 ### Scrubbing and animations
 
-kino stays motion-agnostic, but scrubbing a lesson built on an animation library needs one hook: while a seek is in flight, scenes should snap to settled states instead of replaying their entrances. `createSceneHost` exposes `onSeekingChange` for exactly this. With Motion:
+kino stays motion-agnostic, but scrubbing a sequence built on an animation library needs one hook: while a seek is in flight, scenes should snap to settled states instead of replaying their entrances. `createSceneHost` exposes `onSeekingChange` for exactly this. With Motion:
 
 ```ts
 import { MotionGlobalConfig } from "motion/react"

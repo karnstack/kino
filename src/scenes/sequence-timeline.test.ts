@@ -1,4 +1,4 @@
-import { sceneAt, localTime } from "./lesson-timeline"
+import { sceneAt, localTime } from "./sequence-timeline"
 import type { SceneManifestScene } from "./protocol"
 
 const scene = (
@@ -29,7 +29,7 @@ test("sceneAt picks the scene whose [start, end) contains t", () => {
   expect(sceneAt(scenes, 35)?.id).toBe("02")
 })
 
-test("sceneAt clamps outside the lesson to first/last scene", () => {
+test("sceneAt clamps outside the sequence to first/last scene", () => {
   expect(sceneAt(scenes, -1)?.id).toBe("01")
   expect(sceneAt(scenes, 40.5)?.id).toBe("03")
   expect(sceneAt(scenes, 999)?.id).toBe("03")

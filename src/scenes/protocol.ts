@@ -1,6 +1,6 @@
 import type { Cues } from "./cues"
 
-// A lesson is one audio file plus React scene modules mapped onto its
+// A scene sequence is one audio file plus React scene modules mapped onto its
 // timeline. start/end are global seconds; end includes the trailing silence
 // gap after the scene's narration, during which the scene holds its final
 // settled state.

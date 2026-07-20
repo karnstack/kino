@@ -1,5 +1,5 @@
-// The kino scenes demo lesson. Three scenes mapped onto one 41.8s narration
-// track (/demo-lesson.mp3). Every cue `t` below is the whisper t0 of the word
+// The kino scenes demo sequence. Three scenes mapped onto one 41.8s narration
+// track (/demo.mp3). Every cue `t` below is the whisper t0 of the word
 // the visual lands on, scene-local seconds. Scenes are pure functions of the
 // timeline: all motion is CSS transitions gated on cue booleans plus values
 // derived from t, so seeking in either direction always settles correctly.
@@ -99,7 +99,7 @@ function FileChip({
         }}
       >
         <div style={{ fontFamily: MONO, fontSize: 46, color: "#fafafa" }}>
-          lesson.mp4
+          video.mp4
         </div>
         <div
           style={{
@@ -816,7 +816,7 @@ const w = (word: string, t0: number, t1: number): CueWord => ({
 
 const manifest: SceneManifest = {
   version: 1,
-  slug: "demo-lesson",
+  slug: "demo",
   duration: 41.8,
   scenes: [
     {
@@ -991,8 +991,8 @@ const manifest: SceneManifest = {
       },
     },
   ],
-  audio: [{ bitrate: 192, src: "/demo-lesson.mp3" }],
-  captions: "/demo-lesson.vtt",
+  audio: [{ bitrate: 192, src: "/demo.mp3" }],
+  captions: "/demo.vtt",
 }
 
 const sceneModules: Record<string, ComponentType> = {

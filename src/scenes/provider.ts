@@ -4,7 +4,7 @@ import type { MediaState, PlayerActions, Provider } from "../core/types"
 import type { HostCommand, HostEvent } from "./protocol"
 
 export type ScenesProviderOptions = {
-  // Full URL of the host page, token and lesson already encoded by the caller.
+  // Full URL of the host page, token and sequence already encoded by the caller.
   src: string
   captions?: { src: string; label: string; srclang: string }
   metadata?: { videoId?: string; videoTitle?: string; viewerUserId?: string }
@@ -15,7 +15,7 @@ export type ScenesProviderOptions = {
 
 const TRACK_ID = "captions"
 
-// Plays an audio-driven React scene lesson hosted in an iframe. The iframe
+// Plays an audio-driven React scene sequence hosted in an iframe. The iframe
 // owns the audio element and the scene DOM; this side only speaks the wire
 // protocol and adapts it to kino's Provider contract.
 export function createScenesProvider(opts: ScenesProviderOptions): Provider {

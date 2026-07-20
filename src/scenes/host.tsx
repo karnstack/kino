@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ComponentType } from "react"
 import { createRoot, type Root } from "react-dom/client"
-import { sceneAt, localTime } from "./lesson-timeline"
+import { sceneAt, localTime } from "./sequence-timeline"
 import { TimelineContext, type TimelineContextValue } from "./timeline-context"
 import type {
   HostCommand,
@@ -20,7 +20,7 @@ export type SceneHostOptions = {
   // incoming commands: messages whose origin does not match are dropped.
   // "*" accepts any parent; lock this down in production hosts.
   parentOrigin?: string
-  // The lesson bundle wires MotionGlobalConfig.skipAnimations here so
+  // The host page bundle wires MotionGlobalConfig.skipAnimations here so
   // scrubbing snaps to settled states. Kino itself stays motion-agnostic.
   onSeekingChange?: (seeking: boolean) => void
 }
@@ -36,7 +36,7 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
   const { container, manifest, loadScene } = opts
   const parentOrigin = opts.parentOrigin ?? "*"
 
-  // Dev-time sanity: the timeline mapping assumes scenes tile the lesson
+  // Dev-time sanity: the timeline mapping assumes scenes tile the sequence
   // clock. Warn once at startup, listing every gap or overlap.
   const gaps: string[] = []
   for (let i = 1; i < manifest.scenes.length; i++) {
@@ -63,7 +63,7 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
     window.parent.postMessage(ev, parentOrigin)
   }
 
-  // Global lesson clock, driven by the audio element plus a RAF loop while
+  // Global sequence clock, driven by the audio element plus a RAF loop while
   // playing (timeupdate alone is ~250ms, too coarse for motion).
   let time = 0
   const timeListeners = new Set<() => void>()

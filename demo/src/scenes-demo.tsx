@@ -2,8 +2,8 @@ import { createRoot } from "react-dom/client"
 import { ScenesPlayer } from "../../src/scenes"
 import "../../src/styles/kino.css"
 
-// Standalone page (demo/scenes.html): embeds the demo lesson host with kino's
-// chrome. Palette mirrors the docs site (ink / paper / leader amber).
+// Standalone page (demo/scenes.html): embeds the demo sequence host with
+// kino's chrome. Palette mirrors the docs site (ink / paper / leader amber).
 const SANS =
   "'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif"
 
@@ -30,7 +30,7 @@ function DemoPage() {
           kino scenes
         </h1>
         <p style={{ margin: "8px 0 0", fontSize: 15, color: "#a89e8e" }}>
-          a lesson that is not a video file ·{" "}
+          a video that is not a video file ·{" "}
           <a
             href="/scenes-host.html"
             style={{ color: "#f4b942", textDecorationColor: "#6e655a" }}
@@ -43,7 +43,7 @@ function DemoPage() {
         <ScenesPlayer
           src="/scenes-host.html"
           captions={{
-            src: "/demo-lesson.vtt",
+            src: "/demo.vtt",
             label: "English",
             srclang: "en",
           }}

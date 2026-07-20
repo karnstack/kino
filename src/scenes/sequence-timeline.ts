@@ -1,7 +1,7 @@
 import type { SceneManifestScene } from "./protocol"
 
 // Which scene owns global time t. Ranges are [start, end); t outside the
-// lesson clamps to the first/last scene so the stage is never empty while
+// sequence clamps to the first/last scene so the stage is never empty while
 // the audio element reports edge times.
 export function sceneAt(
   scenes: SceneManifestScene[],

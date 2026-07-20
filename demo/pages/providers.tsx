@@ -47,7 +47,7 @@ const PROVIDERS: ProviderCard[] = [
     status: "shipped",
     entry: "@karnstack/kino/scenes",
     detail:
-      "Audio-driven React scene lessons in an iframe. The audio file is the master clock, a manifest maps time ranges onto React scene modules, and every frame is resolution-independent DOM. Captions ride in as a sidecar VTT.",
+      "Audio-driven React scene sequences in an iframe. The audio file is the master clock, a manifest maps time ranges onto React scene modules, and every frame is resolution-independent DOM. Captions ride in as a sidecar VTT.",
     importLine: 'import { ScenesPlayer } from "@karnstack/kino/scenes"',
     links: [
       { href: "/scenes.html", label: "Live demo" },
@@ -97,7 +97,7 @@ import { YouTubePlayer } from "@karnstack/kino/youtube"
 import { VimeoPlayer } from "@karnstack/kino/vimeo"
 \`\`\`
 
-**Scenes** (\`@karnstack/kino/scenes\`): Audio-driven React scene lessons in an iframe. The audio file is the master clock, a manifest maps time ranges onto React scene modules, and every frame is resolution-independent DOM. Captions ride in as a sidecar VTT. Live demo: https://kino.karnstack.com/scenes.html, host page: https://kino.karnstack.com/scenes-host.html.
+**Scenes** (\`@karnstack/kino/scenes\`): Audio-driven React scene sequences in an iframe. The audio file is the master clock, a manifest maps time ranges onto React scene modules, and every frame is resolution-independent DOM. Captions ride in as a sidecar VTT. Live demo: https://kino.karnstack.com/scenes.html, host page: https://kino.karnstack.com/scenes-host.html.
 
 \`\`\`ts
 import { ScenesPlayer } from "@karnstack/kino/scenes"

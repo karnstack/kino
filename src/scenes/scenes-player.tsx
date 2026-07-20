@@ -16,7 +16,7 @@ export type ScenesPlayerProps = ScenesProviderOptions & {
 }
 
 /**
- * kino's glass chrome over an audio-driven React scene lesson. The lesson
+ * kino's glass chrome over an audio-driven React scene sequence. The sequence
  * runs in an iframe (the "host page"); pass the host page URL as `src` with
  * any auth token already encoded. Options are read once per `src`; the
  * component remounts internally when `src` changes.

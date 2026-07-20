@@ -35,12 +35,12 @@ const VIMEO_SAMPLE = {
   label: "Vimeo staff pick · Vimeo",
 } as const
 
-// The scenes fixture lesson ships with the demo, so the Scenes tab plays the
-// same audio-driven lesson as /scenes.html from the site's own origin.
+// The scenes fixture sequence ships with the demo, so the Scenes tab plays the
+// same audio-driven sequence as /scenes.html from the site's own origin.
 const SCENES_SAMPLE = {
   src: "/scenes-host.html",
-  captions: "/demo-lesson.vtt",
-  label: "Demo lesson · Scenes",
+  captions: "/demo.vtt",
+  label: "Demo sequence · Scenes",
 } as const
 
 export const DEFAULT_ACCENT = "#f4b942"

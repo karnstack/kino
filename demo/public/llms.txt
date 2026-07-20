@@ -1,6 +1,6 @@
 # kino
 
-> A themeable, keyboard-first React video player with pluggable providers (Mux HLS, native files, YouTube, Vimeo, audio-driven scene lessons) under one glass UI. MIT licensed.
+> A themeable, keyboard-first React video player with pluggable providers (Mux HLS, native files, YouTube, Vimeo, audio-driven scene sequences) under one glass UI. MIT licensed.
 
 ## Docs
 
@@ -11,7 +11,7 @@
 
 ## Scenes
 
-- [Scenes demo](https://kino.karnstack.com/scenes.html): an audio-driven React scene lesson played through kino's chrome. The audio file is the master clock, a manifest maps time ranges onto React scene modules, and every frame is resolution-independent DOM.
+- [Scenes demo](https://kino.karnstack.com/scenes.html): an audio-driven React scene sequence played through kino's chrome. The audio file is the master clock, a manifest maps time ranges onto React scene modules, and every frame is resolution-independent DOM.
 - [Scenes host page](https://kino.karnstack.com/scenes-host.html): the iframe host that owns the audio element and the scene DOM, built with createSceneHost.
 
 ## Reference
