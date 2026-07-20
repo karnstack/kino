@@ -43,7 +43,9 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
     const prev = manifest.scenes[i - 1]
     const cur = manifest.scenes[i]
     if (prev && cur && cur.start !== prev.end)
-      gaps.push(`"${prev.id}" ends at ${prev.end} but "${cur.id}" starts at ${cur.start}`)
+      gaps.push(
+        `"${prev.id}" ends at ${prev.end} but "${cur.id}" starts at ${cur.start}`,
+      )
   }
   if (gaps.length > 0)
     console.warn(`kino scenes: manifest is not contiguous: ${gaps.join("; ")}`)
