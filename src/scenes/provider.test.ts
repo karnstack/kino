@@ -73,6 +73,22 @@ test("capabilities: rate yes, quality/storyboard/pip no, captions when provided"
   p2.destroy()
 })
 
+test("storyboard option reports the capability and exposes the vtt url", () => {
+  const vttUrl = "https://scenes.example.com/l/demo/storyboard.vtt?token=abc"
+  const p = createScenesProvider({ src: SRC, storyboard: { vttUrl } })
+  const s = p.getState()
+  expect(s.capabilities.hasStoryboard).toBe(true)
+  expect(s.storyboard).toEqual({ vttUrl })
+  p.destroy()
+})
+
+test("without a storyboard option the capability is off and state is null", () => {
+  const p = createScenesProvider({ src: SRC })
+  expect(p.getState().capabilities.hasStoryboard).toBe(false)
+  expect(p.getState().storyboard).toBe(null)
+  p.destroy()
+})
+
 test("ready handshake replies with init carrying rate and autoplay", () => {
   const p = createScenesProvider({ src: SRC, defaultRate: 1.5, autoPlay: true })
   const { iframe } = mount(p)

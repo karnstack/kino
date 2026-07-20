@@ -23,6 +23,10 @@ export type SceneManifest = {
   audio: Array<{ bitrate: number; src: string }>
   captions?: string
   poster?: string
+  // Relative URL of a thumbnail VTT whose cues point into a sprite image via
+  // #xywh fragments, the same format the Mux storyboard track uses. Consumed
+  // by embedding players (scrubber hover previews), not by the host.
+  storyboard?: string
   chapters?: Array<{ id: string; title: string; start: number }>
 }
 
