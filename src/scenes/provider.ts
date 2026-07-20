@@ -7,6 +7,10 @@ export type ScenesProviderOptions = {
   // Full URL of the host page, token and sequence already encoded by the caller.
   src: string
   captions?: { src: string; label: string; srclang: string }
+  // Thumbnail VTT for scrubber hover previews: cues whose payload points into
+  // a sprite image via #xywh fragments, same format as the Mux storyboard
+  // track. Full URL, any auth token already encoded by the caller.
+  storyboard?: { vttUrl: string }
   metadata?: { videoId?: string; videoTitle?: string; viewerUserId?: string }
   defaultRate?: number
   autoPlay?: boolean
@@ -46,10 +50,11 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
     ...defaultState(),
     rate: desiredRate,
     muted: opts.muted ?? false,
+    storyboard: opts.storyboard ? { vttUrl: opts.storyboard.vttUrl } : null,
     capabilities: {
       // The stage is resolution independent DOM; there is no rendition ladder.
       canSetQuality: false,
-      hasStoryboard: false,
+      hasStoryboard: opts.storyboard != null,
       // No parent-side media element to promote into PiP.
       canPiP: false,
       canFullscreen: true,

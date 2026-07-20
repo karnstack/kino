@@ -187,6 +187,8 @@ export function Watch() {
 
 Captions are a sidecar VTT fetched and rendered by the parent in kino's own caption overlay, so the host page never deals with text tracks.
 
+Storyboards work the same way: pass `storyboard={{ vttUrl }}` and the scrubber shows thumbnail previews on hover, exactly as it does for Mux sources. The VTT's cues point into a sprite image via `#xywh` fragments (the format Mux storyboard tracks use); whatever produces the sequence generates both files, kino only fetches the VTT and paints the tiles while you scrub. As with `src`, the URL may carry an auth token, already encoded by the caller.
+
 kino sets `allow="autoplay; fullscreen"` on the iframe it creates. That delegates the parent page's user activation (the click on kino's play button) into the frame; without it, `audio.play()` inside the host is blocked by autoplay policy. If your app itself runs inside an iframe, the outer frame needs the same `allow` list.
 
 ### The host page
@@ -240,6 +242,7 @@ type SceneManifest = {
   audio: Array<{ bitrate: number; src: string }>
   captions?: string
   poster?: string
+  storyboard?: string // thumbnail VTT with #xywh fragments; read by embedders, not the host
   chapters?: Array<{ id: string; title: string; start: number }>
 }
 ```
