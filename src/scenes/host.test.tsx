@@ -173,6 +173,37 @@ test("messages not from the parent window are ignored", async () => {
   h.cleanup()
 })
 
+test("a persistently failing scene load posts kino:error once and never retries", async () => {
+  let loads = 0
+  const h = makeHost({
+    loadScene: (id) => {
+      if (id === "01") {
+        loads++
+        return Promise.reject(new Error("boom"))
+      }
+      return Promise.resolve({ default: SceneTwo })
+    },
+  })
+  await flush()
+  // Stage re-renders on every clock emit; each tick calls ensureLoaded again.
+  for (let i = 0; i < 5; i++) {
+    act(() => {
+      h.audio().currentTime = 1 + i
+      h.audio().dispatchEvent(new Event("timeupdate"))
+    })
+    await flush()
+  }
+  const errors = h.posted.filter(
+    (m) => (m as { type?: string }).type === "kino:error",
+  )
+  expect(errors).toEqual([
+    { type: "kino:error", code: "scene", message: "scene 01 failed to load" },
+  ])
+  expect(loads).toBe(1)
+  act(() => h.host.destroy())
+  h.cleanup()
+})
+
 test("destroy unmounts and stops posting", async () => {
   const h = makeHost()
   await flush()

@@ -40,7 +40,11 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
   audio.preload = "auto"
   container.appendChild(audio)
 
+  // In-flight scene loads can settle after destroy(); once torn down, never
+  // reach back out to the parent window.
+  let destroyed = false
   const post = (ev: HostEvent) => {
+    if (destroyed) return
     window.parent.postMessage(ev, parentOrigin)
   }
 
@@ -153,23 +157,27 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
 
   // React tree: stage scaling + active scene by time range. Modules are
   // cached after first load; the next scene preloads while the current plays.
+  // Failures are memoized too: Stage calls ensureLoaded on every clock tick,
+  // so without this a broken scene would retry and re-post at frame rate.
   const moduleCache = new Map<string, ComponentType>()
   const pending = new Set<string>()
+  const failed = new Set<string>()
   const ensureLoaded = (id: string, onDone?: () => void) => {
-    if (moduleCache.has(id) || pending.has(id)) return
+    if (moduleCache.has(id) || pending.has(id) || failed.has(id)) return
     pending.add(id)
     loadScene(id)
       .then((m) => {
         moduleCache.set(id, m.default)
         onDone?.()
       })
-      .catch(() =>
+      .catch(() => {
+        failed.add(id)
         post({
           type: "kino:error",
           code: "scene",
           message: `scene ${id} failed to load`,
-        }),
-      )
+        })
+      })
       .finally(() => pending.delete(id))
   }
 
@@ -264,6 +272,7 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
 
   return {
     destroy() {
+      destroyed = true
       window.removeEventListener("message", onCommand)
       clearInterval(interval)
       cancelAnimationFrame(raf)
