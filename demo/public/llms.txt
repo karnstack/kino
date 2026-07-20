@@ -1,16 +1,21 @@
 # kino
 
-> A themeable, keyboard-first React video player with pluggable providers (Mux HLS, native files, YouTube, Vimeo) under one glass UI. MIT licensed.
+> A themeable, keyboard-first React video player with pluggable providers (Mux HLS, native files, YouTube, Vimeo, audio-driven scene sequences) under one glass UI. MIT licensed.
 
 ## Docs
 
 - [Overview](https://kino.karnstack.com/): what kino is, live playground, why kino.
 - [Install & API](https://kino.karnstack.com/install): install, quick start, the provider/props API.
-- [Providers](https://kino.karnstack.com/providers): the Provider contract and the four shipped providers.
+- [Providers](https://kino.karnstack.com/providers): the Provider contract and the five shipped providers.
 - [Theming](https://kino.karnstack.com/theming): CSS custom properties, keyboard map, capability gating.
+
+## Scenes
+
+- [Scenes demo](https://kino.karnstack.com/scenes.html): an audio-driven React scene sequence played through kino's chrome. The audio file is the master clock, a manifest maps time ranges onto React scene modules, and every frame is resolution-independent DOM.
+- [Scenes host page](https://kino.karnstack.com/scenes-host.html): the iframe host that owns the audio element and the scene DOM, built with createSceneHost.
 
 ## Reference
 
-- [npm: @karnstack/kino](https://www.npmjs.com/package/@karnstack/kino) — entry points: `@karnstack/kino` (core + MuxPlayer), `/mux`, `/native`, `/youtube`, `/vimeo`, `/styles.css`.
+- [npm: @karnstack/kino](https://www.npmjs.com/package/@karnstack/kino): entry points `@karnstack/kino` (core + MuxPlayer), `/mux`, `/native`, `/youtube`, `/vimeo`, `/scenes`, `/styles.css`.
 - [GitHub](https://github.com/karnstack/kino)
 - [README](https://github.com/karnstack/kino/blob/main/README.md)

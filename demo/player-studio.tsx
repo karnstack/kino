@@ -3,10 +3,11 @@ import { MuxPlayer } from "../src/mux/mux-player"
 import { NativePlayer } from "../src/native/native-player"
 import { YouTubePlayer } from "../src/youtube/youtube-player"
 import { VimeoPlayer } from "../src/vimeo/vimeo-player"
+import { ScenesPlayer } from "../src/scenes/scenes-player"
 import { CheckIcon } from "./icons"
 import { TouchTarget } from "./ui"
 
-export type Mode = "mux" | "vimeo" | "native" | "youtube"
+export type Mode = "mux" | "vimeo" | "native" | "youtube" | "scenes"
 
 // Public sample assets so the studio plays real media with no account or signed
 // tokens — anyone who clones the repo gets the full UI.
@@ -32,6 +33,14 @@ const YOUTUBE_SAMPLE = {
 const VIMEO_SAMPLE = {
   id: "291235566",
   label: "Vimeo staff pick · Vimeo",
+} as const
+
+// The scenes fixture sequence ships with the demo, so the Scenes tab plays the
+// same audio-driven sequence as /scenes.html from the site's own origin.
+const SCENES_SAMPLE = {
+  src: "/scenes-host.html",
+  captions: "/demo.vtt",
+  label: "Demo sequence · Scenes",
 } as const
 
 export const DEFAULT_ACCENT = "#f4b942"
@@ -75,7 +84,9 @@ export function PlayerStudio({
         ? YOUTUBE_SAMPLE.label
         : mode === "vimeo"
           ? VIMEO_SAMPLE.label
-          : activeSample?.label
+          : mode === "scenes"
+            ? SCENES_SAMPLE.label
+            : activeSample?.label
   const code =
     mode === "native"
       ? NATIVE_SAMPLE.src
@@ -83,7 +94,9 @@ export function PlayerStudio({
         ? YOUTUBE_SAMPLE.id
         : mode === "vimeo"
           ? VIMEO_SAMPLE.id
-          : source
+          : mode === "scenes"
+            ? SCENES_SAMPLE.src
+            : source
 
   return (
     <div className="flex flex-col gap-5">
@@ -116,6 +129,18 @@ export function PlayerStudio({
             <VimeoPlayer
               key="vimeo"
               videoId={VIMEO_SAMPLE.id}
+              accentColor={accent}
+              theme={{ "--kino-radius": `${radius}px` }}
+            />
+          ) : mode === "scenes" ? (
+            <ScenesPlayer
+              key="scenes"
+              src={SCENES_SAMPLE.src}
+              captions={{
+                src: SCENES_SAMPLE.captions,
+                label: "English",
+                srclang: "en",
+              }}
               accentColor={accent}
               theme={{ "--kino-radius": `${radius}px` }}
             />
@@ -155,6 +180,7 @@ export function PlayerStudio({
                 { id: "vimeo", label: "Vimeo · Embed" },
                 { id: "native", label: "Native · mp4" },
                 { id: "youtube", label: "YouTube · Embed" },
+                { id: "scenes", label: "Scenes · DOM" },
               ] as const
             ).map((p) => {
               const active = mode === p.id

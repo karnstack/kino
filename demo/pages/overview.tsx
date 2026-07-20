@@ -14,7 +14,7 @@ const INSTALL = "pnpm add @karnstack/kino"
 
 const markdown = `# Glass chrome for every video.
 
-kino is a themeable React video player with a pluggable-provider architecture. The same translucent, keyboard-first UI sits over Mux, raw files, YouTube, and Vimeo — behind a small typed surface.
+kino is a themeable React video player with a pluggable-provider architecture. The same translucent, keyboard-first UI sits over Mux, raw files, YouTube, Vimeo, and audio-driven scene sequences, all behind a small typed surface.
 
 \`\`\`bash
 ${INSTALL}
@@ -22,7 +22,7 @@ ${INSTALL}
 
 ## Why kino
 
-**01 — Pluggable providers.** One UI contract, many engines. Mux HLS, raw files, YouTube, and Vimeo all ship today.
+**01 — Pluggable providers.** One UI contract, many engines. Mux HLS, raw files, YouTube, Vimeo, and scene sequences all ship today.
 
 **02 — Keyboard-first.** Play, seek, speed, captions, and fullscreen are all driven from the keyboard out of the box.
 
@@ -35,7 +35,7 @@ const HIGHLIGHTS = [
     n: "01",
     term: "Pluggable providers",
     detail:
-      "One UI contract, many engines. Mux HLS, raw files, YouTube, and Vimeo all ship today.",
+      "One UI contract, many engines. Mux HLS, raw files, YouTube, Vimeo, and scene sequences all ship today.",
   },
   {
     n: "02",
@@ -72,7 +72,8 @@ export function OverviewPage() {
           <p className="mt-6 max-w-[56ch] text-lg/8 text-pretty text-paper-dim">
             kino is a themeable React video player with a pluggable-provider
             architecture. The same translucent, keyboard-first UI sits over Mux,
-            raw files, YouTube, and Vimeo — behind a small typed surface.
+            raw files, YouTube, Vimeo, and audio-driven scene sequences, all
+            behind a small typed surface.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">

@@ -57,6 +57,34 @@ export function Clip() {
   )
 }`
 
+const SCENES_SNIPPET = `import { ScenesPlayer } from "@karnstack/kino/scenes"
+import "@karnstack/kino/styles.css"
+
+export function Watch() {
+  return (
+    <div style={{ aspectRatio: "16 / 9" }}>
+      <ScenesPlayer
+        src="https://scenes.example.com/host?sequence=intro"
+        captions={{
+          src: "https://scenes.example.com/intro.vtt",
+          label: "English",
+          srclang: "en",
+        }}
+      />
+    </div>
+  )
+}`
+
+const SCENES_HOST_SNIPPET = `import { createSceneHost } from "@karnstack/kino/scenes"
+import manifest from "./manifest"
+
+createSceneHost({
+  container: document.getElementById("stage")!,
+  manifest,
+  loadScene: (id) => import(\`./scenes/\${id}.tsx\`),
+  parentOrigin: "https://app.example.com",
+})`
+
 type Prop = [string, string, string]
 
 const SHARED_PROPS: Prop[] = [
@@ -142,6 +170,24 @@ const VIMEO_PROPS: Prop[] = [
   ...SHARED_PROPS,
 ]
 
+const SCENES_PROPS: Prop[] = [
+  ["src", "string", "Host page URL, auth token already encoded. Required."],
+  [
+    "captions",
+    "{ src, label, srclang }",
+    "Sidecar VTT rendered in kino's own caption overlay.",
+  ],
+  ["autoPlay", "boolean", "Start playback on mount."],
+  ["muted", "boolean", "Start muted."],
+  ["defaultRate", "number", "Initial playback rate."],
+  [
+    "metadata",
+    "{ videoId?, videoTitle?, viewerUserId? }",
+    "Accepted for parity with the other players. Reserved, currently unused.",
+  ],
+  ...SHARED_PROPS,
+]
+
 const markdown = `# Up and running.
 
 kino is a single package with per-provider entry points. React 19 is a peer dependency; the Mux engine is pulled in transitively, while the native and YouTube providers need nothing extra — YouTube loads the IFrame API at runtime.
@@ -178,6 +224,18 @@ ${YOUTUBE_SNIPPET}
 
 \`\`\`tsx
 ${VIMEO_SNIPPET}
+\`\`\`
+
+### Scenes
+
+\`\`\`tsx
+${SCENES_SNIPPET}
+\`\`\`
+
+The sequence itself is a host page served from anywhere. It bundles the scene components and boots the host runtime, which owns the audio element and the scene DOM.
+
+\`\`\`tsx
+${SCENES_HOST_SNIPPET}
 \`\`\`
 
 ## API
@@ -244,6 +302,21 @@ ${VIMEO_SNIPPET}
 | accentColor | string | Accent color — any CSS color. |
 | theme | Record<string, string> | Inline CSS custom properties on the root. |
 | placeholder | string | Blur-up still painted until the poster loads. |
+| className | string | Extra class on the .kino root. |
+
+### ScenesPlayer
+
+| Prop | Type | Description |
+|---|---|---|
+| src | string | Host page URL, auth token already encoded. Required. |
+| captions | { src, label, srclang } | Sidecar VTT rendered in kino's own caption overlay. |
+| autoPlay | boolean | Start playback on mount. |
+| muted | boolean | Start muted. |
+| defaultRate | number | Initial playback rate. |
+| metadata | { videoId?, videoTitle?, viewerUserId? } | Accepted for parity with the other players. Reserved, currently unused. |
+| accentColor | string | Accent color — any CSS color. |
+| theme | Record<string, string> | Inline CSS custom properties on the root. |
+| placeholder | string | Blur-up still painted until the poster loads. |
 | className | string | Extra class on the .kino root. |`
 
 const propRows = (props: Prop[]) =>
@@ -297,6 +370,16 @@ export function InstallPage() {
             <h3 className="text-lg font-medium text-paper">Vimeo</h3>
             <CodeBlock code={VIMEO_SNIPPET} label="vimeo.tsx" />
           </div>
+          <div className="flex flex-col gap-3">
+            <h3 className="text-lg font-medium text-paper">Scenes</h3>
+            <CodeBlock code={SCENES_SNIPPET} label="scenes.tsx" />
+            <p className="max-w-[60ch] text-base/7 text-pretty text-paper-dim">
+              The sequence itself is a host page served from anywhere. It
+              bundles the scene components and boots the host runtime, which
+              owns the audio element and the scene DOM.
+            </p>
+            <CodeBlock code={SCENES_HOST_SNIPPET} label="host.tsx" />
+          </div>
         </div>
       </section>
 
@@ -341,6 +424,15 @@ export function InstallPage() {
           <Table
             head={["Prop", "Type", "Description"]}
             rows={propRows(VIMEO_PROPS)}
+          />
+        </div>
+        <div className="flex flex-col gap-4">
+          <h3 className="font-mono text-sm tracking-wide text-paper-faint uppercase">
+            ScenesPlayer
+          </h3>
+          <Table
+            head={["Prop", "Type", "Description"]}
+            rows={propRows(SCENES_PROPS)}
           />
         </div>
       </section>

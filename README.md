@@ -24,7 +24,7 @@
 
 > **[Try it live → kino.karnstack.com](https://kino.karnstack.com)** — drop in any public Mux playback ID, pick an accent, and play with the real glass UI.
 
-kino ships the player UI and a provider contract. Each provider adapts a streaming engine to that contract, so the same glass chrome can sit on top of different backends. Four providers ship today: **Mux** (adaptive HLS via `@mux/mux-video`), **Native** (a plain `<video>` over any raw file URL), **YouTube** (the IFrame Player API wrapped in the same chrome), and **Vimeo** (the Vimeo Player SDK under the same chrome). Each lives behind its own entry point, so you only pull in the engine you use.
+kino ships the player UI and a provider contract. Each provider adapts a streaming engine to that contract, so the same glass chrome can sit on top of different backends. Five providers ship today: **Mux** (adaptive HLS via `@mux/mux-video`), **Native** (a plain `<video>` over any raw file URL), **YouTube** (the IFrame Player API wrapped in the same chrome), **Vimeo** (the Vimeo Player SDK under the same chrome), and **Scenes** (audio-driven React scene sequences in an iframe under the same chrome). Each lives behind its own entry point, so you only pull in the engine you use.
 
 ## Install
 
@@ -152,6 +152,132 @@ For an unlisted video, pass the hash (or a share URL that contains it):
 ```
 
 Chromeless playback (kino owning the controls) requires a paid Vimeo plan.
+
+## Playing a scene sequence
+
+The scenes provider plays something that is not a video at all: an audio file is the master clock, and a manifest maps time ranges of that audio onto React components ("scenes") rendered as live DOM. kino's chrome scrubs, seeks, captions, and speed-shifts the sequence exactly like any other source, but every frame is resolution-independent DOM instead of pixels.
+
+A scene sequence has two halves:
+
+- **In your app**, `ScenesPlayer` puts the glass chrome over an iframe and drives it through a small `postMessage` protocol. (`createScenesProvider` is the underlying provider if you want custom chrome.)
+- **In the iframe** (the "host page"), `createSceneHost` owns the `<audio>` element and the scene DOM. It lazy-loads scene modules, preloads the next scene while the current one plays, scales a fixed 1920x1080 stage to the viewport, and streams playback state back to the parent.
+
+```tsx
+import { ScenesPlayer } from "@karnstack/kino/scenes"
+import "@karnstack/kino/styles.css"
+
+export function Watch() {
+  return (
+    <div style={{ aspectRatio: "16 / 9" }}>
+      <ScenesPlayer
+        src="https://scenes.example.com/host?sequence=intro&token=..."
+        captions={{
+          src: "https://scenes.example.com/intro.vtt",
+          label: "English",
+          srclang: "en",
+        }}
+        accentColor="oklch(50.8% 0.118 165.612)"
+      />
+    </div>
+  )
+}
+```
+
+`src` is the full host page URL with any auth token already encoded; as everywhere else in kino, the player never talks to your auth layer. `ScenesPlayer` also takes `defaultRate`, `autoPlay`, `muted`, and the shared chrome props (`accentColor`, `theme`, `className`, `placeholder`, `children`). `metadata` is accepted for parity with the other players but is reserved and currently unused. Options are read once per `src`; when `src` changes the component remounts internally, rebuilding the iframe from scratch.
+
+Captions are a sidecar VTT fetched and rendered by the parent in kino's own caption overlay, so the host page never deals with text tracks.
+
+kino sets `allow="autoplay; fullscreen"` on the iframe it creates. That delegates the parent page's user activation (the click on kino's play button) into the frame; without it, `audio.play()` inside the host is blocked by autoplay policy. If your app itself runs inside an iframe, the outer frame needs the same `allow` list.
+
+### The host page
+
+The host page is a page you serve from anywhere (same origin or not) that bundles the sequence's scene components and boots the host runtime:
+
+```tsx
+import { createSceneHost } from "@karnstack/kino/scenes"
+import manifest from "./manifest"
+
+createSceneHost({
+  container: document.getElementById("stage")!,
+  manifest,
+  loadScene: (id) => import(`./scenes/${id}.tsx`),
+  // Origin of the embedding page: targets outgoing posts and filters
+  // incoming commands. Defaults to "*"; lock it down in production.
+  parentOrigin: "https://app.example.com",
+})
+```
+
+The demo ships a runnable reference: [`demo/scenes-host.html`](demo/scenes-host.html) + [`demo/src/scenes-host.tsx`](demo/src/scenes-host.tsx) is a complete host page (scenes, manifest, boot), and [`demo/scenes.html`](demo/scenes.html) + [`demo/src/scenes-demo.tsx`](demo/src/scenes-demo.tsx) embeds it with `ScenesPlayer`.
+
+`loadScene` resolves a scene id to a module whose default export is the scene component (`SceneModule`). Inside a scene, `useSceneTimeline()` returns the scene clock: `t` is scene-local seconds, and `cue(id)`, `between(from, to)`, `progress()`, and `currentWord()` are all pure over it, so a scene's output is a function of time and scrubbing just works.
+
+```tsx
+import { useSceneTimeline } from "@karnstack/kino/scenes"
+
+export default function Intro() {
+  const clock = useSceneTimeline()
+  return <h1 style={{ opacity: clock.cue("title") ? 1 : 0 }}>Hello</h1>
+}
+```
+
+### The manifest
+
+The manifest describes the whole sequence: audio sources, total duration, and the scene list with global time ranges.
+
+```ts
+type SceneManifest = {
+  version: 1
+  slug: string
+  title?: string
+  duration: number // total sequence length in seconds
+  scenes: Array<{
+    id: string
+    src: string // informational; the host loads modules via loadScene
+    start: number // global seconds, inclusive
+    end: number // global seconds, exclusive
+    cues: Cues // named cue marks + word timings for this scene
+  }>
+  audio: Array<{ bitrate: number; src: string }>
+  captions?: string
+  poster?: string
+  chapters?: Array<{ id: string; title: string; start: number }>
+}
+```
+
+A scene owns `[start, end)` on the sequence clock. `end` includes the trailing silence after the scene's narration; the scene-local clock clamps to the narration length, so the scene holds its final settled state through the gap. Scenes should tile the clock with no gaps; the host warns once at startup if they do not. `src` records where a scene module lives for tooling, but the host actually loads modules through the `loadScene` callback.
+
+### The wire protocol
+
+The two halves speak a `postMessage` protocol namespaced with `kino:`, so the host page can share a window with unrelated message traffic. You only touch it if you build a custom host. The parent accepts events only from its own iframe's origin and window; the host accepts commands only from its parent window, drops them when their origin does not match a locked-down `parentOrigin`, and targets `parentOrigin` when posting.
+
+| Message                                             | Direction     | Meaning                                                                       |
+| --------------------------------------------------- | ------------- | ----------------------------------------------------------------------------- |
+| `kino:ready`                                        | host → parent | The host booted; carries the sequence duration.                               |
+| `kino:init`                                         | parent → host | Reply to `kino:ready`: initial rate, volume, mute, and autoplay intent.       |
+| `kino:play` / `kino:pause` / `kino:seek`            | parent → host | Transport. `kino:seek` carries a global time in seconds.                      |
+| `kino:setRate` / `kino:setVolume` / `kino:setMuted` | parent → host | Mirror the corresponding chrome controls.                                     |
+| `kino:state`                                        | host → parent | Full media snapshot, ~10Hz while playing and immediately on every transition. |
+| `kino:scenechange`                                  | host → parent | The active scene mounted. Fires for the initial scene too, not only on swaps. |
+| `kino:error`                                        | host → parent | The audio failed, or a scene module failed to load.                           |
+
+`kino:state` snapshots are authoritative: the parent applies them wholesale, patching time optimistically between ticks so the scrubber tracks the pointer, and holding a just-set rate until the host echoes it back so a stale snapshot cannot flicker the speed menu. A scene module that fails to load posts `kino:error` once and is memoized as failed for the life of the host; nothing retries it. Recovery is rebuilding the iframe, which is exactly what changing `src` on `ScenesPlayer` does.
+
+### Scrubbing and animations
+
+kino stays motion-agnostic, but scrubbing a sequence built on an animation library needs one hook: while a seek is in flight, scenes should snap to settled states instead of replaying their entrances. `createSceneHost` exposes `onSeekingChange` for exactly this. With Motion:
+
+```ts
+import { MotionGlobalConfig } from "motion/react"
+
+createSceneHost({
+  // ...
+  onSeekingChange: (seeking) => {
+    MotionGlobalConfig.skipAnimations = seeking
+  },
+})
+```
+
+Each seek flips the flag on, animations jump to their final values, and once the audio fires `seeked` the flag drops and playback continues with motion.
 
 ## Theming
 
