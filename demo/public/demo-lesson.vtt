@@ -1,0 +1,46 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:02.640
+What you're watching right now is not a video file.
+
+00:00:03.220 --> 00:00:05.520
+No pixels are streaming, there's no codec.
+
+00:00:06.040 --> 00:00:09.440
+This is a React component, mounted inside a video player,
+
+00:00:09.720 --> 00:00:11.360
+synced to the sound of my voice.
+
+00:00:12.600 --> 00:00:14.680
+The audio is the only real file here.
+
+00:00:15.240 --> 00:00:18.220
+As I speak, named cues fire on word boundaries
+
+00:00:18.220 --> 00:00:19.760
+and the visuals react to them.
+
+00:00:20.420 --> 00:00:21.500
+Go ahead, pause me.
+
+00:00:22.020 --> 00:00:22.740
+Scrub the timeline.
+
+00:00:23.380 --> 00:00:25.840
+Every frame you see is live DOM.
+
+00:00:27.040 --> 00:00:29.540
+Because it's just markup, it is resolution independent.
+
+00:00:30.200 --> 00:00:34.140
+4K, a retina laptop, a phone, all pixel perfect.
+
+00:00:34.640 --> 00:00:37.260
+These subtitles come from the same word timings.
+
+00:00:37.500 --> 00:00:39.020
+And when the author edits a scene,
+
+00:00:39.260 --> 00:00:40.580
+there is nothing to re-render.
