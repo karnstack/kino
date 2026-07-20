@@ -6,6 +6,7 @@ type ProviderCard = {
   entry?: string
   detail: string
   importLine?: string
+  links?: { href: string; label: string }[]
 }
 
 const PROVIDERS: ProviderCard[] = [
@@ -40,6 +41,18 @@ const PROVIDERS: ProviderCard[] = [
     detail:
       "The Vimeo Player SDK under the same kino chrome — quality, styled captions, and rate. Chromeless playback needs a paid Vimeo plan.",
     importLine: 'import { VimeoPlayer } from "@karnstack/kino/vimeo"',
+  },
+  {
+    name: "Scenes",
+    status: "shipped",
+    entry: "@karnstack/kino/scenes",
+    detail:
+      "Audio-driven React scene lessons in an iframe. The audio file is the master clock, a manifest maps time ranges onto React scene modules, and every frame is resolution-independent DOM. Captions ride in as a sidecar VTT.",
+    importLine: 'import { ScenesPlayer } from "@karnstack/kino/scenes"',
+    links: [
+      { href: "/scenes.html", label: "Live demo" },
+      { href: "/scenes-host.html", label: "Host page" },
+    ],
   },
 ]
 
@@ -84,6 +97,12 @@ import { YouTubePlayer } from "@karnstack/kino/youtube"
 import { VimeoPlayer } from "@karnstack/kino/vimeo"
 \`\`\`
 
+**Scenes** (\`@karnstack/kino/scenes\`): Audio-driven React scene lessons in an iframe. The audio file is the master clock, a manifest maps time ranges onto React scene modules, and every frame is resolution-independent DOM. Captions ride in as a sidecar VTT. Live demo: https://kino.karnstack.com/scenes.html, host page: https://kino.karnstack.com/scenes-host.html.
+
+\`\`\`ts
+import { ScenesPlayer } from "@karnstack/kino/scenes"
+\`\`\`
+
 ## The contract
 
 A provider is a handful of methods. Implement \`mount\`, a \`getState\` / \`subscribe\` pair, an \`actions\` object, and \`destroy\`. The UI reads everything through this surface — it never talks to an engine directly.
@@ -120,6 +139,19 @@ export function ProvidersPage() {
               <p className="text-base/7 text-pretty text-paper-dim">
                 {p.detail}
               </p>
+              {p.links && (
+                <div className="flex flex-wrap gap-x-5 gap-y-1">
+                  {p.links.map((l) => (
+                    <a
+                      key={l.href}
+                      href={l.href}
+                      className="text-sm font-medium text-leader transition-colors hover:text-leader-deep"
+                    >
+                      {l.label}
+                    </a>
+                  ))}
+                </div>
+              )}
               {p.importLine ? (
                 <div className="code-scroll mt-auto overflow-x-auto rounded-lg bg-black/40 px-3.5 py-2.5 ring-1 ring-white/8">
                   <code className="font-mono text-[0.75rem] whitespace-nowrap text-paper-dim">
