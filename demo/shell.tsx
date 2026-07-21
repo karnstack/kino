@@ -19,6 +19,7 @@ const NAV = [
     group: "Guides",
     items: [
       { to: "/providers", label: "Providers" },
+      { to: "/scene-protocol", label: "Scene protocol" },
       { to: "/theming", label: "Theming" },
     ],
   },
@@ -33,7 +34,6 @@ export function DocsLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="isolate flex min-h-dvh flex-col">
-      <span className="film-grain" />
       <Header onOpenNav={() => setNavOpen(true)} />
       {navOpen && <MobileNav onClose={() => setNavOpen(false)} />}
       <div className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 lg:px-8">

@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react"
 
-// A tiny History-API router — enough for a four-page docs site, no dependency.
+// A tiny History-API router — enough for a five-page docs site, no dependency.
 // Production deep links rely on the Worker's single-page-application fallback
 // (see wrangler.jsonc); the Vite dev server already serves index.html for any
 // path.

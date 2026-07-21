@@ -3,17 +3,25 @@ import { RouterProvider, useRouter } from "./router"
 import { DocsLayout } from "./shell"
 import { OverviewPage } from "./pages/overview"
 import { ProvidersPage } from "./pages/providers"
+import { ScenesPage } from "./pages/scenes"
 import { ThemingPage } from "./pages/theming"
 import { InstallPage } from "./pages/install"
 import { btnPrimary, Eyebrow } from "./ui"
+import { usePageMeta } from "./seo"
 import "../src/styles/kino.css"
 import "./styles.css"
 
 function Routes() {
   const { path } = useRouter()
+  usePageMeta(path)
   switch (path) {
     case "/providers":
       return <ProvidersPage />
+    // Not "/scenes": the static demo page scenes.html shadows that path in
+    // both dev (Vite html resolution) and production (asset html_handling
+    // runs before the SPA fallback).
+    case "/scene-protocol":
+      return <ScenesPage />
     case "/theming":
       return <ThemingPage />
     case "/install":

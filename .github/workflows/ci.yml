@@ -53,3 +53,8 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      # Keeps the docs-site build (vite + the SEO prerender pass) honest;
+      # deploys read demo/dist from this same command.
+      - name: Build demo
+        run: pnpm build:demo
