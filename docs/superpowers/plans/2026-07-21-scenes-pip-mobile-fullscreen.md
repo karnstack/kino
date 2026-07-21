@@ -26,10 +26,12 @@ Spec: `docs/superpowers/specs/2026-07-21-scenes-pip-mobile-fullscreen-design.md`
 ### Task 1: Pseudo-fullscreen util
 
 **Files:**
+
 - Create: `src/util/pseudo-fullscreen.ts`
 - Test: `src/util/pseudo-fullscreen.test.ts`
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: `enterPseudoFullscreen(wrapper: HTMLElement): () => void` (returns idempotent restore fn). Task 3 imports it as `import { enterPseudoFullscreen } from "../util/pseudo-fullscreen"`.
 
@@ -148,11 +150,13 @@ git commit -m "feat(scenes): pseudo-fullscreen fallback util"
 ### Task 2: Protocol `startTime` + host resume seek, tolerant autoplay, opener source
 
 **Files:**
+
 - Modify: `src/scenes/protocol.ts` (the `kino:init` member of `HostCommand`)
 - Modify: `src/scenes/host.tsx` (the `onCommand` handler, around lines 136-160)
 - Test: `src/scenes/host.test.tsx` (append tests; follow the file's existing helpers for constructing hosts and dispatching commands)
 
 **Interfaces:**
+
 - Consumes: nothing new.
 - Produces: `kino:init` accepts optional `startTime?: number` (global sequence seconds, clamped by the host to `[0, manifest.duration]`); host accepts commands whose `ev.source` is `window.parent.opener`. Task 5's provider relies on both.
 
@@ -321,10 +325,12 @@ git commit -m "feat(scenes): init startTime resume, tolerant autoplay, opener co
 ### Task 3: Provider pseudo-fullscreen integration
 
 **Files:**
+
 - Modify: `src/scenes/provider.ts` (`enterFullscreen`/`exitFullscreen` actions, `destroy`)
 - Test: `src/scenes/provider.test.ts` (append)
 
 **Interfaces:**
+
 - Consumes: `enterPseudoFullscreen` from Task 1.
 - Produces: a module-local `let pseudoRestore: (() => void) | null` inside `createScenesProvider`; Task 5's `enterPiP` clears it the same way `exitFullscreen` does.
 
@@ -356,7 +362,9 @@ test("native requestFullscreen is preferred when present", () => {
   mount(p)
   const wrapper = document.createElement("div")
   const request = vi.fn().mockResolvedValue(undefined)
-  ;(wrapper as HTMLElement & { requestFullscreen: () => Promise<void> }).requestFullscreen = request
+  ;(
+    wrapper as HTMLElement & { requestFullscreen: () => Promise<void> }
+  ).requestFullscreen = request
   p.actions.enterFullscreen(wrapper)
   expect(request).toHaveBeenCalledOnce()
   expect(wrapper.style.position).toBe("")
@@ -392,9 +400,9 @@ import { enterPseudoFullscreen } from "../util/pseudo-fullscreen"
 Near the other locals (`let iframe`, `let vttCues`, ...):
 
 ```ts
-  // Restore fn while pseudo-fullscreen (no Element.requestFullscreen, i.e.
-  // iPhone-class WebKit) is active. Null otherwise.
-  let pseudoRestore: (() => void) | null = null
+// Restore fn while pseudo-fullscreen (no Element.requestFullscreen, i.e.
+// iPhone-class WebKit) is active. Null otherwise.
+let pseudoRestore: (() => void) | null = null
 ```
 
 Actions:
@@ -424,8 +432,8 @@ Actions:
 In `destroy()`, before `iframe?.remove()`:
 
 ```ts
-      pseudoRestore?.()
-      pseudoRestore = null
+pseudoRestore?.()
+pseudoRestore = null
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
@@ -446,11 +454,13 @@ git commit -m "feat(scenes): pseudo-fullscreen fallback in the scenes provider"
 ### Task 4: PiP surfaces (inline placeholder + pip window overlay)
 
 **Files:**
+
 - Create: `src/scenes/pip-surfaces.ts`
 - Modify: `src/styles/kino.css` (one new rule; read the existing `.kino-placeholder` rule first and match its conventions)
 - Test: `src/scenes/pip-surfaces.test.ts`
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces (Task 5 imports both):
 
@@ -461,8 +471,14 @@ export type PipOverlayDeps = {
   getState(): { paused: boolean; activeCueText: string }
   subscribe(listener: () => void): () => void
 }
-export function mountPipPlaceholder(container: HTMLElement, onReturn: () => void): () => void
-export function mountPipOverlay(pipWindow: Window, deps: PipOverlayDeps): () => void
+export function mountPipPlaceholder(
+  container: HTMLElement,
+  onReturn: () => void,
+): () => void
+export function mountPipOverlay(
+  pipWindow: Window,
+  deps: PipOverlayDeps,
+): () => void
 ```
 
 Both return cleanup functions. `MediaState` structurally satisfies the `getState` shape.
@@ -522,7 +538,10 @@ test("overlay toggles play/pause off provider state and mirrors cue text", () =>
 })
 
 test("overlay cleanup unsubscribes", () => {
-  const { deps, listeners } = overlayHarness({ paused: true, activeCueText: "" })
+  const { deps, listeners } = overlayHarness({
+    paused: true,
+    activeCueText: "",
+  })
   const cleanup = mountPipOverlay(window, deps)
   expect(listeners.size).toBe(1)
   cleanup()
@@ -637,10 +656,12 @@ git commit -m "feat(scenes): pip placeholder and pip window overlay surfaces"
 ### Task 5: Provider document PiP core
 
 **Files:**
+
 - Modify: `src/scenes/provider.ts`
 - Test: `src/scenes/provider.test.ts` (append)
 
 **Interfaces:**
+
 - Consumes: `mountPipPlaceholder`/`mountPipOverlay`/`PipOverlayDeps` (Task 4), `kino:init.startTime` (Task 2), `pseudoRestore` local (Task 3).
 - Produces: `capabilities.canPiP` true iff `documentPictureInPicture` exists; working `enterPiP`/`exitPiP`; `state.pip` transitions. Consumed by the existing `PipButton` with zero UI changes.
 
@@ -700,7 +721,9 @@ test("enterPiP moves the iframe, mounts surfaces, and resumes via init startTime
   const post = vi.spyOn(iframe.contentWindow!, "postMessage")
   fromHost(iframe, { type: "kino:ready", duration: 40.5 })
   const init = post.mock.calls
-    .map((c) => c[0] as { type: string; startTime?: number; autoPlay?: boolean })
+    .map(
+      (c) => c[0] as { type: string; startTime?: number; autoPlay?: boolean },
+    )
     .find((m) => m.type === "kino:init")
   expect(init?.startTime).toBe(12)
   expect(init?.autoPlay).toBe(true)
@@ -791,13 +814,13 @@ import { mountPipPlaceholder, mountPipOverlay } from "./pip-surfaces"
 Locals (near `let iframe`):
 
 ```ts
-  let mountContainer: HTMLElement | null = null
-  let pipWindow: (Window & { close(): void }) | null = null
-  let pipCleanups: Array<() => void> = []
-  let onPipPagehide: (() => void) | null = null
-  // Resume point captured before an iframe-reloading move (into or out of
-  // the pip window); consumed by the next kino:ready.
-  let resume: { time: number; playing: boolean } | null = null
+let mountContainer: HTMLElement | null = null
+let pipWindow: (Window & { close(): void }) | null = null
+let pipCleanups: Array<() => void> = []
+let onPipPagehide: (() => void) | null = null
+// Resume point captured before an iframe-reloading move (into or out of
+// the pip window); consumed by the next kino:ready.
+let resume: { time: number; playing: boolean } | null = null
 ```
 
 Minimal structural type for the API (top of file, after imports):
@@ -959,10 +982,12 @@ git commit -m "feat(scenes): document picture-in-picture for scene sequences"
 ### Task 6: Docs + changeset
 
 **Files:**
+
 - Modify: `demo/pages/providers.tsx` (scenes provider section)
 - Create: `.changeset/scenes-pip-fullscreen.md`
 
 **Interfaces:**
+
 - Consumes: behavior shipped in Tasks 1-5.
 - Produces: nothing downstream.
 
