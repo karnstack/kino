@@ -111,6 +111,41 @@ async function flush() {
   })
 }
 
+// Advance the sequence clock exactly as the RAF loop would: set currentTime and
+// emit the timeupdate the host listens on.
+function tick(audio: HTMLVideoElement, t: number) {
+  act(() => {
+    audio.currentTime = t
+    audio.dispatchEvent(new Event("timeupdate"))
+  })
+}
+
+// jsdom's media stubs never flip `paused`, so model real playback by defining
+// the property. The returned handle pauses the way the controls would: flip
+// paused, then emit the pause event the host reacts to.
+function playing(audio: HTMLVideoElement) {
+  let paused = false
+  Object.defineProperty(audio, "paused", {
+    configurable: true,
+    get: () => paused,
+  })
+  return {
+    pause() {
+      act(() => {
+        paused = true
+        audio.dispatchEvent(new Event("pause"))
+      })
+    },
+  }
+}
+
+// The scene ids currently in the DOM, in document (paint) order.
+function scenesInDom(container: HTMLElement) {
+  return [...container.querySelectorAll("[data-scene]")].map((el) =>
+    el.getAttribute("data-scene"),
+  )
+}
+
 test("host mounts audio element and posts ready with manifest duration", async () => {
   const h = makeHost()
   await flush()
@@ -135,6 +170,70 @@ test("host renders the scene owning currentTime and swaps at the boundary", asyn
   expect(h.container.querySelector("[data-scene='02']")).toBeTruthy()
   expect(h.container.querySelector("[data-scene='01']")).toBe(null)
   expect(h.posted).toContainEqual({ type: "kino:scenechange", id: "02" })
+  act(() => h.host.destroy())
+})
+
+test("a natural advance holds the outgoing scene over the incoming one", async () => {
+  const h = makeHost()
+  await flush()
+  playing(h.audio())
+  tick(h.audio(), 5.9)
+  tick(h.audio(), 6.1)
+  // Both scenes are mounted, the incoming one under the outgoing one so the
+  // outgoing scene's settled frame paints last (on top).
+  expect(scenesInDom(h.container)).toEqual(["02", "01"])
+  // kino:scenechange still fires exactly once for the new scene: the outgoing
+  // scene was reordered, not remounted.
+  const changes = h.posted.filter(
+    (m) => (m as { type?: string; id?: string }).type === "kino:scenechange",
+  )
+  expect(changes).toEqual([
+    { type: "kino:scenechange", id: "01" },
+    { type: "kino:scenechange", id: "02" },
+  ])
+  // Past the overlap window the held scene is gone.
+  tick(h.audio(), 6.5)
+  expect(h.container.querySelector("[data-scene='01']")).toBe(null)
+  expect(h.container.querySelector("[data-scene='02']")).toBeTruthy()
+  act(() => h.host.destroy())
+})
+
+test("a far seek past a boundary does not hold the previous scene", async () => {
+  const h = makeHost()
+  await flush()
+  playing(h.audio())
+  tick(h.audio(), 1)
+  // delta from the boundary is 1s, well past the 0.5s natural-advance guard.
+  tick(h.audio(), 7)
+  expect(scenesInDom(h.container)).toEqual(["02"])
+  act(() => h.host.destroy())
+})
+
+test("seeking back during the overlap window drops the held scene without duplicate keys", async () => {
+  const h = makeHost()
+  await flush()
+  playing(h.audio())
+  tick(h.audio(), 5.9)
+  tick(h.audio(), 6.1)
+  expect(scenesInDom(h.container)).toEqual(["02", "01"])
+  // Seek back into the outgoing scene: it must not linger as an overlay next to
+  // itself as the current scene.
+  tick(h.audio(), 5.5)
+  expect(scenesInDom(h.container)).toEqual(["01"])
+  expect(h.container.querySelectorAll("[data-scene='01']").length).toBe(1)
+  act(() => h.host.destroy())
+})
+
+test("pausing inside the overlap window clears the held scene", async () => {
+  const h = makeHost()
+  await flush()
+  const play = playing(h.audio())
+  tick(h.audio(), 5.9)
+  tick(h.audio(), 6.1)
+  expect(scenesInDom(h.container)).toEqual(["02", "01"])
+  // A stuck overlay would freeze the outgoing frame on screen while paused.
+  play.pause()
+  expect(scenesInDom(h.container)).toEqual(["02"])
   act(() => h.host.destroy())
 })
 
