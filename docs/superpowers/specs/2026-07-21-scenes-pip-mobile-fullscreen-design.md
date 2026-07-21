@@ -136,3 +136,5 @@ Replacement, provider-only (no protocol or host changes):
 - Drift correction: on each master state tick, when the mirror's last reported clock is more than 0.3s off the master's, the provider seeks the mirror to the master time.
 - Exit removes the mirror and the pip surfaces; nothing resumes because the master never stopped. The resume capture path is gone from the provider.
 - kino:init startTime stays in the protocol; the mirror init is now its consumer. The host opener source check also stays: commands to the mirror still originate from the main tab, which is the pip window opener.
+
+The host clock element is a hidden video element rather than an audio element: Chrome's muted-autoplay exemption does not cover audio elements, so an audio-element clock could never start inside the pip mirror.

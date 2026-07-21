@@ -50,7 +50,12 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
   if (gaps.length > 0)
     console.warn(`kino scenes: manifest is not contiguous: ${gaps.join("; ")}`)
 
-  const audio = document.createElement("audio")
+  // A video element, not an audio element, for one reason only: Chrome's
+  // muted-autoplay exemption covers video elements exclusively, and the muted
+  // pip mirror relies on it to start without user activation. The src is
+  // audio-only so nothing would render anyway; hiding removes the empty box.
+  const audio = document.createElement("video")
+  audio.style.display = "none"
   audio.setAttribute("src", manifest.audio[0]?.src ?? "")
   audio.preload = "auto"
   container.appendChild(audio)

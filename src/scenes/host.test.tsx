@@ -89,7 +89,7 @@ function makeHost(overrides?: Partial<SceneHostOptions>) {
     container,
     posted,
     host: host!,
-    audio: () => container.querySelector("audio") as HTMLAudioElement,
+    audio: () => container.querySelector("video") as HTMLVideoElement,
   }
 }
 
@@ -227,7 +227,7 @@ test("destroy unmounts and stops posting", async () => {
   const h = makeHost()
   await flush()
   act(() => h.host.destroy())
-  expect(h.container.querySelector("audio")).toBe(null)
+  expect(h.container.querySelector("video")).toBe(null)
   const before = h.posted.length
   act(() => {
     h.audio()
