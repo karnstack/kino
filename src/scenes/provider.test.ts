@@ -397,14 +397,84 @@ test("requestWindow rejection leaves state untouched", async () => {
     value: { requestWindow: vi.fn().mockRejectedValue(new Error("denied")) },
   })
   const p = createScenesProvider({ src: SRC })
-  mount(p)
+  const { iframe } = mount(p)
   p.actions.enterPiP()
   await Promise.resolve()
   await Promise.resolve()
   expect(p.getState().pip).toBe(false)
+  // The rejected attempt must also drop its resume point: the next ready
+  // handshake gets a plain init with no startTime.
+  const post = vi.spyOn(iframe.contentWindow!, "postMessage")
+  fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+  const init = post.mock.calls
+    .map((c) => c[0] as { type: string; startTime?: number })
+    .find((m) => m.type === "kino:init")
+  expect(init).toBeDefined()
+  expect(init?.startTime).toBeUndefined()
   p.destroy()
   delete (window as { documentPictureInPicture?: unknown })
     .documentPictureInPicture
+})
+
+// Fake pip API whose requestWindow stays pending until the test resolves it,
+// for racing enterPiP against other calls.
+function installPendingDocumentPiP() {
+  let resolveWindow!: (w: FakePipWindow) => void
+  const requestWindow = vi.fn().mockImplementation(
+    () =>
+      new Promise<FakePipWindow>((r) => {
+        resolveWindow = r
+      }),
+  )
+  Object.defineProperty(window, "documentPictureInPicture", {
+    configurable: true,
+    value: { requestWindow },
+  })
+  return {
+    requestWindow,
+    resolve: (w: FakePipWindow) => resolveWindow(w),
+    uninstall: () => {
+      delete (window as { documentPictureInPicture?: unknown })
+        .documentPictureInPicture
+    },
+  }
+}
+
+test("a second enterPiP while requestWindow is pending is ignored", async () => {
+  const fake = new FakePipWindow()
+  const pending = installPendingDocumentPiP()
+  const p = createScenesProvider({ src: SRC })
+  const { host, iframe } = mount(p)
+  fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+  p.actions.enterPiP()
+  p.actions.enterPiP()
+  expect(pending.requestWindow).toHaveBeenCalledOnce()
+  pending.resolve(fake)
+  await vi.waitFor(() => expect(p.getState().pip).toBe(true))
+  // Exactly one set of surfaces was wired; a single close removes everything.
+  p.actions.exitPiP()
+  expect(p.getState().pip).toBe(false)
+  expect(iframe.parentElement).toBe(host)
+  expect(host.querySelector(".kino-pip-placeholder")).toBeNull()
+  expect(document.body.querySelector("[data-kino-pip-overlay]")).toBeNull()
+  p.destroy()
+  pending.uninstall()
+})
+
+test("destroy while requestWindow is pending closes the late window", async () => {
+  const fake = new FakePipWindow()
+  const pending = installPendingDocumentPiP()
+  const p = createScenesProvider({ src: SRC })
+  const { iframe } = mount(p)
+  fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+  p.actions.enterPiP()
+  p.destroy()
+  pending.resolve(fake)
+  // The window arrives on a dead provider: it must be closed, not wired.
+  await vi.waitFor(() => expect(fake.closed).toBe(true))
+  expect(p.getState().pip).toBe(false)
+  expect(document.body.querySelector("[data-kino-pip-overlay]")).toBeNull()
+  pending.uninstall()
 })
 
 test("enterFullscreen is a no-op while in pip", async () => {

@@ -50,6 +50,10 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
   let iframe: HTMLIFrameElement | null = null
   let mountContainer: HTMLElement | null = null
   let pipWindow: (Window & { close(): void }) | null = null
+  // True from the enterPiP guard until requestWindow settles, so a second
+  // click cannot start a parallel request that would wipe the resume point
+  // or overwrite the first window's wiring.
+  let pipEntering = false
   let pipCleanups: Array<() => void> = []
   let onPipPagehide: (() => void) | null = null
   // Resume point captured before an iframe-reloading move (into or out of
@@ -95,6 +99,14 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
     // into audio.currentTime in the host; fall back to the start.
     const t = state.currentTime
     resume = { time: Number.isFinite(t) ? t : 0, playing: !state.paused }
+  }
+
+  // Leave pseudo-fullscreen if it is active, mirroring exitFullscreen.
+  const clearPseudoFullscreen = () => {
+    if (!pseudoRestore) return
+    pseudoRestore()
+    pseudoRestore = null
+    patch({ fullscreen: false })
   }
 
   const send = (cmd: HostCommand) => {
@@ -208,13 +220,11 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
     enterPiP: () => {
       void (async () => {
         const dpp = (window as DocumentPiPHost).documentPictureInPicture
-        if (!dpp || pipWindow || !iframe || !mountContainer) return
-        if (pseudoRestore) {
-          pseudoRestore()
-          pseudoRestore = null
-          patch({ fullscreen: false })
-        }
+        if (!dpp || pipWindow || pipEntering || !iframe || !mountContainer)
+          return
+        clearPseudoFullscreen()
         captureResume()
+        pipEntering = true
         let win: Window
         try {
           const w = mountContainer.clientWidth
@@ -224,9 +234,21 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
             height: w > 0 && h > 0 ? Math.round((480 * h) / w) : 270,
           })
         } catch {
+          pipEntering = false
           resume = null
           return
         }
+        pipEntering = false
+        // destroy() may have run while requestWindow was pending; wiring the
+        // window onto a dead provider would leave it orphaned and unclosable.
+        if (!iframe || !mountContainer) {
+          win.close()
+          resume = null
+          return
+        }
+        // Pseudo-fullscreen may have been entered while the request was
+        // pending; clear it the same way as before the await.
+        clearPseudoFullscreen()
         pipWindow = win as Window & { close(): void }
         win.document.body.style.margin = "0"
         win.document.body.style.background = "#000"
