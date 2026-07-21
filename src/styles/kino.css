@@ -61,8 +61,11 @@
 .kino .kino-pip-placeholder {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   background: black;
   color: var(--kino-text-dim);
   font-size: 14px;
@@ -70,6 +73,24 @@
   line-height: 1.4;
   cursor: pointer;
   user-select: none;
+  transition: color 0.15s var(--kino-ease);
+}
+.kino .kino-pip-placeholder svg {
+  width: 28px;
+  height: 28px;
+  opacity: 0.5;
+  transition: opacity 0.15s var(--kino-ease);
+}
+.kino .kino-pip-placeholder:hover {
+  color: var(--kino-text);
+}
+.kino .kino-pip-placeholder:hover svg {
+  opacity: 0.8;
+}
+.kino .kino-pip-placeholder-sub {
+  font-size: 11px;
+  font-weight: 400;
+  color: color-mix(in oklab, white 40%, transparent);
 }
 .kino .kino-video-host {
   position: absolute;
