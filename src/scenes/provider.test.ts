@@ -102,7 +102,32 @@ test("ready handshake replies with init carrying rate and autoplay", () => {
     volume: 1,
     muted: false,
     autoPlay: true,
+    theme: "dark",
   })
+  p.destroy()
+})
+
+test("init carries the theme option; anything but light falls back to dark", () => {
+  const p = createScenesProvider({ src: SRC, theme: "light" })
+  const { iframe } = mount(p)
+  const posted: unknown[] = []
+  iframe.contentWindow!.postMessage = (msg: unknown) => posted.push(msg)
+  fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+  expect(posted).toContainEqual(
+    expect.objectContaining({ type: "kino:init", theme: "light" }),
+  )
+  p.destroy()
+})
+
+test("setSceneTheme posts kino:setTheme to the master", () => {
+  const p = createScenesProvider({ src: SRC })
+  const { iframe } = mount(p)
+  const posted: unknown[] = []
+  iframe.contentWindow!.postMessage = (msg: unknown) => posted.push(msg)
+  p.setSceneTheme("light")
+  expect(posted).toContainEqual({ type: "kino:setTheme", theme: "light" })
+  p.setSceneTheme("dark")
+  expect(posted).toContainEqual({ type: "kino:setTheme", theme: "dark" })
   p.destroy()
 })
 
@@ -417,6 +442,7 @@ test("mirror ready gets a muted init at the master clock", async () => {
     muted: true,
     autoPlay: true,
     startTime: 12,
+    theme: "dark",
   })
   p.destroy()
   uninstall()
@@ -444,6 +470,52 @@ test("a paused master yields a mirror init with autoPlay false", async () => {
     muted: true,
     autoPlay: false,
     startTime: 0,
+    theme: "dark",
+  })
+  p.destroy()
+  uninstall()
+})
+
+test("mirror init carries the current theme, not the mount-time one", async () => {
+  const fake = new FakePipWindow()
+  const uninstall = installFakeDocumentPiP(fake)
+  const p = createScenesProvider({ src: SRC })
+  const { iframe } = mount(p)
+  fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+  // The theme flipped after mount; a mirror created later must come up in it.
+  p.setSceneTheme("light")
+  p.actions.enterPiP()
+  await vi.waitFor(() => expect(p.getState().pip).toBe(true))
+  const mirror = findMirror()!
+  const mirrorPost = vi.spyOn(mirror.contentWindow!, "postMessage")
+  fromMirror(fake, mirror, { type: "kino:ready", duration: 40.5 })
+  const init = mirrorPost.mock.calls
+    .map((c) => c[0])
+    .find((m) => (m as { type: string }).type === "kino:init")
+  expect(init).toMatchObject({ theme: "light" })
+  p.destroy()
+  uninstall()
+})
+
+test("setSceneTheme fans out to the mirror while in pip", async () => {
+  const fake = new FakePipWindow()
+  const uninstall = installFakeDocumentPiP(fake)
+  const p = createScenesProvider({ src: SRC })
+  const { iframe } = mount(p)
+  fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+  p.actions.enterPiP()
+  await vi.waitFor(() => expect(p.getState().pip).toBe(true))
+  const mirror = findMirror()!
+  const mirrorPost = vi.spyOn(mirror.contentWindow!, "postMessage")
+  const masterPost = vi.spyOn(iframe.contentWindow!, "postMessage")
+  p.setSceneTheme("light")
+  expect(mirrorPost.mock.calls.map((c) => c[0])).toContainEqual({
+    type: "kino:setTheme",
+    theme: "light",
+  })
+  expect(masterPost.mock.calls.map((c) => c[0])).toContainEqual({
+    type: "kino:setTheme",
+    theme: "light",
   })
   p.destroy()
   uninstall()

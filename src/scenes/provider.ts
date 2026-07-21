@@ -23,6 +23,14 @@ export type ScenesProviderOptions = {
   defaultRate?: number
   autoPlay?: boolean
   muted?: boolean
+  // Initial stage theme applied to the host document; defaults to dark.
+  theme?: "light" | "dark"
+}
+
+// The Provider contract plus the scenes-only theme channel. The stage is a
+// themed document, not chrome, so no other provider grows this.
+export type ScenesProvider = Provider & {
+  setSceneTheme(theme: "light" | "dark"): void
 }
 
 const TRACK_ID = "captions"
@@ -30,7 +38,9 @@ const TRACK_ID = "captions"
 // Plays an audio-driven React scene sequence hosted in an iframe. The iframe
 // owns the audio element and the scene DOM; this side only speaks the wire
 // protocol and adapts it to kino's Provider contract.
-export function createScenesProvider(opts: ScenesProviderOptions): Provider {
+export function createScenesProvider(
+  opts: ScenesProviderOptions,
+): ScenesProvider {
   // Resolved lazily in mount(): on a server there is no location to resolve
   // a relative src against, and mount only ever runs in a browser. Before
   // mount nothing sends or receives, so the empty origin is never used.
@@ -67,6 +77,9 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
   let mirrorTime: number | null = null
   let vttCues: VttCue[] = []
   let desiredRate = opts.defaultRate ?? 1
+  // Stage theme forwarded to the host document. Dark is canonical; anything
+  // but the two literals falls back to it.
+  let theme: "light" | "dark" = opts.theme === "light" ? "light" : "dark"
   // Rate held while a setRate command is in flight, so a stale host snapshot
   // taken before the command landed doesn't flicker the speed menu back.
   let pendingRate: number | null = null
@@ -134,6 +147,7 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
           volume: state.volume,
           muted: state.muted,
           autoPlay: opts.autoPlay ?? false,
+          theme,
         })
         break
       case "kino:state":
@@ -189,6 +203,9 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
           muted: true,
           autoPlay: !state.paused,
           startTime: Number.isFinite(t) ? t : 0,
+          // The current theme, not the mount-time option: it may have
+          // flipped since, and the mirror must come up matching the master.
+          theme,
         })
         break
       }
@@ -407,6 +424,13 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
       return () => listeners.delete(l)
     },
     actions,
+    // Follows the embedding site's live theme toggle. Fans out to the pip
+    // mirror alongside the master (sendMirror no-ops outside pip).
+    setSceneTheme(next) {
+      theme = next === "light" ? "light" : "dark"
+      send({ type: "kino:setTheme", theme })
+      sendMirror({ type: "kino:setTheme", theme })
+    },
     destroy() {
       window.removeEventListener("message", onMessage)
       document.removeEventListener("fullscreenchange", onFullscreenChange)
