@@ -347,6 +347,10 @@ test("enterPiP moves the iframe, mounts surfaces, and resumes via init startTime
   expect(iframe.parentElement).toBe(document.body)
   expect(host.querySelector(".kino-pip-placeholder")).not.toBeNull()
   expect(document.body.querySelector("[data-kino-pip-overlay]")).not.toBeNull()
+  // Standards-mode pip documents have auto-height bodies; without these the
+  // percentage-height iframe collapses to 150px.
+  expect(fake.document.documentElement.style.height).toBe("100%")
+  expect(fake.document.body.style.height).toBe("100%")
   // The reloaded iframe announces ready again; the provider must resume.
   const post = vi.spyOn(iframe.contentWindow!, "postMessage")
   fromHost(iframe, { type: "kino:ready", duration: 40.5 })

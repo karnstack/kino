@@ -304,6 +304,7 @@ function GestureLayer({
   const actions = usePlayerActions()
   const paused = useMediaSelector((s) => s.paused)
   const fullscreen = useMediaSelector((s) => s.fullscreen)
+  const pip = useMediaSelector((s) => s.pip)
   const wrapperRef = useWrapperRef()
   // Defer the play/pause toggle briefly so a double-click (fullscreen) can
   // cancel it — otherwise the two clicks of a dbl-click also flip playback.
@@ -311,6 +312,13 @@ function GestureLayer({
     undefined,
   )
   useEffect(() => () => clearTimeout(clickTimer.current), [])
+
+  // While playback runs in a pip window this layer sits over the inline
+  // placeholder, so a click brings playback back immediately: no deferred
+  // play/pause, no double-click fullscreen (which no-ops during pip anyway).
+  if (pip) {
+    return <div className="kino-gesture" onClick={() => actions.exitPiP()} />
+  }
 
   if (compact) {
     return (

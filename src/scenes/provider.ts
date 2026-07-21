@@ -252,6 +252,10 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
         pipWindow = win as Window & { close(): void }
         win.document.body.style.margin = "0"
         win.document.body.style.background = "#000"
+        // The pip document may be standards-mode with an auto-height body,
+        // which would collapse the percentage-height iframe to 150px.
+        win.document.documentElement.style.height = "100%"
+        win.document.body.style.height = "100%"
         // Cross-document move; the iframe reloads and the resume point
         // above replays through kino:init.
         win.document.body.appendChild(iframe)

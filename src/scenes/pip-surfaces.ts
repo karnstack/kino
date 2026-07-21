@@ -37,11 +37,13 @@ export function mountPipOverlay(
   btn.style.cssText =
     "background:none;border:0;color:#fff;font-size:18px;cursor:pointer;padding:4px;"
   const cue = doc.createElement("div")
+  cue.setAttribute("aria-live", "polite")
   cue.style.cssText =
     "color:#fff;font-size:13px;line-height:1.3;flex:1;text-shadow:0 1px 2px rgba(0,0,0,.8);"
   const render = () => {
     const s = deps.getState()
-    btn.textContent = s.paused ? "▶" : "⏸"
+    // U+FE0E keeps the glyphs in text presentation instead of emoji.
+    btn.textContent = s.paused ? "▶︎" : "⏸︎"
     btn.setAttribute("aria-label", s.paused ? "Play" : "Pause")
     cue.textContent = s.activeCueText
   }

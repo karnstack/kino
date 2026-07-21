@@ -13,7 +13,7 @@ Scene-sequence playback lost two features that video-element providers get for f
 
 ## Decisions (approved)
 
-- PiP ships via the **Document Picture-in-Picture API**, Chromium desktop only. The button hides everywhere else through the existing `canPiP` capability gate. Safari/Firefox/mobile get no scenes PiP; accepted trade-off (Mux lessons keep PiP everywhere).
+- PiP ships via the **Document Picture-in-Picture API**, Chromium desktop only. The button hides everywhere else through the existing `canPiP` capability gate. Safari/Firefox/mobile get no scenes PiP; accepted trade-off (video-element playback keeps PiP everywhere).
 - Mobile fullscreen ships as a **pseudo-fullscreen CSS fallback** used only when `requestFullscreen` is absent. Kino's custom chrome stays on screen, which is better UX than the native iPhone video fullscreen that video providers fall back to.
 
 ## Design
@@ -38,7 +38,7 @@ Scenes provider integration (`src/scenes/provider.ts`):
 
 - `enterFullscreen(wrapper)`: if `wrapper.requestFullscreen` exists, call it (unchanged native path; `fullscreenchange` listener keeps patching state). Otherwise call `enterPseudoFullscreen(wrapper)`, keep the restore fn in a local, and `patch({ fullscreen: true })` directly, because no `fullscreenchange` event fires in pseudo mode.
 - `exitFullscreen()`: if a pseudo restore fn is held, call it, clear it, `patch({ fullscreen: false })`. Else the existing native path.
-- `destroy()`: if a pseudo restore fn is held, call it (lesson swap while pseudo-fullscreen must not leave the page scroll-locked).
+- `destroy()`: if a pseudo restore fn is held, call it (sequence swap while pseudo-fullscreen must not leave the page scroll-locked).
 - `enterFullscreen` is a no-op while PiP is active (the stage is in another window; the button is in the main tab).
 
 No changes to mux/native providers: their `webkitEnterFullscreen` fallback works today and native video fullscreen behavior on iPhone is out of scope.
@@ -122,4 +122,4 @@ Live verification after PR: desktop Chrome PiP via reins (trusted CDP click for 
 - Mobile PiP of any kind (impossible for DOM scenes today).
 - MediaSession lockscreen controls / background audio (backlog).
 - Token re-mint on expiry (existing backlog).
-- Scenes-to-scenes `swapSource` interactions with PiP (single-lesson pilot; revisit with the second flagged lesson).
+- Scenes-to-scenes `swapSource` interactions with PiP (single-sequence pilot; revisit with the second flagged sequence).

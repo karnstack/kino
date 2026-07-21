@@ -165,7 +165,7 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
         if (msg.autoPlay) void Promise.resolve(audio.play()).catch(() => {})
         break
       case "kino:play":
-        void audio.play()
+        void Promise.resolve(audio.play()).catch(() => {})
         break
       case "kino:pause":
         audio.pause()
