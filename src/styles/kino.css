@@ -56,6 +56,21 @@
   pointer-events: none;
   user-select: none;
 }
+/* Shown inline where the stage was while the scene sequence plays in the
+   document picture-in-picture window; clicking it brings playback back. */
+.kino .kino-pip-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: black;
+  color: var(--kino-text-dim);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  cursor: pointer;
+  user-select: none;
+}
 .kino .kino-video-host {
   position: absolute;
   inset: 0;
