@@ -116,6 +116,9 @@ test("host mounts audio element and posts ready with manifest duration", async (
   await flush()
   expect(h.audio()).toBeTruthy()
   expect(h.audio().getAttribute("src")).toBe("/audio.m4a")
+  // Without playsinline, iPhone WebKit promotes the clock element to the
+  // native fullscreen player on play().
+  expect(h.audio().hasAttribute("playsinline")).toBe(true)
   expect(h.posted).toContainEqual({ type: "kino:ready", duration: 12 })
   act(() => h.host.destroy())
 })

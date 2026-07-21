@@ -56,6 +56,8 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
   // audio-only so nothing would render anyway; hiding removes the empty box.
   const audio = document.createElement("video")
   audio.style.display = "none"
+  audio.setAttribute("playsinline", "")
+  audio.playsInline = true
   audio.setAttribute("src", manifest.audio[0]?.src ?? "")
   audio.preload = "auto"
   container.appendChild(audio)
