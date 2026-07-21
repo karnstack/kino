@@ -51,14 +51,20 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
   let mountContainer: HTMLElement | null = null
   let pipWindow: (Window & { close(): void }) | null = null
   // True from the enterPiP guard until requestWindow settles, so a second
-  // click cannot start a parallel request that would wipe the resume point
-  // or overwrite the first window's wiring.
+  // click cannot start a parallel request that would overwrite the first
+  // window's wiring.
   let pipEntering = false
   let pipCleanups: Array<() => void> = []
   let onPipPagehide: (() => void) | null = null
-  // Resume point captured before an iframe-reloading move (into or out of
-  // the pip window); consumed by the next kino:ready.
-  let resume: { time: number; playing: boolean } | null = null
+  // Muted mirror shown in the pip window while pip is active. The master
+  // iframe never moves (a cross-document move reloads it, and the reloaded
+  // document cannot autoplay audibly: its activation would have to come from
+  // the pip window, which never has any); the mirror is a second host
+  // instance whose only job is visuals.
+  let mirrorIframe: HTMLIFrameElement | null = null
+  // Last clock reported by the mirror, for drift correction against the
+  // master. Null until the mirror's first state tick.
+  let mirrorTime: number | null = null
   let vttCues: VttCue[] = []
   let desiredRate = opts.defaultRate ?? 1
   // Rate held while a setRate command is in flight, so a stale host snapshot
@@ -94,13 +100,6 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
     emit()
   }
 
-  const captureResume = () => {
-    // A non-finite currentTime would flow through init startTime straight
-    // into audio.currentTime in the host; fall back to the start.
-    const t = state.currentTime
-    resume = { time: Number.isFinite(t) ? t : 0, playing: !state.paused }
-  }
-
   // Leave pseudo-fullscreen if it is active, mirroring exitFullscreen.
   const clearPseudoFullscreen = () => {
     if (!pseudoRestore) return
@@ -111,6 +110,11 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
 
   const send = (cmd: HostCommand) => {
     iframe?.contentWindow?.postMessage(cmd, origin)
+  }
+
+  // Non-null mirrorIframe implies pip is active; outside pip this is a no-op.
+  const sendMirror = (cmd: HostCommand) => {
+    mirrorIframe?.contentWindow?.postMessage(cmd, origin)
   }
 
   const readCueText = (t: number): string =>
@@ -129,11 +133,8 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
           rate: desiredRate,
           volume: state.volume,
           muted: state.muted,
-          ...(resume
-            ? { autoPlay: resume.playing, startTime: resume.time }
-            : { autoPlay: opts.autoPlay ?? false }),
+          autoPlay: opts.autoPlay ?? false,
         })
-        resume = null
         break
       case "kino:state":
         // The host's snapshot is authoritative once it arrives, except while
@@ -146,6 +147,14 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
           ...(pendingRate !== null ? { rate: pendingRate } : {}),
           activeCueText: readCueText(msg.state.currentTime),
         })
+        // Drift correction: the muted mirror free-runs between commands, so
+        // nudge it back onto the master clock when it slips past 0.3s.
+        if (
+          pipWindow &&
+          mirrorTime !== null &&
+          Math.abs(msg.state.currentTime - mirrorTime) > 0.3
+        )
+          sendMirror({ type: "kino:seek", time: msg.state.currentTime })
         break
       case "kino:error":
         // MediaState.error.code is numeric; carry the host's string code
@@ -158,14 +167,55 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
     }
   }
 
+  // The mirror host posts to its window.parent, which is the pip window, so
+  // this listener lives on the pip window, not on the main one. Mirror state
+  // never patches MediaState; the master stays the single source of truth.
+  const onMirrorMessage = (ev: MessageEvent) => {
+    if (!mirrorIframe) return
+    if (ev.origin !== origin || ev.source !== mirrorIframe.contentWindow) return
+    const msg = ev.data as HostEvent
+    if (msg == null || typeof msg !== "object") return
+    switch (msg.type) {
+      case "kino:ready": {
+        // A non-finite currentTime would flow through init startTime straight
+        // into audio.currentTime in the mirror; fall back to the start.
+        const t = state.currentTime
+        // Muted autoplay is always allowed by policy, so the mirror starts
+        // in lockstep without any user activation in the pip window.
+        sendMirror({
+          type: "kino:init",
+          rate: state.rate,
+          volume: 0,
+          muted: true,
+          autoPlay: !state.paused,
+          startTime: Number.isFinite(t) ? t : 0,
+        })
+        break
+      }
+      case "kino:state":
+        mirrorTime = msg.state.currentTime
+        break
+    }
+  }
+
   const onFullscreenChange = () =>
     patch({ fullscreen: document.fullscreenElement != null })
 
+  // Transport commands drive the mirror alongside the master while pip is
+  // active (sendMirror no-ops otherwise). setVolume/setMuted deliberately
+  // never fan out: the mirror stays muted forever.
   const actions: PlayerActions = {
-    play: () => send({ type: "kino:play" }),
-    pause: () => send({ type: "kino:pause" }),
+    play: () => {
+      send({ type: "kino:play" })
+      sendMirror({ type: "kino:play" })
+    },
+    pause: () => {
+      send({ type: "kino:pause" })
+      sendMirror({ type: "kino:pause" })
+    },
     seek: (t) => {
       send({ type: "kino:seek", time: t })
+      sendMirror({ type: "kino:seek", time: t })
       // Optimistic time so the scrubber tracks the pointer between state ticks.
       patch({ currentTime: t, activeCueText: readCueText(t) })
     },
@@ -173,6 +223,7 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
       pendingRate = r
       desiredRate = r
       send({ type: "kino:setRate", rate: r })
+      sendMirror({ type: "kino:setRate", rate: r })
       patch({ rate: r })
     },
     setVolume: (v) => {
@@ -223,7 +274,6 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
         if (!dpp || pipWindow || pipEntering || !iframe || !mountContainer)
           return
         clearPseudoFullscreen()
-        captureResume()
         pipEntering = true
         let win: Window
         try {
@@ -235,7 +285,6 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
           })
         } catch {
           pipEntering = false
-          resume = null
           return
         }
         pipEntering = false
@@ -243,7 +292,6 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
         // window onto a dead provider would leave it orphaned and unclosable.
         if (!iframe || !mountContainer) {
           win.close()
-          resume = null
           return
         }
         // Pseudo-fullscreen may have been entered while the request was
@@ -253,15 +301,26 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
         win.document.body.style.margin = "0"
         win.document.body.style.background = "#000"
         // The pip document may be standards-mode with an auto-height body,
-        // which would collapse the percentage-height iframe to 150px.
+        // which would collapse the percentage-height mirror to 150px.
         win.document.documentElement.style.height = "100%"
         win.document.body.style.height = "100%"
-        // Cross-document move; the iframe reloads and the resume point
-        // above replays through kino:init.
-        win.document.body.appendChild(iframe)
-        // Inside the pip window the host's parent is the pip window, so its
-        // events land there, not on the main window.
-        win.addEventListener("message", onMessage)
+        // The master iframe stays home, keeps playing, and stays the single
+        // source of truth; the opaque placeholder below covers it. The pip
+        // window gets a muted mirror instead, initialized onto the master
+        // clock by onMirrorMessage once it announces ready.
+        const mirror = win.document.createElement("iframe")
+        mirror.src = opts.src
+        mirror.setAttribute("allow", "autoplay; fullscreen")
+        mirror.style.width = "100%"
+        mirror.style.height = "100%"
+        mirror.style.border = "0"
+        mirror.style.display = "block"
+        mirrorIframe = mirror
+        mirrorTime = null
+        win.document.body.appendChild(mirror)
+        // The mirror host's parent is the pip window, so its events land
+        // there, not on the main window.
+        win.addEventListener("message", onMirrorMessage)
         pipCleanups = [
           mountPipPlaceholder(mountContainer, actions.exitPiP),
           mountPipOverlay(win, {
@@ -278,16 +337,16 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
           if (!pipWindow) return
           const closing = pipWindow
           pipWindow = null
-          closing.removeEventListener("message", onMessage)
+          closing.removeEventListener("message", onMirrorMessage)
           if (onPipPagehide)
             closing.removeEventListener("pagehide", onPipPagehide)
           onPipPagehide = null
+          mirrorIframe?.remove()
+          mirrorIframe = null
+          mirrorTime = null
           pipCleanups.forEach((c) => c())
           pipCleanups = []
-          // Position advanced while in pip; capture again for the reload
-          // caused by moving the iframe home.
-          captureResume()
-          if (iframe && mountContainer) mountContainer.appendChild(iframe)
+          // Nothing to resume: the master never stopped.
           patch({ pip: false })
         }
         win.addEventListener("pagehide", onPipPagehide)
@@ -353,8 +412,8 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
       document.removeEventListener("fullscreenchange", onFullscreenChange)
       pseudoRestore?.()
       pseudoRestore = null
-      // Fires the pagehide handler, which moves the iframe back and clears
-      // pip state before the teardown below.
+      // Fires the pagehide handler, which removes the mirror and clears pip
+      // state before the teardown below.
       pipWindow?.close()
       iframe?.remove()
       iframe = null

@@ -123,3 +123,16 @@ Live verification after PR: desktop Chrome PiP via reins (trusted CDP click for 
 - MediaSession lockscreen controls / background audio (backlog).
 - Token re-mint on expiry (existing backlog).
 - Scenes-to-scenes `swapSource` interactions with PiP (single-sequence pilot; revisit with the second flagged sequence).
+
+## Addendum (2026-07-21): muted mirror architecture
+
+The shipped iframe-move design turned out to be activation-dependent. Moving the scene-sequence iframe into the pip window is a cross-document move, which reloads it, and the reloaded document's autoplay delegation comes from the pip window, which never has user activation. The audible resume play() is therefore rejected and playback comes back paused unless the origin's media-engagement score happens to be high. Reproduced live: after entering pip the audio sat paused at the correct resume time. Any design that reloads the host inside the pip window inherits this.
+
+Replacement, provider-only (no protocol or host changes):
+
+- The master iframe never moves. It stays mounted in the main tab, keeps playing, and remains the single source of truth for MediaState. The opaque inline placeholder covers it visually.
+- enterPiP creates a second host instance in the pip window instead: a muted mirror iframe with the same src. On its kino:ready the provider sends kino:init with volume 0, muted true, autoPlay mirroring the master paused state, and startTime at the master clock. Muted autoplay is always allowed by policy, so the mirror starts without any activation.
+- While pip is active, transport commands (play, pause, seek, setRate) fan out to the mirror alongside the master. setVolume and setMuted never do; the mirror stays muted forever.
+- Drift correction: on each master state tick, when the mirror's last reported clock is more than 0.3s off the master's, the provider seeks the mirror to the master time.
+- Exit removes the mirror and the pip surfaces; nothing resumes because the master never stopped. The resume capture path is gone from the provider.
+- kino:init startTime stays in the protocol; the mirror init is now its consumer. The host opener source check also stays: commands to the mirror still originate from the main tab, which is the pip window opener.
