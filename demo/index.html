@@ -4,11 +4,36 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <!-- Head metadata: these are the home-page/fallback values. The build
+         (demo/prerender.ts) stamps per-route values into a static HTML copy
+         per docs page, and demo/seo.ts keeps them in sync on client-side
+         navigation. Edit demo/seo.json, not these tags. -->
     <title>kino — a themeable React video player</title>
     <meta
       name="description"
       content="kino is a themeable React video player with a pluggable-provider architecture — glass chrome, keyboard-first controls, and a small typed surface over Mux, raw files, and more."
     />
+    <meta name="robots" content="index,follow" />
+    <link rel="canonical" href="https://kino.karnstack.com/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="kino" />
+    <meta property="og:title" content="kino — a themeable React video player" />
+    <meta
+      property="og:description"
+      content="kino is a themeable React video player with a pluggable-provider architecture — glass chrome, keyboard-first controls, and a small typed surface over Mux, raw files, and more."
+    />
+    <meta property="og:url" content="https://kino.karnstack.com/" />
+    <meta property="og:image" content="https://kino.karnstack.com/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="kino — a themeable React video player"
+    />
+    <meta
+      name="twitter:description"
+      content="kino is a themeable React video player with a pluggable-provider architecture — glass chrome, keyboard-first controls, and a small typed surface over Mux, raw files, and more."
+    />
+    <meta name="twitter:image" content="https://kino.karnstack.com/og.png" />
     <meta name="theme-color" content="#0a0807" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

@@ -1,0 +1,30 @@
+{
+  "siteUrl": "https://kino.karnstack.com",
+  "pages": [
+    {
+      "path": "/",
+      "title": "kino — a themeable React video player",
+      "description": "kino is a themeable React video player with a pluggable-provider architecture — glass chrome, keyboard-first controls, and a small typed surface over Mux, raw files, and more."
+    },
+    {
+      "path": "/install",
+      "title": "Install & API — kino",
+      "description": "Install @karnstack/kino, mount your first player, and learn the props surface shared by every provider."
+    },
+    {
+      "path": "/providers",
+      "title": "Providers — kino",
+      "description": "The Provider contract and the five shipped engines — Mux HLS, native files, YouTube, Vimeo, and audio-driven scenes — under one glass UI."
+    },
+    {
+      "path": "/scene-protocol",
+      "title": "The scene protocol — kino",
+      "description": "The sequence manifest and the postMessage wire format between kino's embedding player and the iframe scene host."
+    },
+    {
+      "path": "/theming",
+      "title": "Theming — kino",
+      "description": "Theme kino with CSS custom properties — accent, surfaces, and typography — plus the keyboard map and capability-gated controls."
+    }
+  ]
+}

@@ -7,6 +7,7 @@
 - [Overview](https://kino.karnstack.com/): what kino is, live playground, why kino.
 - [Install & API](https://kino.karnstack.com/install): install, quick start, the provider/props API.
 - [Providers](https://kino.karnstack.com/providers): the Provider contract and the five shipped providers.
+- [Scene protocol](https://kino.karnstack.com/scene-protocol): the sequence manifest and the postMessage wire format between the embedding player and the iframe host.
 - [Theming](https://kino.karnstack.com/theming): CSS custom properties, keyboard map, capability gating.
 
 ## Scenes

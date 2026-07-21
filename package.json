@@ -63,6 +63,7 @@
   },
   "scripts": {
     "build": "tsdown",
+    "build:demo": "vite build --config demo/vite.config.ts && node demo/prerender.ts",
     "dev": "vite --config demo/vite.config.ts",
     "test": "vitest run",
     "test:watch": "vitest",

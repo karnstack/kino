@@ -60,24 +60,6 @@
   }
 }
 
-/* Faint film grain over the whole frame — unifies the surfaces with stock
-   texture. A fixed-size noise tile only stays fine on high-density displays; on
-   1x screens each cell doubles and reads as coarse blotches, so the grain is
-   off by default and only painted (subtly) at >=1.5dppx where it stays crisp.
-   Low-density screens fall back to the clean spotlight gradient alone. */
-@utility film-grain {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  pointer-events: none;
-  opacity: 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  @media (min-resolution: 1.5dppx) {
-    opacity: 0.22;
-    mix-blend-mode: soft-light;
-  }
-}
-
 /* A run of film-perforation holes — used as a section rule / framing motif. */
 @utility sprockets {
   background-image: repeating-linear-gradient(
