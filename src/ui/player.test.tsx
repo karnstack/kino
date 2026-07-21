@@ -47,3 +47,33 @@ test("space toggles playback via keyboard", () => {
   })
   expect(provider.getState().paused).toBe(false)
 })
+
+test("while in pip a click on the gesture layer exits pip immediately", () => {
+  vi.useFakeTimers()
+  try {
+    const provider = createFakeProvider({ pip: true, paused: false })
+    const { container } = render(<Player provider={provider} />)
+    const gesture = container.querySelector(".kino-gesture") as HTMLElement
+    act(() => {
+      fireEvent.click(gesture)
+    })
+    expect(provider.getState().pip).toBe(false)
+    // No deferred play/pause toggle may fire behind the exit.
+    act(() => {
+      vi.advanceTimersByTime(500)
+    })
+    expect(provider.getState().paused).toBe(false)
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+test("gesture double-click while in pip does not enter fullscreen", () => {
+  const provider = createFakeProvider({ pip: true })
+  const { container } = render(<Player provider={provider} />)
+  const gesture = container.querySelector(".kino-gesture") as HTMLElement
+  act(() => {
+    fireEvent.doubleClick(gesture)
+  })
+  expect(provider.getState().fullscreen).toBe(false)
+})

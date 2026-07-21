@@ -89,7 +89,7 @@ function makeHost(overrides?: Partial<SceneHostOptions>) {
     container,
     posted,
     host: host!,
-    audio: () => container.querySelector("audio") as HTMLAudioElement,
+    audio: () => container.querySelector("video") as HTMLVideoElement,
   }
 }
 
@@ -116,6 +116,9 @@ test("host mounts audio element and posts ready with manifest duration", async (
   await flush()
   expect(h.audio()).toBeTruthy()
   expect(h.audio().getAttribute("src")).toBe("/audio.m4a")
+  // Without playsinline, iPhone WebKit promotes the clock element to the
+  // native fullscreen player on play().
+  expect(h.audio().hasAttribute("playsinline")).toBe(true)
   expect(h.posted).toContainEqual({ type: "kino:ready", duration: 12 })
   act(() => h.host.destroy())
 })
@@ -227,10 +230,123 @@ test("destroy unmounts and stops posting", async () => {
   const h = makeHost()
   await flush()
   act(() => h.host.destroy())
-  expect(h.container.querySelector("audio")).toBe(null)
+  expect(h.container.querySelector("video")).toBe(null)
   const before = h.posted.length
   act(() => {
     h.audio()
   })
   expect(h.posted.length).toBe(before)
+})
+
+test("init with startTime seeks the audio before playback", async () => {
+  const h = makeHost()
+  await flush()
+  command({
+    type: "kino:init",
+    rate: 1,
+    volume: 1,
+    muted: false,
+    autoPlay: false,
+    startTime: 7.5,
+  })
+  expect(h.audio().currentTime).toBe(7.5)
+  act(() => h.host.destroy())
+})
+
+test("init startTime clamps to the sequence duration", async () => {
+  const h = makeHost()
+  await flush()
+  command({
+    type: "kino:init",
+    rate: 1,
+    volume: 1,
+    muted: false,
+    autoPlay: false,
+    startTime: 9999,
+  })
+  expect(h.audio().currentTime).toBe(manifest.duration)
+  command({
+    type: "kino:init",
+    rate: 1,
+    volume: 1,
+    muted: false,
+    autoPlay: false,
+    startTime: -3,
+  })
+  expect(h.audio().currentTime).toBe(0)
+  act(() => h.host.destroy())
+})
+
+test("init autoPlay rejection is swallowed", async () => {
+  const h = makeHost()
+  await flush()
+  // Reloaded pip iframes lack user activation, so play() rejects. A raw
+  // descriptor override rather than vi.spyOn: vitest mocks track settled
+  // results, which attaches a rejection handler to the returned promise and
+  // would mask an unhandled rejection escaping the host.
+  const original = Object.getOwnPropertyDescriptor(
+    HTMLMediaElement.prototype,
+    "play",
+  )!
+  Object.defineProperty(HTMLMediaElement.prototype, "play", {
+    configurable: true,
+    value() {
+      return Promise.reject(new DOMException("NotAllowedError"))
+    },
+  })
+  try {
+    command({
+      type: "kino:init",
+      rate: 1,
+      volume: 1,
+      muted: false,
+      autoPlay: true,
+    })
+    // A macrotask hop lets any escaped rejection surface. No unhandled
+    // rejection: reaching the end without vitest flagging one is the
+    // assertion.
+    await new Promise((r) => setTimeout(r, 0))
+  } finally {
+    Object.defineProperty(HTMLMediaElement.prototype, "play", original)
+  }
+  act(() => h.host.destroy())
+})
+
+test("commands from window.parent.opener are accepted", async () => {
+  const h = makeHost()
+  await flush()
+  // In a document pip window the host's parent is the pip window and the
+  // controlling document is that window's opener. jsdom cannot make a real
+  // second Window, so a MessagePort stands in: any MessageEventSource works
+  // for the identity check. Seek instead of pause because the jsdom media
+  // stubs never flip `paused`, so currentTime is the observable effect.
+  const port = new MessageChannel().port1
+  Object.defineProperty(window, "opener", { value: port, configurable: true })
+  act(() => {
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: { type: "kino:seek", time: 9 },
+        source: port,
+      }),
+    )
+  })
+  expect(h.audio().currentTime).toBe(9)
+  Object.defineProperty(window, "opener", { value: null, configurable: true })
+  act(() => h.host.destroy())
+})
+
+test("commands from unrelated sources are still dropped", async () => {
+  const h = makeHost()
+  await flush()
+  const stranger = new MessageChannel().port2
+  act(() => {
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: { type: "kino:seek", time: 9 },
+        source: stranger,
+      }),
+    )
+  })
+  expect(h.audio().currentTime).toBe(0)
+  act(() => h.host.destroy())
 })

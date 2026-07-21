@@ -50,7 +50,14 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
   if (gaps.length > 0)
     console.warn(`kino scenes: manifest is not contiguous: ${gaps.join("; ")}`)
 
-  const audio = document.createElement("audio")
+  // A video element, not an audio element, for one reason only: Chrome's
+  // muted-autoplay exemption covers video elements exclusively, and the muted
+  // pip mirror relies on it to start without user activation. The src is
+  // audio-only so nothing would render anyway; hiding removes the empty box.
+  const audio = document.createElement("video")
+  audio.style.display = "none"
+  audio.setAttribute("playsinline", "")
+  audio.playsInline = true
   audio.setAttribute("src", manifest.audio[0]?.src ?? "")
   audio.preload = "auto"
   container.appendChild(audio)
@@ -136,9 +143,14 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
   const onCommand = (ev: MessageEvent) => {
     // Only the embedding page may drive playback: the message must come from
     // the parent window, and when parentOrigin is locked down, from that
-    // origin.
+    // origin. Inside a document pip window the host's parent is the pip
+    // window itself while commands still originate from the main tab, which
+    // is the pip window's opener; opener is on the cross-origin-readable
+    // Window property list, and the origin check above still applies.
     if (parentOrigin !== "*" && ev.origin !== parentOrigin) return
-    if (ev.source !== window.parent) return
+    const opener = window.parent.opener as Window | null
+    if (ev.source !== window.parent && (opener == null || ev.source !== opener))
+      return
     const msg = ev.data as HostCommand
     if (msg == null || typeof msg !== "object") return
     switch (msg.type) {
@@ -146,10 +158,21 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
         audio.playbackRate = msg.rate
         audio.volume = msg.volume
         audio.muted = msg.muted
-        if (msg.autoPlay) void audio.play()
+        if (msg.startTime != null) {
+          audio.currentTime = Math.min(
+            Math.max(0, msg.startTime),
+            manifest.duration,
+          )
+          syncTime()
+          postState()
+        }
+        // A reloaded pip iframe may lack user activation; a rejected play
+        // just leaves the host paused. Promise.resolve guards jsdom stubs
+        // that return undefined from play().
+        if (msg.autoPlay) void Promise.resolve(audio.play()).catch(() => {})
         break
       case "kino:play":
-        void audio.play()
+        void Promise.resolve(audio.play()).catch(() => {})
         break
       case "kino:pause":
         audio.pause()

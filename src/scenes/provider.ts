@@ -1,7 +1,15 @@
 import { defaultState } from "../core/fake-provider"
+import { enterPseudoFullscreen } from "../util/pseudo-fullscreen"
+import { mountPipPlaceholder, mountPipOverlay } from "./pip-surfaces"
 import { parseVtt, cueTextAt, type VttCue } from "./vtt"
 import type { MediaState, PlayerActions, Provider } from "../core/types"
 import type { HostCommand, HostEvent } from "./protocol"
+
+type DocumentPiPHost = Window & {
+  documentPictureInPicture?: {
+    requestWindow(opts?: { width?: number; height?: number }): Promise<Window>
+  }
+}
 
 export type ScenesProviderOptions = {
   // Full URL of the host page, token and sequence already encoded by the caller.
@@ -40,11 +48,31 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
     }
   }
   let iframe: HTMLIFrameElement | null = null
+  let mountContainer: HTMLElement | null = null
+  let pipWindow: (Window & { close(): void }) | null = null
+  // True from the enterPiP guard until requestWindow settles, so a second
+  // click cannot start a parallel request that would overwrite the first
+  // window's wiring.
+  let pipEntering = false
+  let pipCleanups: Array<() => void> = []
+  let onPipPagehide: (() => void) | null = null
+  // Muted mirror shown in the pip window while pip is active. The master
+  // iframe never moves (a cross-document move reloads it, and the reloaded
+  // document cannot autoplay audibly: its activation would have to come from
+  // the pip window, which never has any); the mirror is a second host
+  // instance whose only job is visuals.
+  let mirrorIframe: HTMLIFrameElement | null = null
+  // Last clock reported by the mirror, for drift correction against the
+  // master. Null until the mirror's first state tick.
+  let mirrorTime: number | null = null
   let vttCues: VttCue[] = []
   let desiredRate = opts.defaultRate ?? 1
   // Rate held while a setRate command is in flight, so a stale host snapshot
   // taken before the command landed doesn't flicker the speed menu back.
   let pendingRate: number | null = null
+  // Restore fn while pseudo-fullscreen (no Element.requestFullscreen, i.e.
+  // iPhone-class WebKit) is active. Null otherwise.
+  let pseudoRestore: (() => void) | null = null
 
   let state: MediaState = {
     ...defaultState(),
@@ -55,8 +83,11 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
       // The stage is resolution independent DOM; there is no rendition ladder.
       canSetQuality: false,
       hasStoryboard: opts.storyboard != null,
-      // No parent-side media element to promote into PiP.
-      canPiP: false,
+      // No media element to promote, but the whole stage can move into a
+      // document pip window where supported.
+      canPiP:
+        typeof window !== "undefined" &&
+        (window as DocumentPiPHost).documentPictureInPicture != null,
       canFullscreen: true,
       canSetRate: true,
       hasTextTracks: opts.captions != null,
@@ -69,8 +100,21 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
     emit()
   }
 
+  // Leave pseudo-fullscreen if it is active, mirroring exitFullscreen.
+  const clearPseudoFullscreen = () => {
+    if (!pseudoRestore) return
+    pseudoRestore()
+    pseudoRestore = null
+    patch({ fullscreen: false })
+  }
+
   const send = (cmd: HostCommand) => {
     iframe?.contentWindow?.postMessage(cmd, origin)
+  }
+
+  // Non-null mirrorIframe implies pip is active; outside pip this is a no-op.
+  const sendMirror = (cmd: HostCommand) => {
+    mirrorIframe?.contentWindow?.postMessage(cmd, origin)
   }
 
   const readCueText = (t: number): string =>
@@ -103,6 +147,14 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
           ...(pendingRate !== null ? { rate: pendingRate } : {}),
           activeCueText: readCueText(msg.state.currentTime),
         })
+        // Drift correction: the muted mirror free-runs between commands, so
+        // nudge it back onto the master clock when it slips past 0.3s.
+        if (
+          pipWindow &&
+          mirrorTime !== null &&
+          Math.abs(msg.state.currentTime - mirrorTime) > 0.3
+        )
+          sendMirror({ type: "kino:seek", time: msg.state.currentTime })
         break
       case "kino:error":
         // MediaState.error.code is numeric; carry the host's string code
@@ -115,14 +167,55 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
     }
   }
 
+  // The mirror host posts to its window.parent, which is the pip window, so
+  // this listener lives on the pip window, not on the main one. Mirror state
+  // never patches MediaState; the master stays the single source of truth.
+  const onMirrorMessage = (ev: MessageEvent) => {
+    if (!mirrorIframe) return
+    if (ev.origin !== origin || ev.source !== mirrorIframe.contentWindow) return
+    const msg = ev.data as HostEvent
+    if (msg == null || typeof msg !== "object") return
+    switch (msg.type) {
+      case "kino:ready": {
+        // A non-finite currentTime would flow through init startTime straight
+        // into audio.currentTime in the mirror; fall back to the start.
+        const t = state.currentTime
+        // Muted autoplay is always allowed by policy, so the mirror starts
+        // in lockstep without any user activation in the pip window.
+        sendMirror({
+          type: "kino:init",
+          rate: state.rate,
+          volume: 0,
+          muted: true,
+          autoPlay: !state.paused,
+          startTime: Number.isFinite(t) ? t : 0,
+        })
+        break
+      }
+      case "kino:state":
+        mirrorTime = msg.state.currentTime
+        break
+    }
+  }
+
   const onFullscreenChange = () =>
     patch({ fullscreen: document.fullscreenElement != null })
 
+  // Transport commands drive the mirror alongside the master while pip is
+  // active (sendMirror no-ops otherwise). setVolume/setMuted deliberately
+  // never fan out: the mirror stays muted forever.
   const actions: PlayerActions = {
-    play: () => send({ type: "kino:play" }),
-    pause: () => send({ type: "kino:pause" }),
+    play: () => {
+      send({ type: "kino:play" })
+      sendMirror({ type: "kino:play" })
+    },
+    pause: () => {
+      send({ type: "kino:pause" })
+      sendMirror({ type: "kino:pause" })
+    },
     seek: (t) => {
       send({ type: "kino:seek", time: t })
+      sendMirror({ type: "kino:seek", time: t })
       // Optimistic time so the scrubber tracks the pointer between state ticks.
       patch({ currentTime: t, activeCueText: readCueText(t) })
     },
@@ -130,6 +223,7 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
       pendingRate = r
       desiredRate = r
       send({ type: "kino:setRate", rate: r })
+      sendMirror({ type: "kino:setRate", rate: r })
       patch({ rate: r })
     },
     setVolume: (v) => {
@@ -153,13 +247,115 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
       patch({ activeCueText: readCueText(state.currentTime) })
     },
     enterFullscreen: (wrapper) => {
-      void wrapper.requestFullscreen?.()
+      // The stage lives in another window during pip; the fullscreen button
+      // in the main tab has nothing to expand.
+      if (pipWindow) return
+      if (wrapper.requestFullscreen) {
+        void wrapper.requestFullscreen()
+        return
+      }
+      if (pseudoRestore) return
+      pseudoRestore = enterPseudoFullscreen(wrapper)
+      // No fullscreenchange fires in pseudo mode; own the transition.
+      patch({ fullscreen: true })
     },
     exitFullscreen: () => {
+      if (pseudoRestore) {
+        pseudoRestore()
+        pseudoRestore = null
+        patch({ fullscreen: false })
+        return
+      }
       if (document.fullscreenElement) void document.exitFullscreen?.()
     },
-    enterPiP: () => {},
-    exitPiP: () => {},
+    enterPiP: () => {
+      void (async () => {
+        const dpp = (window as DocumentPiPHost).documentPictureInPicture
+        if (!dpp || pipWindow || pipEntering || !iframe || !mountContainer)
+          return
+        clearPseudoFullscreen()
+        pipEntering = true
+        let win: Window
+        try {
+          const w = mountContainer.clientWidth
+          const h = mountContainer.clientHeight
+          win = await dpp.requestWindow({
+            width: 480,
+            height: w > 0 && h > 0 ? Math.round((480 * h) / w) : 270,
+          })
+        } catch {
+          pipEntering = false
+          return
+        }
+        pipEntering = false
+        // destroy() may have run while requestWindow was pending; wiring the
+        // window onto a dead provider would leave it orphaned and unclosable.
+        if (!iframe || !mountContainer) {
+          win.close()
+          return
+        }
+        // Pseudo-fullscreen may have been entered while the request was
+        // pending; clear it the same way as before the await.
+        clearPseudoFullscreen()
+        pipWindow = win as Window & { close(): void }
+        win.document.body.style.margin = "0"
+        win.document.body.style.background = "#000"
+        // The pip document may be standards-mode with an auto-height body,
+        // which would collapse the percentage-height mirror to 150px.
+        win.document.documentElement.style.height = "100%"
+        win.document.body.style.height = "100%"
+        // The master iframe stays home, keeps playing, and stays the single
+        // source of truth; the opaque placeholder below covers it. The pip
+        // window gets a muted mirror instead, initialized onto the master
+        // clock by onMirrorMessage once it announces ready.
+        const mirror = win.document.createElement("iframe")
+        mirror.src = opts.src
+        mirror.setAttribute("allow", "autoplay; fullscreen")
+        mirror.style.width = "100%"
+        mirror.style.height = "100%"
+        mirror.style.border = "0"
+        mirror.style.display = "block"
+        mirrorIframe = mirror
+        mirrorTime = null
+        win.document.body.appendChild(mirror)
+        // The mirror host's parent is the pip window, so its events land
+        // there, not on the main window.
+        win.addEventListener("message", onMirrorMessage)
+        pipCleanups = [
+          mountPipPlaceholder(mountContainer, actions.exitPiP),
+          mountPipOverlay(win, {
+            play: actions.play,
+            pause: actions.pause,
+            getState: () => state,
+            subscribe: (l) => {
+              listeners.add(l)
+              return () => listeners.delete(l)
+            },
+          }),
+        ]
+        onPipPagehide = () => {
+          if (!pipWindow) return
+          const closing = pipWindow
+          pipWindow = null
+          closing.removeEventListener("message", onMirrorMessage)
+          if (onPipPagehide)
+            closing.removeEventListener("pagehide", onPipPagehide)
+          onPipPagehide = null
+          mirrorIframe?.remove()
+          mirrorIframe = null
+          mirrorTime = null
+          pipCleanups.forEach((c) => c())
+          pipCleanups = []
+          // Nothing to resume: the master never stopped.
+          patch({ pip: false })
+        }
+        win.addEventListener("pagehide", onPipPagehide)
+        patch({ pip: true })
+      })()
+    },
+    exitPiP: () => {
+      pipWindow?.close()
+    },
   }
 
   const loadCaptions = () => {
@@ -189,6 +385,7 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
 
   return {
     mount(container) {
+      mountContainer = container
       origin = resolveOrigin()
       iframe = document.createElement("iframe")
       iframe.src = opts.src
@@ -213,8 +410,14 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
     destroy() {
       window.removeEventListener("message", onMessage)
       document.removeEventListener("fullscreenchange", onFullscreenChange)
+      pseudoRestore?.()
+      pseudoRestore = null
+      // Fires the pagehide handler, which removes the mirror and clears pip
+      // state before the teardown below.
+      pipWindow?.close()
       iframe?.remove()
       iframe = null
+      mountContainer = null
       listeners.clear()
     },
   }
