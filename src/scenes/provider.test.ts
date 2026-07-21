@@ -255,3 +255,47 @@ test("destroy removes the iframe and stops listening", () => {
   // No throw when a late message arrives after destroy.
   fromHost(iframe, { type: "kino:ready", duration: 1 })
 })
+
+test("fullscreen falls back to pseudo mode when requestFullscreen is missing", () => {
+  const p = createScenesProvider({ src: SRC })
+  mount(p)
+  const wrapper = document.createElement("div")
+  document.body.appendChild(wrapper)
+  // jsdom has no Element.requestFullscreen, which is exactly the
+  // iPhone-class environment under test.
+  expect(wrapper.requestFullscreen).toBeUndefined()
+  p.actions.enterFullscreen(wrapper)
+  expect(wrapper.style.position).toBe("fixed")
+  expect(p.getState().fullscreen).toBe(true)
+  p.actions.exitFullscreen()
+  expect(wrapper.style.position).toBe("")
+  expect(p.getState().fullscreen).toBe(false)
+  p.destroy()
+  wrapper.remove()
+})
+
+test("native requestFullscreen is preferred when present", () => {
+  const p = createScenesProvider({ src: SRC })
+  mount(p)
+  const wrapper = document.createElement("div")
+  const request = vi.fn().mockResolvedValue(undefined)
+  ;(
+    wrapper as HTMLElement & { requestFullscreen: () => Promise<void> }
+  ).requestFullscreen = request
+  p.actions.enterFullscreen(wrapper)
+  expect(request).toHaveBeenCalledOnce()
+  expect(wrapper.style.position).toBe("")
+  p.destroy()
+})
+
+test("destroy restores pseudo-fullscreen scroll lock", () => {
+  const p = createScenesProvider({ src: SRC })
+  mount(p)
+  const wrapper = document.createElement("div")
+  document.body.appendChild(wrapper)
+  p.actions.enterFullscreen(wrapper)
+  expect(document.body.style.overflow).toBe("hidden")
+  p.destroy()
+  expect(document.body.style.overflow).toBe("")
+  wrapper.remove()
+})

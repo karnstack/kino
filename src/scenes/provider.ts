@@ -1,4 +1,5 @@
 import { defaultState } from "../core/fake-provider"
+import { enterPseudoFullscreen } from "../util/pseudo-fullscreen"
 import { parseVtt, cueTextAt, type VttCue } from "./vtt"
 import type { MediaState, PlayerActions, Provider } from "../core/types"
 import type { HostCommand, HostEvent } from "./protocol"
@@ -45,6 +46,9 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
   // Rate held while a setRate command is in flight, so a stale host snapshot
   // taken before the command landed doesn't flicker the speed menu back.
   let pendingRate: number | null = null
+  // Restore fn while pseudo-fullscreen (no Element.requestFullscreen, i.e.
+  // iPhone-class WebKit) is active. Null otherwise.
+  let pseudoRestore: (() => void) | null = null
 
   let state: MediaState = {
     ...defaultState(),
@@ -153,9 +157,22 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
       patch({ activeCueText: readCueText(state.currentTime) })
     },
     enterFullscreen: (wrapper) => {
-      void wrapper.requestFullscreen?.()
+      if (wrapper.requestFullscreen) {
+        void wrapper.requestFullscreen()
+        return
+      }
+      if (pseudoRestore) return
+      pseudoRestore = enterPseudoFullscreen(wrapper)
+      // No fullscreenchange fires in pseudo mode; own the transition.
+      patch({ fullscreen: true })
     },
     exitFullscreen: () => {
+      if (pseudoRestore) {
+        pseudoRestore()
+        pseudoRestore = null
+        patch({ fullscreen: false })
+        return
+      }
       if (document.fullscreenElement) void document.exitFullscreen?.()
     },
     enterPiP: () => {},
@@ -213,6 +230,8 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
     destroy() {
       window.removeEventListener("message", onMessage)
       document.removeEventListener("fullscreenchange", onFullscreenChange)
+      pseudoRestore?.()
+      pseudoRestore = null
       iframe?.remove()
       iframe = null
       listeners.clear()
