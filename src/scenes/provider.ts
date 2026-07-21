@@ -1,8 +1,15 @@
 import { defaultState } from "../core/fake-provider"
 import { enterPseudoFullscreen } from "../util/pseudo-fullscreen"
+import { mountPipPlaceholder, mountPipOverlay } from "./pip-surfaces"
 import { parseVtt, cueTextAt, type VttCue } from "./vtt"
 import type { MediaState, PlayerActions, Provider } from "../core/types"
 import type { HostCommand, HostEvent } from "./protocol"
+
+type DocumentPiPHost = Window & {
+  documentPictureInPicture?: {
+    requestWindow(opts?: { width?: number; height?: number }): Promise<Window>
+  }
+}
 
 export type ScenesProviderOptions = {
   // Full URL of the host page, token and sequence already encoded by the caller.
@@ -41,6 +48,13 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
     }
   }
   let iframe: HTMLIFrameElement | null = null
+  let mountContainer: HTMLElement | null = null
+  let pipWindow: (Window & { close(): void }) | null = null
+  let pipCleanups: Array<() => void> = []
+  let onPipPagehide: (() => void) | null = null
+  // Resume point captured before an iframe-reloading move (into or out of
+  // the pip window); consumed by the next kino:ready.
+  let resume: { time: number; playing: boolean } | null = null
   let vttCues: VttCue[] = []
   let desiredRate = opts.defaultRate ?? 1
   // Rate held while a setRate command is in flight, so a stale host snapshot
@@ -59,8 +73,11 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
       // The stage is resolution independent DOM; there is no rendition ladder.
       canSetQuality: false,
       hasStoryboard: opts.storyboard != null,
-      // No parent-side media element to promote into PiP.
-      canPiP: false,
+      // No media element to promote, but the whole stage can move into a
+      // document pip window where supported.
+      canPiP:
+        typeof window !== "undefined" &&
+        (window as DocumentPiPHost).documentPictureInPicture != null,
       canFullscreen: true,
       canSetRate: true,
       hasTextTracks: opts.captions != null,
@@ -71,6 +88,13 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
   const patch = (p: Partial<MediaState>) => {
     state = { ...state, ...p }
     emit()
+  }
+
+  const captureResume = () => {
+    // A non-finite currentTime would flow through init startTime straight
+    // into audio.currentTime in the host; fall back to the start.
+    const t = state.currentTime
+    resume = { time: Number.isFinite(t) ? t : 0, playing: !state.paused }
   }
 
   const send = (cmd: HostCommand) => {
@@ -93,8 +117,11 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
           rate: desiredRate,
           volume: state.volume,
           muted: state.muted,
-          autoPlay: opts.autoPlay ?? false,
+          ...(resume
+            ? { autoPlay: resume.playing, startTime: resume.time }
+            : { autoPlay: opts.autoPlay ?? false }),
         })
+        resume = null
         break
       case "kino:state":
         // The host's snapshot is authoritative once it arrives, except while
@@ -157,6 +184,9 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
       patch({ activeCueText: readCueText(state.currentTime) })
     },
     enterFullscreen: (wrapper) => {
+      // The stage lives in another window during pip; the fullscreen button
+      // in the main tab has nothing to expand.
+      if (pipWindow) return
       if (wrapper.requestFullscreen) {
         void wrapper.requestFullscreen()
         return
@@ -175,8 +205,72 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
       }
       if (document.fullscreenElement) void document.exitFullscreen?.()
     },
-    enterPiP: () => {},
-    exitPiP: () => {},
+    enterPiP: () => {
+      void (async () => {
+        const dpp = (window as DocumentPiPHost).documentPictureInPicture
+        if (!dpp || pipWindow || !iframe || !mountContainer) return
+        if (pseudoRestore) {
+          pseudoRestore()
+          pseudoRestore = null
+          patch({ fullscreen: false })
+        }
+        captureResume()
+        let win: Window
+        try {
+          const w = mountContainer.clientWidth
+          const h = mountContainer.clientHeight
+          win = await dpp.requestWindow({
+            width: 480,
+            height: w > 0 && h > 0 ? Math.round((480 * h) / w) : 270,
+          })
+        } catch {
+          resume = null
+          return
+        }
+        pipWindow = win as Window & { close(): void }
+        win.document.body.style.margin = "0"
+        win.document.body.style.background = "#000"
+        // Cross-document move; the iframe reloads and the resume point
+        // above replays through kino:init.
+        win.document.body.appendChild(iframe)
+        // Inside the pip window the host's parent is the pip window, so its
+        // events land there, not on the main window.
+        win.addEventListener("message", onMessage)
+        pipCleanups = [
+          mountPipPlaceholder(mountContainer, actions.exitPiP),
+          mountPipOverlay(win, {
+            play: actions.play,
+            pause: actions.pause,
+            getState: () => state,
+            subscribe: (l) => {
+              listeners.add(l)
+              return () => listeners.delete(l)
+            },
+          }),
+        ]
+        onPipPagehide = () => {
+          if (!pipWindow) return
+          const closing = pipWindow
+          pipWindow = null
+          closing.removeEventListener("message", onMessage)
+          if (onPipPagehide)
+            closing.removeEventListener("pagehide", onPipPagehide)
+          onPipPagehide = null
+          pipCleanups.forEach((c) => c())
+          pipCleanups = []
+          // Position advanced while in pip; capture again for the reload
+          // caused by moving the iframe home.
+          captureResume()
+          if (iframe && mountContainer) mountContainer.appendChild(iframe)
+          patch({ pip: false })
+        }
+        win.addEventListener("pagehide", onPipPagehide)
+        patch({ pip: true })
+      })()
+    },
+    exitPiP: () => {
+      pipWindow?.close()
+    },
   }
 
   const loadCaptions = () => {
@@ -206,6 +300,7 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
 
   return {
     mount(container) {
+      mountContainer = container
       origin = resolveOrigin()
       iframe = document.createElement("iframe")
       iframe.src = opts.src
@@ -232,8 +327,12 @@ export function createScenesProvider(opts: ScenesProviderOptions): Provider {
       document.removeEventListener("fullscreenchange", onFullscreenChange)
       pseudoRestore?.()
       pseudoRestore = null
+      // Fires the pagehide handler, which moves the iframe back and clears
+      // pip state before the teardown below.
+      pipWindow?.close()
       iframe?.remove()
       iframe = null
+      mountContainer = null
       listeners.clear()
     },
   }

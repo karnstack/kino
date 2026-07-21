@@ -299,3 +299,126 @@ test("destroy restores pseudo-fullscreen scroll lock", () => {
   expect(document.body.style.overflow).toBe("")
   wrapper.remove()
 })
+
+// Stand-in for a document pip window. Reuses the main jsdom document so the
+// moved iframe keeps a live contentWindow (a detached document would null it,
+// which real Chrome does not do). EventTarget covers addEventListener for
+// "message" and "pagehide".
+class FakePipWindow extends EventTarget {
+  document = window.document
+  closed = false
+  close() {
+    if (this.closed) return
+    this.closed = true
+    this.dispatchEvent(new Event("pagehide"))
+  }
+}
+
+function installFakeDocumentPiP(win: FakePipWindow) {
+  Object.defineProperty(window, "documentPictureInPicture", {
+    configurable: true,
+    value: { requestWindow: vi.fn().mockResolvedValue(win) },
+  })
+  return () => {
+    delete (window as { documentPictureInPicture?: unknown })
+      .documentPictureInPicture
+  }
+}
+
+test("canPiP reflects documentPictureInPicture presence", () => {
+  const fake = new FakePipWindow()
+  const uninstall = installFakeDocumentPiP(fake)
+  const p = createScenesProvider({ src: SRC })
+  expect(p.getState().capabilities.canPiP).toBe(true)
+  p.destroy()
+  uninstall()
+})
+
+test("enterPiP moves the iframe, mounts surfaces, and resumes via init startTime", async () => {
+  const fake = new FakePipWindow()
+  const uninstall = installFakeDocumentPiP(fake)
+  const p = createScenesProvider({ src: SRC })
+  const { host, iframe } = mount(p)
+  fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+  fromHost(iframe, snapshot(1)) // playing at currentTime 0 per the helper
+  p.actions.seek(12)
+  p.actions.enterPiP()
+  await vi.waitFor(() => expect(p.getState().pip).toBe(true))
+  expect(iframe.parentElement).toBe(document.body)
+  expect(host.querySelector(".kino-pip-placeholder")).not.toBeNull()
+  expect(document.body.querySelector("[data-kino-pip-overlay]")).not.toBeNull()
+  // The reloaded iframe announces ready again; the provider must resume.
+  const post = vi.spyOn(iframe.contentWindow!, "postMessage")
+  fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+  const init = post.mock.calls
+    .map(
+      (c) => c[0] as { type: string; startTime?: number; autoPlay?: boolean },
+    )
+    .find((m) => m.type === "kino:init")
+  expect(init?.startTime).toBe(12)
+  expect(init?.autoPlay).toBe(true)
+  p.destroy()
+  uninstall()
+})
+
+test("pip window close moves the iframe back and clears pip state", async () => {
+  const fake = new FakePipWindow()
+  const uninstall = installFakeDocumentPiP(fake)
+  const p = createScenesProvider({ src: SRC })
+  const { host, iframe } = mount(p)
+  fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+  p.actions.enterPiP()
+  await vi.waitFor(() => expect(p.getState().pip).toBe(true))
+  p.actions.exitPiP()
+  expect(p.getState().pip).toBe(false)
+  expect(iframe.parentElement).toBe(host)
+  expect(host.querySelector(".kino-pip-placeholder")).toBeNull()
+  expect(document.body.querySelector("[data-kino-pip-overlay]")).toBeNull()
+  p.destroy()
+  uninstall()
+})
+
+test("destroy while in pip closes the pip window", async () => {
+  const fake = new FakePipWindow()
+  const uninstall = installFakeDocumentPiP(fake)
+  const p = createScenesProvider({ src: SRC })
+  const { iframe } = mount(p)
+  fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+  p.actions.enterPiP()
+  await vi.waitFor(() => expect(p.getState().pip).toBe(true))
+  p.destroy()
+  expect(fake.closed).toBe(true)
+  uninstall()
+})
+
+test("requestWindow rejection leaves state untouched", async () => {
+  Object.defineProperty(window, "documentPictureInPicture", {
+    configurable: true,
+    value: { requestWindow: vi.fn().mockRejectedValue(new Error("denied")) },
+  })
+  const p = createScenesProvider({ src: SRC })
+  mount(p)
+  p.actions.enterPiP()
+  await Promise.resolve()
+  await Promise.resolve()
+  expect(p.getState().pip).toBe(false)
+  p.destroy()
+  delete (window as { documentPictureInPicture?: unknown })
+    .documentPictureInPicture
+})
+
+test("enterFullscreen is a no-op while in pip", async () => {
+  const fake = new FakePipWindow()
+  const uninstall = installFakeDocumentPiP(fake)
+  const p = createScenesProvider({ src: SRC })
+  const { iframe } = mount(p)
+  fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+  p.actions.enterPiP()
+  await vi.waitFor(() => expect(p.getState().pip).toBe(true))
+  const wrapper = document.createElement("div")
+  p.actions.enterFullscreen(wrapper)
+  expect(wrapper.style.position).toBe("")
+  expect(p.getState().fullscreen).toBe(false)
+  p.destroy()
+  uninstall()
+})
