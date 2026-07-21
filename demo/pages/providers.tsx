@@ -103,6 +103,12 @@ import { VimeoPlayer } from "@karnstack/kino/vimeo"
 import { ScenesPlayer } from "@karnstack/kino/scenes"
 \`\`\`
 
+## Scenes presentation
+
+Pip on desktop, fullscreen everywhere. Scene sequences pop out into a real picture-in-picture window through the Document Picture-in-Picture API. That API ships in Chromium desktop browsers, so \`canPiP\` is true there and false everywhere else, where the button hides itself. Entering or leaving pip reloads the sequence iframe and playback resumes at the same position automatically; a minimal play/pause and caption overlay renders inside the pip window, and a clickable placeholder holds the inline slot.
+
+Fullscreen degrades just as gracefully. Browsers without \`Element.requestFullscreen\`, notably iPhone Safari and iPhone Chrome, get a pseudo-fullscreen presentation instead: a fixed-position wrapper fills the viewport and the custom controls stay on screen.
+
 ## The contract
 
 A provider is a handful of methods. Implement \`mount\`, a \`getState\` / \`subscribe\` pair, an \`actions\` object, and \`destroy\`. The UI reads everything through this surface — it never talks to an engine directly.
@@ -166,6 +172,32 @@ export function ProvidersPage() {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4">
+          <Eyebrow>Scenes presentation</Eyebrow>
+          <h2 className="max-w-[28ch] font-display text-3xl font-semibold tracking-tight text-balance text-paper">
+            Pip on desktop, fullscreen everywhere.
+          </h2>
+          <p className="max-w-[60ch] text-base/7 text-pretty text-paper-dim">
+            Scene sequences pop out into a real picture-in-picture window
+            through the Document Picture-in-Picture API. That API ships in
+            Chromium desktop browsers, so <Code>canPiP</Code> is true there and
+            false everywhere else, where the button hides itself. Entering or
+            leaving pip reloads the sequence iframe and playback resumes at the
+            same position automatically; a minimal play/pause and caption
+            overlay renders inside the pip window, and a clickable placeholder
+            holds the inline slot.
+          </p>
+          <p className="max-w-[60ch] text-base/7 text-pretty text-paper-dim">
+            Fullscreen degrades just as gracefully. Browsers without{" "}
+            <Code>Element.requestFullscreen</Code>, notably iPhone Safari and
+            iPhone Chrome, get a pseudo-fullscreen presentation instead: a
+            fixed-position wrapper fills the viewport and the custom controls
+            stay on screen.
+          </p>
+        </div>
       </section>
 
       <section className="flex flex-col gap-6">
