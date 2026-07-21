@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ComponentType } from "react"
+import { useEffect, useMemo, useRef, useState, type ComponentType } from "react"
 import { createRoot, type Root } from "react-dom/client"
 import { sceneAt, localTime } from "./sequence-timeline"
 import { TimelineContext, type TimelineContextValue } from "./timeline-context"
@@ -31,6 +31,13 @@ export type SceneHostOptions = {
 const STAGE_W = 1920
 const STAGE_H = 1080
 const STATE_HZ = 10
+
+// How long (sequence-clock seconds) the outgoing scene is held over the
+// incoming one on a natural advance. Real Safari flashes when WebKit presents a
+// freshly created compositing layer before its content paints (WebKit bug
+// 270330); covering the incoming scene's first, possibly unpainted, frame with
+// the outgoing scene's settled final frame hides that flash.
+const OVERLAP_S = 0.24
 
 export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
   const { container, manifest, loadScene } = opts
@@ -225,6 +232,15 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
   function Stage() {
     const [, bump] = useState(0)
     const [scale, setScale] = useState(1)
+    // The scene rendered last tick, and the outgoing scene currently held over
+    // the incoming one. Refs, not state: the external clock already re-renders
+    // Stage every tick, so these are read fresh each render without scheduling
+    // extra work.
+    const prevSceneRef = useRef<SceneManifestScene | null>(null)
+    const overlayRef = useRef<{
+      scene: SceneManifestScene
+      until: number
+    } | null>(null)
     // Subscribe this component to the clock so scene swaps re-render.
     useEffect(() => {
       const l = () => bump((n) => n + 1)
@@ -251,7 +267,43 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
     const idx = manifest.scenes.indexOf(scene)
     const next = manifest.scenes[idx + 1]
     if (next) ensureLoaded(next.id)
-    const Component = moduleCache.get(scene.id)
+
+    // Open an overlap window on a natural advance: the clock crossed the shared
+    // boundary of two adjacent scenes while playing. A far seek that lands just
+    // past a boundary (delta > 0.5) or a scrub must not ghost the old scene, so
+    // both are excluded.
+    const prev = prevSceneRef.current
+    if (prev && prev.id !== scene.id) {
+      const natural =
+        prev.end === scene.start && time - scene.start <= 0.5 && !audio.seeking
+      overlayRef.current = natural
+        ? { scene: prev, until: scene.start + OVERLAP_S }
+        : null
+    }
+    prevSceneRef.current = scene
+
+    // Drop the held scene once the window elapses, on a seek back out of or into
+    // it (the latter would duplicate the current scene's key), or the instant
+    // playback pauses or scrubs. A held overlay left on a paused player would
+    // freeze the outgoing scene's frame on screen.
+    const overlay = overlayRef.current
+    if (
+      overlay &&
+      (time >= overlay.until ||
+        time < overlay.scene.start ||
+        overlay.scene.id === scene.id ||
+        audio.paused ||
+        audio.seeking)
+    )
+      overlayRef.current = null
+    const held = overlayRef.current
+
+    // Current scene first, held scene second so the later sibling paints on top
+    // without a z-index. Both slots are a scene-id-keyed wrapper div of the same
+    // type under this same parent, so when the outgoing scene moves from the
+    // current slot to the held slot React reorders it instead of remounting,
+    // preserving its Motion state and its already-fired kino:scenechange effect.
+    const layers = held ? [scene, held.scene] : [scene]
 
     return (
       <div
@@ -261,13 +313,26 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
           top: "50%",
           width: STAGE_W,
           height: STAGE_H,
-          transform: `translate(-50%, -50%) scale(${scale})`,
+          // translateZ(0) plus willChange and backfaceVisibility pin a
+          // persistent compositing layer on this never-unmounting div, so child
+          // scene swaps paint into an already-promoted backing store instead of
+          // triggering first-show layer creation (the Safari flash). isolate
+          // keeps the overlap layers in their own stacking context.
+          transform: `translate(-50%, -50%) scale(${scale}) translateZ(0)`,
           overflow: "hidden",
+          isolation: "isolate",
+          backfaceVisibility: "hidden",
+          willChange: "transform",
         }}
       >
-        {Component ? (
-          <ActiveScene key={scene.id} scene={scene} Component={Component} />
-        ) : null}
+        {layers.map((s) => {
+          const Component = moduleCache.get(s.id)
+          return Component ? (
+            <div key={s.id} style={{ position: "absolute", inset: 0 }}>
+              <ActiveScene scene={s} Component={Component} />
+            </div>
+          ) : null
+        })}
       </div>
     )
   }
