@@ -39,6 +39,10 @@ export type HostCommand =
       volume: number
       muted: boolean
       autoPlay: boolean
+      // Optional resume point in global sequence seconds. Used after the
+      // iframe reloads from a cross-document move (document pip), so
+      // playback continues where it left off.
+      startTime?: number
     }
   | { type: "kino:play" }
   | { type: "kino:pause" }

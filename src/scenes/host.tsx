@@ -136,9 +136,14 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
   const onCommand = (ev: MessageEvent) => {
     // Only the embedding page may drive playback: the message must come from
     // the parent window, and when parentOrigin is locked down, from that
-    // origin.
+    // origin. Inside a document pip window the host's parent is the pip
+    // window itself while commands still originate from the main tab, which
+    // is the pip window's opener; opener is on the cross-origin-readable
+    // Window property list, and the origin check above still applies.
     if (parentOrigin !== "*" && ev.origin !== parentOrigin) return
-    if (ev.source !== window.parent) return
+    const opener = window.parent.opener as Window | null
+    if (ev.source !== window.parent && (opener == null || ev.source !== opener))
+      return
     const msg = ev.data as HostCommand
     if (msg == null || typeof msg !== "object") return
     switch (msg.type) {
@@ -146,7 +151,18 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
         audio.playbackRate = msg.rate
         audio.volume = msg.volume
         audio.muted = msg.muted
-        if (msg.autoPlay) void audio.play()
+        if (msg.startTime != null) {
+          audio.currentTime = Math.min(
+            Math.max(0, msg.startTime),
+            manifest.duration,
+          )
+          syncTime()
+          postState()
+        }
+        // A reloaded pip iframe may lack user activation; a rejected play
+        // just leaves the host paused. Promise.resolve guards jsdom stubs
+        // that return undefined from play().
+        if (msg.autoPlay) void Promise.resolve(audio.play()).catch(() => {})
         break
       case "kino:play":
         void audio.play()
