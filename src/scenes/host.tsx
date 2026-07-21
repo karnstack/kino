@@ -23,6 +23,9 @@ export type SceneHostOptions = {
   // The host page bundle wires MotionGlobalConfig.skipAnimations here so
   // scrubbing snaps to settled states. Kino itself stays motion-agnostic.
   onSeekingChange?: (seeking: boolean) => void
+  // Initial theme for the host document; defaults to dark. Live changes
+  // arrive over the wire via kino:setTheme.
+  theme?: "light" | "dark"
 }
 
 // Native stage resolution. Scenes are authored against this box and the host
@@ -42,6 +45,16 @@ const OVERLAP_S = 0.24
 export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
   const { container, manifest, loadScene } = opts
   const parentOrigin = opts.parentOrigin ?? "*"
+
+  // Scenes style against documentElement classes, dark canonical. The host
+  // owns exactly one of dark/light plus the matching colorScheme, so a stale
+  // baked-in class can never coexist with the requested theme.
+  const applyTheme = (theme: "light" | "dark") => {
+    document.documentElement.classList.toggle("dark", theme === "dark")
+    document.documentElement.classList.toggle("light", theme === "light")
+    document.documentElement.style.colorScheme = theme
+  }
+  applyTheme(opts.theme === "light" ? "light" : "dark")
 
   // Dev-time sanity: the timeline mapping assumes scenes tile the sequence
   // clock. Warn once at startup, listing every gap or overlap.
@@ -165,6 +178,8 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
         audio.playbackRate = msg.rate
         audio.volume = msg.volume
         audio.muted = msg.muted
+        // Wire data is untyped; anything but the two literals is ignored.
+        if (msg.theme === "light" || msg.theme === "dark") applyTheme(msg.theme)
         if (msg.startTime != null) {
           audio.currentTime = Math.min(
             Math.max(0, msg.startTime),
@@ -198,6 +213,9 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
         break
       case "kino:setMuted":
         audio.muted = msg.muted
+        break
+      case "kino:setTheme":
+        if (msg.theme === "light" || msg.theme === "dark") applyTheme(msg.theme)
         break
     }
   }

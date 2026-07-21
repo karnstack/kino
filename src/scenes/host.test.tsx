@@ -36,11 +36,15 @@ beforeAll(() => {
 })
 
 // makeHost swaps window.parent.postMessage for a capturing stub; restore the
-// real one after every test regardless of how the test exits.
+// real one after every test regardless of how the test exits. The host also
+// writes theme state onto documentElement at startup; reset that so no test
+// observes another test's theme.
 const realParentPostMessage = window.parent.postMessage
 
 afterEach(() => {
   window.parent.postMessage = realParentPostMessage
+  document.documentElement.className = ""
+  document.documentElement.style.colorScheme = ""
 })
 
 const manifest: SceneManifest = {
@@ -431,6 +435,73 @@ test("commands from window.parent.opener are accepted", async () => {
   })
   expect(h.audio().currentTime).toBe(9)
   Object.defineProperty(window, "opener", { value: null, configurable: true })
+  act(() => h.host.destroy())
+})
+
+test("without a theme option the host applies dark", async () => {
+  const h = makeHost()
+  await flush()
+  expect(document.documentElement.classList.contains("dark")).toBe(true)
+  expect(document.documentElement.classList.contains("light")).toBe(false)
+  expect(document.documentElement.style.colorScheme).toBe("dark")
+  act(() => h.host.destroy())
+})
+
+test("theme: light option sets light, clears dark, sets colorScheme", async () => {
+  // Host pages ship with class="dark" baked into the document; a light start
+  // must clear it, not stack light next to it.
+  document.documentElement.className = "dark"
+  const h = makeHost({ theme: "light" })
+  await flush()
+  expect(document.documentElement.classList.contains("light")).toBe(true)
+  expect(document.documentElement.classList.contains("dark")).toBe(false)
+  expect(document.documentElement.style.colorScheme).toBe("light")
+  act(() => h.host.destroy())
+})
+
+test("init carrying a theme applies it; init without one leaves it alone", async () => {
+  const h = makeHost()
+  await flush()
+  command({
+    type: "kino:init",
+    rate: 1,
+    volume: 1,
+    muted: false,
+    autoPlay: false,
+    theme: "light",
+  })
+  expect(document.documentElement.classList.contains("light")).toBe(true)
+  expect(document.documentElement.classList.contains("dark")).toBe(false)
+  // A theme-less init (a host embedded by an older parent) must not reset the
+  // theme back to dark.
+  command({
+    type: "kino:init",
+    rate: 1,
+    volume: 1,
+    muted: false,
+    autoPlay: false,
+  })
+  expect(document.documentElement.classList.contains("light")).toBe(true)
+  expect(document.documentElement.classList.contains("dark")).toBe(false)
+  act(() => h.host.destroy())
+})
+
+test("kino:setTheme flips the theme live; bogus values are ignored", async () => {
+  const h = makeHost()
+  await flush()
+  command({ type: "kino:setTheme", theme: "light" })
+  expect(document.documentElement.classList.contains("light")).toBe(true)
+  expect(document.documentElement.classList.contains("dark")).toBe(false)
+  expect(document.documentElement.style.colorScheme).toBe("light")
+  command({ type: "kino:setTheme", theme: "dark" })
+  expect(document.documentElement.classList.contains("dark")).toBe(true)
+  expect(document.documentElement.classList.contains("light")).toBe(false)
+  expect(document.documentElement.style.colorScheme).toBe("dark")
+  // Wire data is untyped; anything but the two literals is a no-op.
+  command({ type: "kino:setTheme", theme: "solarized" })
+  expect(document.documentElement.classList.contains("dark")).toBe(true)
+  expect(document.documentElement.classList.contains("light")).toBe(false)
+  expect(document.documentElement.style.colorScheme).toBe("dark")
   act(() => h.host.destroy())
 })
 
