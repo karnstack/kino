@@ -43,6 +43,8 @@ export type HostCommand =
       // iframe reloads from a cross-document move (document pip), so
       // playback continues where it left off.
       startTime?: number
+      // Initial theme for the host document. Absent means dark.
+      theme?: "light" | "dark"
     }
   | { type: "kino:play" }
   | { type: "kino:pause" }
@@ -50,6 +52,9 @@ export type HostCommand =
   | { type: "kino:setRate"; rate: number }
   | { type: "kino:setVolume"; volume: number }
   | { type: "kino:setMuted"; muted: boolean }
+  // Follows the embedding site's live theme toggle without reloading the
+  // iframe.
+  | { type: "kino:setTheme"; theme: "light" | "dark" }
 
 // Host -> parent. `state` is emitted at ~10Hz while playing and immediately
 // on every transition (play/pause/seek/ended/rate), which is enough

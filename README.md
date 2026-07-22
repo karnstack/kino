@@ -183,7 +183,7 @@ export function Watch() {
 }
 ```
 
-`src` is the full host page URL with any auth token already encoded; as everywhere else in kino, the player never talks to your auth layer. `ScenesPlayer` also takes `defaultRate`, `autoPlay`, `muted`, and the shared chrome props (`accentColor`, `theme`, `className`, `placeholder`, `children`). `metadata` is accepted for parity with the other players but is reserved and currently unused. Options are read once per `src`; when `src` changes the component remounts internally, rebuilding the iframe from scratch.
+`src` is the full host page URL with any auth token already encoded; as everywhere else in kino, the player never talks to your auth layer. `ScenesPlayer` also takes `defaultRate`, `autoPlay`, `muted`, and the shared chrome props (`accentColor`, `theme`, `className`, `placeholder`, `children`). `sceneTheme` (`"light"` or `"dark"`, dark by default) themes the stage inside the host document; it is distinct from `theme`, which styles kino's chrome. `metadata` is accepted for parity with the other players but is reserved and currently unused. Options are read once per `src`; when `src` changes the component remounts internally, rebuilding the iframe from scratch. `sceneTheme` is the one exception: the initial value seeds the host, and later values flip it live over the wire, so the player can follow your site's theme toggle without a reload.
 
 Captions are a sidecar VTT fetched and rendered by the parent in kino's own caption overlay, so the host page never deals with text tracks.
 
@@ -210,6 +210,8 @@ createSceneHost({
 ```
 
 The demo ships a runnable reference: [`demo/scenes-host.html`](demo/scenes-host.html) + [`demo/src/scenes-host.tsx`](demo/src/scenes-host.tsx) is a complete host page (scenes, manifest, boot), and [`demo/scenes.html`](demo/scenes.html) + [`demo/src/scenes-demo.tsx`](demo/src/scenes-demo.tsx) embeds it with `ScenesPlayer`.
+
+The host also owns the stage theme: it keeps exactly one of `dark`/`light` as a class on `documentElement` (plus the matching `colorScheme`), dark by default, so scenes just style against those classes and never track theme state themselves. `createSceneHost` takes a `theme` option for the initial value; after that, flips arrive from the parent over the wire (`sceneTheme` on `ScenesPlayer`, `kino:setTheme` on the protocol) and apply without a reload.
 
 `loadScene` resolves a scene id to a module whose default export is the scene component (`SceneModule`). Inside a scene, `useSceneTimeline()` returns the scene clock: `t` is scene-local seconds, and `cue(id)`, `between(from, to)`, `progress()`, and `currentWord()` are all pure over it, so a scene's output is a function of time and scrubbing just works.
 
@@ -253,15 +255,16 @@ A scene owns `[start, end)` on the sequence clock. `end` includes the trailing s
 
 The two halves speak a `postMessage` protocol namespaced with `kino:`, so the host page can share a window with unrelated message traffic. You only touch it if you build a custom host. The parent accepts events only from its own iframe's origin and window; the host accepts commands only from its parent window, drops them when their origin does not match a locked-down `parentOrigin`, and targets `parentOrigin` when posting.
 
-| Message                                             | Direction     | Meaning                                                                       |
-| --------------------------------------------------- | ------------- | ----------------------------------------------------------------------------- |
-| `kino:ready`                                        | host → parent | The host booted; carries the sequence duration.                               |
-| `kino:init`                                         | parent → host | Reply to `kino:ready`: initial rate, volume, mute, and autoplay intent.       |
-| `kino:play` / `kino:pause` / `kino:seek`            | parent → host | Transport. `kino:seek` carries a global time in seconds.                      |
-| `kino:setRate` / `kino:setVolume` / `kino:setMuted` | parent → host | Mirror the corresponding chrome controls.                                     |
-| `kino:state`                                        | host → parent | Full media snapshot, ~10Hz while playing and immediately on every transition. |
-| `kino:scenechange`                                  | host → parent | The active scene mounted. Fires for the initial scene too, not only on swaps. |
-| `kino:error`                                        | host → parent | The audio failed, or a scene module failed to load.                           |
+| Message                                             | Direction     | Meaning                                                                              |
+| --------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------ |
+| `kino:ready`                                        | host → parent | The host booted; carries the sequence duration.                                      |
+| `kino:init`                                         | parent → host | Reply to `kino:ready`: initial rate, volume, mute, autoplay intent, and stage theme. |
+| `kino:play` / `kino:pause` / `kino:seek`            | parent → host | Transport. `kino:seek` carries a global time in seconds.                             |
+| `kino:setRate` / `kino:setVolume` / `kino:setMuted` | parent → host | Mirror the corresponding chrome controls.                                            |
+| `kino:setTheme`                                     | parent → host | Flips the stage theme live, following the embedding site's toggle without a reload.  |
+| `kino:state`                                        | host → parent | Full media snapshot, ~10Hz while playing and immediately on every transition.        |
+| `kino:scenechange`                                  | host → parent | The active scene mounted. Fires for the initial scene too, not only on swaps.        |
+| `kino:error`                                        | host → parent | The audio failed, or a scene module failed to load.                                  |
 
 `kino:state` snapshots are authoritative: the parent applies them wholesale, patching time optimistically between ticks so the scrubber tracks the pointer, and holding a just-set rate until the host echoes it back so a stale snapshot cannot flicker the speed menu. A scene module that fails to load posts `kino:error` once and is memoized as failed for the life of the host; nothing retries it. Recovery is rebuilding the iframe, which is exactly what changing `src` on `ScenesPlayer` does.
 
