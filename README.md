@@ -298,6 +298,7 @@ For deeper control, every visual is driven by CSS custom properties on the `.kin
 | Custom property         | Default                                       | Role                                          |
 | ----------------------- | --------------------------------------------- | --------------------------------------------- |
 | `--kino-accent`         | `oklch(50.8% 0.118 165.612)`                  | Accent color (progress, active items, ranges) |
+| `--kino-bg`             | `black`                                       | Root backdrop behind the media/stage          |
 | `--kino-radius`         | `12px`                                        | Corner radius of glass surfaces               |
 | `--kino-surface`        | `color-mix(in oklab, black 55%, transparent)` | Glass surface fill                            |
 | `--kino-surface-strong` | `color-mix(in oklab, black 70%, transparent)` | Stronger surface (idle play button)           |

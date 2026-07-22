@@ -1,6 +1,9 @@
 .kino {
   /* theme tokens (overridable via inline style or a theme prop) */
   --kino-accent: oklch(50.8% 0.118 165.612);
+  /* Root backdrop behind the media/stage. Black suits real video; a scenes
+     host over a light page can override it (e.g. --kino-bg: transparent). */
+  --kino-bg: black;
   --kino-radius: 12px;
   --kino-surface: color-mix(in oklab, black 55%, transparent);
   --kino-surface-strong: color-mix(in oklab, black 70%, transparent);
@@ -19,7 +22,7 @@
   height: 100%;
   color: var(--kino-text);
   font-family: ui-sans-serif, system-ui, sans-serif;
-  background: black;
+  background: var(--kino-bg);
   overflow: hidden;
   /* container queries so captions/flash scale with the player, not the page */
   container-type: inline-size;
