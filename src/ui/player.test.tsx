@@ -77,3 +77,21 @@ test("gesture double-click while in pip does not enter fullscreen", () => {
   })
   expect(provider.getState().fullscreen).toBe(false)
 })
+
+test("sets data-kino-theme from chromeTheme", () => {
+  const provider = createFakeProvider()
+  const { container, rerender } = render(
+    <Player provider={provider} chromeTheme="light">
+      {null}
+    </Player>,
+  )
+  expect(container.querySelector(".kino")).toHaveAttribute(
+    "data-kino-theme",
+    "light",
+  )
+  rerender(<Player provider={provider}>{null}</Player>)
+  expect(container.querySelector(".kino")).toHaveAttribute(
+    "data-kino-theme",
+    "dark",
+  )
+})
