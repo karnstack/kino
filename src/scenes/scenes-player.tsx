@@ -13,6 +13,12 @@ export type ScenesPlayerProps = Omit<ScenesProviderOptions, "theme"> & {
   accentColor?: string
   theme?: Record<string, string>
   /**
+   * Chrome theme for the parent-document controls; defaults to dark. Stamped
+   * as `data-kino-theme` on the `.kino` root. Distinct from `sceneTheme`,
+   * which themes the iframe stage.
+   */
+  chromeTheme?: "light" | "dark"
+  /**
    * Stage theme inside the host document; defaults to dark. The initial
    * value seeds the host, later values flip it live without a remount.
    * Distinct from `theme`, which styles kino's chrome.
@@ -38,6 +44,7 @@ export function ScenesPlayer(props: ScenesPlayerProps) {
 function ScenesPlayerInner({
   accentColor,
   theme,
+  chromeTheme,
   sceneTheme,
   className,
   placeholder,
@@ -58,6 +65,7 @@ function ScenesPlayerInner({
       provider={providerRef.current}
       accentColor={accentColor}
       theme={theme}
+      chromeTheme={chromeTheme}
       className={className}
       placeholder={placeholder}
     >

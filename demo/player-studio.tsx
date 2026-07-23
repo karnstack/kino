@@ -71,6 +71,7 @@ export function PlayerStudio({
   const [source, setSource] = useState<string>(SAMPLES[0].id)
   const [accent, setAccent] = useState<string>(DEFAULT_ACCENT)
   const [radius, setRadius] = useState(DEFAULT_RADIUS)
+  const [chromeTheme, setChromeTheme] = useState<"light" | "dark">("dark")
 
   // The Source picker swaps the Mux playback id; the embed providers each play a
   // single fixed sample, so it only applies to Mux.
@@ -142,6 +143,7 @@ export function PlayerStudio({
                 srclang: "en",
               }}
               accentColor={accent}
+              chromeTheme={chromeTheme}
               theme={{ "--kino-radius": `${radius}px` }}
             />
           ) : (
@@ -246,10 +248,7 @@ export function PlayerStudio({
           </Control>
         )}
 
-        <Control
-          label="Accent"
-          className={sourceVisible ? undefined : "sm:col-span-2"}
-        >
+        <Control label="Accent">
           <div className="flex flex-wrap items-center gap-2.5">
             {ACCENTS.map((a) => {
               const active = accent === a.value
@@ -290,6 +289,37 @@ export function PlayerStudio({
                 className="pg-color absolute inset-0 size-full rounded-full opacity-0"
               />
             </label>
+          </div>
+        </Control>
+
+        {/* Chrome light/dark stamps data-kino-theme on the .kino root. Only the
+            Scenes provider forwards chromeTheme today, so the swap is live on
+            the Scenes tab; the Mux/Vimeo/Native/YouTube wrappers do not accept
+            the prop yet (that passthrough lives in the library, not the demo). */}
+        <Control
+          label="Chrome"
+          className={sourceVisible ? "sm:col-span-2" : undefined}
+        >
+          <div className="flex flex-wrap gap-2">
+            {(["dark", "light"] as const).map((t) => {
+              const active = chromeTheme === t
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setChromeTheme(t)}
+                  aria-pressed={active}
+                  className={[
+                    "rounded-lg px-3 py-2 text-sm font-medium capitalize transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-leader",
+                    active
+                      ? "bg-leader text-ink"
+                      : "text-paper-dim ring-1 ring-white/12 hover:bg-white/5 hover:text-paper",
+                  ].join(" ")}
+                >
+                  {t}
+                </button>
+              )
+            })}
           </div>
         </Control>
 

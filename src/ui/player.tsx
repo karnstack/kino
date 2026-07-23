@@ -49,6 +49,12 @@ type PlayerProps = {
   provider: Provider
   accentColor?: string
   theme?: Record<string, string>
+  /**
+   * Chrome theme for the parent-document controls (control bar, captions, idle
+   * overlay, scrubber); defaults to dark. Stamped as `data-kino-theme` on the
+   * `.kino` root. Distinct from the iframe stage theme.
+   */
+  chromeTheme?: "light" | "dark"
   className?: string
   /**
    * Low-res still (data URI or URL) painted behind the video while the poster
@@ -63,6 +69,7 @@ export function Player({
   provider,
   accentColor,
   theme,
+  chromeTheme,
   className,
   placeholder,
   children,
@@ -174,6 +181,7 @@ export function Player({
         <div
           ref={wrapperRef}
           className={["kino", className].filter(Boolean).join(" ")}
+          data-kino-theme={chromeTheme ?? "dark"}
           style={style as CSSProperties}
           tabIndex={0}
         >
