@@ -138,8 +138,10 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
+  /* the pip placeholder is always a black void where the video was, so its
+     text stays light in both themes (not the theme-flipping chrome tokens) */
   background: black;
-  color: var(--kino-text-dim);
+  color: color-mix(in oklab, white 65%, transparent);
   font-size: 14px;
   font-weight: 500;
   line-height: 1.4;
@@ -154,7 +156,7 @@
   transition: opacity 0.15s var(--kino-ease);
 }
 .kino .kino-pip-placeholder:hover {
-  color: var(--kino-text);
+  color: oklch(98% 0 0);
 }
 .kino .kino-pip-placeholder:hover svg {
   opacity: 0.8;
