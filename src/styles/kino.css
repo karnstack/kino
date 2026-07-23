@@ -17,6 +17,29 @@
     ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono",
     monospace;
 
+  /* chrome color tokens (dark = the literals that were hardcoded across the
+     chrome; light overrides live in the data-kino-theme="light" block right
+     after this rule). Keep dark values byte-identical to what shipped. */
+  --kino-scrim-color: black;
+  --kino-caption-bg: rgba(0, 0, 0, 0.42);
+  --kino-caption-text: #d2d7dd;
+  --kino-control-fill: rgba(0, 0, 0, 0.34);
+  --kino-control-fill-hover: rgba(0, 0, 0, 0.5);
+  --kino-control-text: #fff;
+  --kino-flash-fill: rgba(0, 0, 0, 0.4);
+  --kino-mctrl-fill: rgba(0, 0, 0, 0.42);
+  --kino-speeds-fill: rgba(0, 0, 0, 0.26);
+  --kino-speed-text: color-mix(in oklab, white 52%, transparent);
+  --kino-speed-text-max: color-mix(in oklab, white 82%, transparent);
+  --kino-track: color-mix(in oklab, white 18%, transparent);
+  --kino-track-buffered: color-mix(in oklab, white 25%, transparent);
+  --kino-volume-track: color-mix(in oklab, white 28%, transparent);
+  --kino-thumb: #fff;
+  --kino-hover: color-mix(in oklab, white 12%, transparent);
+  --kino-menu-selected: color-mix(in oklab, black 34%, transparent);
+  --kino-sheet-grip: color-mix(in oklab, white 32%, transparent);
+  --kino-sheet-chip: color-mix(in oklab, white 10%, transparent);
+
   position: relative;
   width: 100%;
   height: 100%;
@@ -26,6 +49,52 @@
   overflow: hidden;
   /* container queries so captions/flash scale with the player, not the page */
   container-type: inline-size;
+}
+/* Light chrome: overrides just the color tokens so the control bar, captions,
+   idle overlay, flash, scrubber, menus, and compact/touch UI render as light
+   glass. Dark stays the default; layout, blur, accent, and motion are shared.
+   These light values are a starting point to eyeball and tune in the demo. */
+.kino[data-kino-theme="light"] {
+  --kino-bg: oklch(98% 0 0);
+  --kino-surface: color-mix(in oklab, white 72%, transparent);
+  --kino-surface-strong: color-mix(in oklab, white 84%, transparent);
+  --kino-border: color-mix(in oklab, black 12%, transparent);
+  --kino-text: oklch(24% 0 0);
+  --kino-text-dim: color-mix(in oklab, black 55%, transparent);
+  --kino-shadow: 0 8px 40px rgba(0, 0, 0, 0.16);
+  --kino-scrim-color: white;
+  --kino-caption-bg: color-mix(in oklab, white 66%, transparent);
+  --kino-caption-text: oklch(28% 0 0);
+  --kino-control-fill: color-mix(in oklab, white 70%, transparent);
+  --kino-control-fill-hover: color-mix(in oklab, white 82%, transparent);
+  --kino-control-text: oklch(24% 0 0);
+  --kino-flash-fill: color-mix(in oklab, white 68%, transparent);
+  --kino-mctrl-fill: color-mix(in oklab, white 70%, transparent);
+  --kino-speeds-fill: color-mix(in oklab, white 64%, transparent);
+  --kino-speed-text: color-mix(in oklab, black 50%, transparent);
+  --kino-speed-text-max: color-mix(in oklab, black 22%, transparent);
+  --kino-track: color-mix(in oklab, black 16%, transparent);
+  --kino-track-buffered: color-mix(in oklab, black 26%, transparent);
+  --kino-volume-track: color-mix(in oklab, black 24%, transparent);
+  --kino-thumb: oklch(24% 0 0);
+  --kino-hover: color-mix(in oklab, black 8%, transparent);
+  --kino-menu-selected: color-mix(in oklab, black 12%, transparent);
+  --kino-sheet-grip: color-mix(in oklab, black 24%, transparent);
+  --kino-sheet-chip: color-mix(in oklab, black 8%, transparent);
+}
+/* Keycaps are white-glass in dark; pointing them at --kino-surface would change
+   the dark look, so the dark literals stay inline and only light flips them to
+   dark-tinted keys. Tune in the demo. */
+.kino[data-kino-theme="light"] .kino-key {
+  background: linear-gradient(
+    color-mix(in oklab, black 16%, transparent),
+    color-mix(in oklab, black 6%, transparent)
+  );
+  border-color: color-mix(in oklab, black 22%, transparent);
+}
+.kino[data-kino-theme="light"] .kino-tip kbd {
+  background: color-mix(in oklab, black 12%, transparent);
+  border-color: color-mix(in oklab, black 18%, transparent);
 }
 .kino * {
   box-sizing: border-box;
@@ -128,7 +197,7 @@
   width: 100%;
   height: 4px;
   border-radius: 999px;
-  background: color-mix(in oklab, white 18%, transparent);
+  background: var(--kino-track);
   transition: height 0.15s var(--kino-ease);
 }
 .kino .kino-scrubber:hover .kino-track {
@@ -139,7 +208,7 @@
   top: 0;
   height: 100%;
   border-radius: 999px;
-  background: color-mix(in oklab, white 25%, transparent);
+  background: var(--kino-track-buffered);
   pointer-events: none;
 }
 .kino .kino-progress {
@@ -236,8 +305,8 @@
   width: max(76px, 9cqw);
   height: max(76px, 9cqw);
   padding: 0;
-  color: #fff;
-  background: rgba(0, 0, 0, 0.34);
+  color: var(--kino-control-text);
+  background: var(--kino-control-fill);
   border: none;
   border-radius: 999px;
   backdrop-filter: blur(8px);
@@ -250,13 +319,13 @@
 .kino .kino-idle-play svg {
   width: max(32px, 3.8cqw);
   height: max(32px, 3.8cqw);
-  fill: #fff;
+  fill: var(--kino-control-text);
 }
 /* hovering anywhere over the video darkens + grows the play button */
 .kino .kino-idle:hover .kino-idle-play,
 .kino .kino-idle-play:hover {
   transform: scale(1.06);
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--kino-control-fill-hover);
 }
 /* Floated below the centered play button (absolute, so it doesn't shift the
    play button off-center). Sitting below center is fine — only the play button
@@ -269,7 +338,7 @@
   align-items: center;
   gap: max(6px, 0.8cqw);
   padding: max(8px, 1cqw) max(14px, 1.8cqw);
-  background: rgba(0, 0, 0, 0.26);
+  background: var(--kino-speeds-fill);
   border: none;
   border-radius: 999px;
   backdrop-filter: blur(10px);
@@ -293,7 +362,7 @@
   font-size: max(15px, 1.6cqw);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: color-mix(in oklab, white 52%, transparent);
+  color: var(--kino-speed-text);
   background: transparent;
   border: none;
   border-radius: 8px;
@@ -304,7 +373,7 @@
 }
 .kino .kino-speed-chip:hover,
 .kino .kino-speed-chip[data-active="true"] {
-  color: #fff;
+  color: var(--kino-control-text);
 }
 .kino .kino-speed-chip:hover {
   transform: scale(1.15);
@@ -326,10 +395,10 @@
   }
 }
 .kino .kino-speed-chip[data-max="true"] {
-  color: color-mix(in oklab, white 82%, transparent);
+  color: var(--kino-speed-text-max);
 }
 .kino .kino-speed-chip[data-max="true"][data-active="true"] {
-  color: #fff;
+  color: var(--kino-control-text);
 }
 .kino .kino-bolt {
   font-size: 0.85em;
@@ -353,7 +422,7 @@
   transition: background 0.12s var(--kino-ease);
 }
 .kino .kino-ctrl:hover {
-  background: color-mix(in oklab, white 12%, transparent);
+  background: var(--kino-hover);
 }
 .kino .kino-ctrl svg {
   width: 22px;
@@ -541,11 +610,11 @@
   transition: background 0.12s var(--kino-ease);
 }
 .kino .kino-menu-item:hover {
-  background: color-mix(in oklab, white 12%, transparent);
+  background: var(--kino-hover);
 }
 .kino .kino-menu-item[aria-checked="true"] {
   color: var(--kino-text);
-  background: color-mix(in oklab, black 34%, transparent);
+  background: var(--kino-menu-selected);
 }
 .kino .kino-menu-item[aria-checked="true"]::after {
   content: "✓";
@@ -579,8 +648,8 @@
   padding: 0 12px 6px;
   background: linear-gradient(
     to top,
-    color-mix(in oklab, black 78%, transparent) 0%,
-    color-mix(in oklab, black 45%, transparent) 38%,
+    color-mix(in oklab, var(--kino-scrim-color) 78%, transparent) 0%,
+    color-mix(in oklab, var(--kino-scrim-color) 45%, transparent) 38%,
     transparent 100%
   );
   opacity: 0;
@@ -609,8 +678,8 @@
   place-items: center;
   width: max(80px, 10cqw);
   height: max(80px, 10cqw);
-  color: #fff;
-  background: rgba(0, 0, 0, 0.4);
+  color: var(--kino-control-text);
+  background: var(--kino-flash-fill);
   border-radius: 999px;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
@@ -620,7 +689,7 @@
 .kino .kino-flash svg {
   width: max(32px, 4cqw);
   height: max(32px, 4cqw);
-  fill: #fff;
+  fill: var(--kino-control-text);
 }
 /* zoom-blow-out: scale up while fading away */
 @keyframes kino-flash {
@@ -669,8 +738,8 @@
   white-space: pre-line;
   overflow-wrap: break-word;
   text-wrap: balance;
-  color: #d2d7dd;
-  background: rgba(0, 0, 0, 0.42);
+  color: var(--kino-caption-text);
+  background: var(--kino-caption-bg);
   border-radius: 8px;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -724,7 +793,7 @@
   height: 6px;
   margin: 0;
   border-radius: 999px;
-  background: color-mix(in oklab, white 28%, transparent);
+  background: var(--kino-volume-track);
   opacity: 0;
   cursor: pointer;
   transition:
@@ -744,7 +813,7 @@
   width: 15px;
   height: 15px;
   border-radius: 999px;
-  background: #fff;
+  background: var(--kino-thumb);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
   cursor: pointer;
 }
@@ -753,14 +822,14 @@
   height: 15px;
   border: none;
   border-radius: 999px;
-  background: #fff;
+  background: var(--kino-thumb);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
   cursor: pointer;
 }
 .kino .kino-volume input[type="range"]::-moz-range-track {
   height: 6px;
   border-radius: 999px;
-  background: color-mix(in oklab, white 28%, transparent);
+  background: var(--kino-volume-track);
 }
 /* Skip buttons: small dim "5" tucked in the corner of the curved arrow */
 .kino .kino-ctrl-skip {
@@ -829,7 +898,7 @@
   pointer-events: none;
   background: linear-gradient(
     to bottom,
-    color-mix(in oklab, black 52%, transparent) 0%,
+    color-mix(in oklab, var(--kino-scrim-color) 52%, transparent) 0%,
     transparent 100%
   );
 }
@@ -841,7 +910,7 @@
   width: 40px;
   height: 40px;
   padding: 0;
-  color: #fff;
+  color: var(--kino-control-text);
   background: transparent;
   border: none;
   border-radius: 999px;
@@ -873,7 +942,7 @@
   width: 52px;
   height: 52px;
   padding: 0;
-  color: #fff;
+  color: var(--kino-control-text);
   background: transparent;
   border: none;
   border-radius: 999px;
@@ -893,8 +962,8 @@
   width: 66px;
   height: 66px;
   padding: 0;
-  color: #fff;
-  background: rgba(0, 0, 0, 0.42);
+  color: var(--kino-control-text);
+  background: var(--kino-mctrl-fill);
   border: none;
   border-radius: 999px;
   backdrop-filter: blur(8px);
@@ -907,7 +976,7 @@
 .kino .kino-mctrl-play svg {
   width: 32px;
   height: 32px;
-  fill: #fff;
+  fill: var(--kino-control-text);
 }
 .kino .kino-mctrl-play:active {
   transform: scale(0.94);
@@ -925,7 +994,7 @@
   padding: 0 6px 6px 14px;
   background: linear-gradient(
     to top,
-    color-mix(in oklab, black 72%, transparent) 0%,
+    color-mix(in oklab, var(--kino-scrim-color) 72%, transparent) 0%,
     transparent 100%
   );
 }
@@ -981,7 +1050,7 @@
   height: 4px;
   margin: 8px auto 12px;
   border-radius: 999px;
-  background: color-mix(in oklab, white 32%, transparent);
+  background: var(--kino-sheet-grip);
 }
 .kino .kino-sheet-section + .kino-sheet-section {
   margin-top: 12px;
@@ -1005,7 +1074,7 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--kino-text);
-  background: color-mix(in oklab, white 10%, transparent);
+  background: var(--kino-sheet-chip);
   border: 1px solid transparent;
   border-radius: 999px;
   cursor: pointer;
