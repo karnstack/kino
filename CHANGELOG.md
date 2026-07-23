@@ -1,5 +1,11 @@
 # @karnstack/kino
 
+## 0.9.0
+
+### Minor Changes
+
+- e7b5f5a: Add a `chromeTheme` prop (`"light" | "dark"`, default `"dark"`) to the player and ScenesPlayer chrome. Light mode renders the chrome as light glass via a `data-kino-theme="light"` token set. Distinct from `sceneTheme`, which themes the scene stage inside the iframe.
+
 ## 0.8.1
 
 ### Patch Changes
