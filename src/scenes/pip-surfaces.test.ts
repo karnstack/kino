@@ -1,21 +1,64 @@
+import { readFileSync } from "node:fs"
 import { mountPipPlaceholder, mountPipOverlay } from "./pip-surfaces"
 
 afterEach(() => {
   vi.useRealTimers()
 })
 
+// vitest runs from the package root, so the stylesheet path is stable.
+const css = readFileSync("src/styles/kino.css", "utf8")
+
+// Reads one flat rule body out of kino.css; the pip rules and both token
+// blocks are flat, so a naive brace scan is enough.
+function ruleBody(selector: string): string {
+  const start = css.indexOf(`${selector} {`)
+  expect(start, `missing rule: ${selector}`).toBeGreaterThan(-1)
+  const open = css.indexOf("{", start)
+  return css.slice(open + 1, css.indexOf("}", open))
+}
+
 test("placeholder mounts icon and copy, forwards clicks, and cleans up", () => {
   const container = document.createElement("div")
   const onReturn = vi.fn()
   const cleanup = mountPipPlaceholder(container, onReturn)
   const el = container.querySelector(".kino-pip-placeholder") as HTMLElement
-  expect(el.querySelector("svg")).not.toBeNull()
-  expect(el.textContent).toContain("Playing in picture in picture")
-  expect(el.textContent).toContain("Click to return")
+  const card = el.querySelector(".kino-pip-placeholder-card") as HTMLElement
+  expect(card.querySelector("svg")).not.toBeNull()
+  expect(card.textContent).toContain("Playing in picture in picture")
+  expect(card.textContent).toContain("Click to return")
   el.click()
   expect(onReturn).toHaveBeenCalledOnce()
   cleanup()
   expect(container.querySelector(".kino-pip-placeholder")).toBeNull()
+})
+
+// Regression: the placeholder used to be a hardcoded black fill with light
+// copy, so it stayed a black void on a light page. Every color it paints now
+// comes from a token the light chrome block overrides.
+test("placeholder colors are tokens the light chrome block overrides", () => {
+  const placeholder = ruleBody(".kino .kino-pip-placeholder")
+  expect(placeholder).toContain("background: var(--kino-pip-fill)")
+  expect(placeholder).toContain("color: var(--kino-pip-text)")
+  expect(placeholder).not.toMatch(/\b(black|white|#fff)\b/)
+
+  const card = ruleBody(".kino .kino-pip-placeholder-card")
+  expect(card).toContain("var(--kino-pip-card)")
+  expect(card).toContain("var(--kino-pip-card-border)")
+
+  const light = ruleBody('.kino[data-kino-theme="light"]')
+  for (const token of [
+    "--kino-pip-fill",
+    "--kino-pip-card",
+    "--kino-pip-card-border",
+    "--kino-pip-text",
+    "--kino-pip-text-hover",
+    "--kino-pip-sub",
+  ]) {
+    expect(ruleBody(".kino"), `dark default: ${token}`).toContain(`${token}:`)
+    expect(light, `light override: ${token}`).toContain(`${token}:`)
+  }
+  // The whole point: the light fill is not another black void.
+  expect(light).not.toMatch(/--kino-pip-fill:\s*black/)
 })
 
 type OverlayState = {

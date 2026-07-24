@@ -40,6 +40,17 @@
   --kino-sheet-grip: color-mix(in oklab, white 32%, transparent);
   --kino-sheet-chip: color-mix(in oklab, white 10%, transparent);
 
+  /* Picture-in-picture placeholder: the panel shown inline where the stage was
+     while playback runs in the pip window. --kino-pip-fill must stay opaque
+     (the master media keeps playing underneath it), so it is a literal color
+     rather than --kino-bg, which a host may set to transparent. */
+  --kino-pip-fill: black;
+  --kino-pip-card: color-mix(in oklab, white 7%, transparent);
+  --kino-pip-card-border: color-mix(in oklab, white 12%, transparent);
+  --kino-pip-text: color-mix(in oklab, white 65%, transparent);
+  --kino-pip-text-hover: oklch(98% 0 0);
+  --kino-pip-sub: color-mix(in oklab, white 40%, transparent);
+
   position: relative;
   width: 100%;
   height: 100%;
@@ -81,6 +92,14 @@
   --kino-menu-selected: color-mix(in oklab, black 12%, transparent);
   --kino-sheet-grip: color-mix(in oklab, black 24%, transparent);
   --kino-sheet-chip: color-mix(in oklab, black 8%, transparent);
+  /* Opaque like the dark fill, a shade under --kino-bg so the placeholder
+     still reads as a panel where the stage was. */
+  --kino-pip-fill: oklch(95% 0 0);
+  --kino-pip-card: color-mix(in oklab, white 70%, transparent);
+  --kino-pip-card-border: color-mix(in oklab, black 10%, transparent);
+  --kino-pip-text: color-mix(in oklab, black 62%, transparent);
+  --kino-pip-text-hover: oklch(24% 0 0);
+  --kino-pip-sub: color-mix(in oklab, black 42%, transparent);
 }
 /* Keycaps are white-glass in dark; pointing them at --kino-surface would change
    the dark look, so the dark literals stay inline and only light flips them to
@@ -134,20 +153,30 @@
   position: absolute;
   inset: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  /* the pip placeholder is always a black void where the video was, so its
-     text stays light in both themes (not the theme-flipping chrome tokens) */
-  background: black;
-  color: color-mix(in oklab, white 65%, transparent);
+  /* Opaque fill: the master media plays on underneath this layer. */
+  background: var(--kino-pip-fill);
+  color: var(--kino-pip-text);
   font-size: 14px;
   font-weight: 500;
   line-height: 1.4;
   cursor: pointer;
   user-select: none;
   transition: color 0.15s var(--kino-ease);
+}
+/* The card keeps the "playing in pip" affordance readable on a light fill,
+   where a flat centered stack would just look like an empty frame. */
+.kino .kino-pip-placeholder-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 24px;
+  text-align: center;
+  background: var(--kino-pip-card);
+  border: 1px solid var(--kino-pip-card-border);
+  border-radius: var(--kino-radius);
 }
 .kino .kino-pip-placeholder svg {
   width: 28px;
@@ -156,7 +185,7 @@
   transition: opacity 0.15s var(--kino-ease);
 }
 .kino .kino-pip-placeholder:hover {
-  color: oklch(98% 0 0);
+  color: var(--kino-pip-text-hover);
 }
 .kino .kino-pip-placeholder:hover svg {
   opacity: 0.8;
@@ -164,7 +193,7 @@
 .kino .kino-pip-placeholder-sub {
   font-size: 11px;
   font-weight: 400;
-  color: color-mix(in oklab, white 40%, transparent);
+  color: var(--kino-pip-sub);
 }
 .kino .kino-video-host {
   position: absolute;
