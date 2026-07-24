@@ -139,12 +139,24 @@ export function createScenesProvider(
     patch({ fullscreen: false })
   }
 
+  // A freshly created iframe holds an about:blank document that inherits THIS
+  // page's origin until the real host document loads, so a command targeted at
+  // the host origin is refused outright ("The target origin provided does not
+  // match the recipient window's origin") and lands as a console error. The
+  // handshake is the earliest point the host is both on its own origin and
+  // listening, so nothing goes out before it. Nothing is lost: the pre-ready
+  // rate, volume, muted and theme all ride the kino:init reply.
+  let ready = false
   const send = (cmd: HostCommand) => {
+    if (!ready) return
     iframe?.contentWindow?.postMessage(cmd, origin)
   }
 
-  // Non-null mirrorIframe implies pip is active; outside pip this is a no-op.
+  // Same rule for the mirror, which is about:blank on the pip window's origin
+  // until it loads. False outside pip too, so this is a no-op there.
+  let mirrorReady = false
   const sendMirror = (cmd: HostCommand) => {
+    if (!mirrorReady) return
     mirrorIframe?.contentWindow?.postMessage(cmd, origin)
   }
 
@@ -158,6 +170,8 @@ export function createScenesProvider(
     if (msg == null || typeof msg !== "object") return
     switch (msg.type) {
       case "kino:ready":
+        // Set before the reply: send() itself is gated on this.
+        ready = true
         patch({ duration: msg.duration })
         send({
           type: "kino:init",
@@ -209,6 +223,8 @@ export function createScenesProvider(
     if (msg == null || typeof msg !== "object") return
     switch (msg.type) {
       case "kino:ready": {
+        // Set before the reply: sendMirror() itself is gated on this.
+        mirrorReady = true
         // A non-finite currentTime would flow through init startTime straight
         // into audio.currentTime in the mirror; fall back to the start.
         const t = state.currentTime
@@ -359,6 +375,9 @@ export function createScenesProvider(
         mirror.style.display = "block"
         mirrorIframe = mirror
         mirrorTime = null
+        // This window's mirror has not announced itself yet, whatever a
+        // previous pip session left behind.
+        mirrorReady = false
         win.document.body.appendChild(mirror)
         // The mirror host's parent is the pip window, so its events land
         // there, not on the main window.
@@ -395,6 +414,7 @@ export function createScenesProvider(
           mirrorIframe?.remove()
           mirrorIframe = null
           mirrorTime = null
+          mirrorReady = false
           pipCleanups.forEach((c) => c())
           pipCleanups = []
           // Nothing to resume: the master never stopped.
@@ -483,6 +503,7 @@ export function createScenesProvider(
       pipWindow?.close()
       iframe?.remove()
       iframe = null
+      ready = false
       mountContainer = null
       listeners.clear()
     },
