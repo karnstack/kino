@@ -1,6 +1,11 @@
 import { defaultState } from "../core/fake-provider"
 import { enterPseudoFullscreen } from "../util/pseudo-fullscreen"
-import { mountPipPlaceholder, mountPipOverlay } from "./pip-surfaces"
+import {
+  mountPipPlaceholder,
+  mountPipOverlay,
+  pipStageBackdrop,
+  type PipOverlay,
+} from "./pip-surfaces"
 import { parseVtt, cueTextAt, type VttCue } from "./vtt"
 import type { MediaState, PlayerActions, Provider } from "../core/types"
 import type { HostCommand, HostEvent } from "./protocol"
@@ -25,12 +30,18 @@ export type ScenesProviderOptions = {
   muted?: boolean
   // Initial stage theme applied to the host document; defaults to dark.
   theme?: "light" | "dark"
+  // Initial chrome theme for the controls drawn over the pip window; defaults
+  // to dark. The main tab's chrome is themed by the Player's chromeTheme prop
+  // instead, which cannot reach across into the pip document.
+  chromeTheme?: "light" | "dark"
 }
 
-// The Provider contract plus the scenes-only theme channel. The stage is a
-// themed document, not chrome, so no other provider grows this.
+// The Provider contract plus the scenes-only theme channels. The stage is a
+// themed document and the pip window carries its own chrome, so no other
+// provider grows these.
 export type ScenesProvider = Provider & {
   setSceneTheme(theme: "light" | "dark"): void
+  setChromeTheme(theme: "light" | "dark"): void
 }
 
 const TRACK_ID = "captions"
@@ -80,6 +91,13 @@ export function createScenesProvider(
   // Stage theme forwarded to the host document. Dark is canonical; anything
   // but the two literals falls back to it.
   let theme: "light" | "dark" = opts.theme === "light" ? "light" : "dark"
+  // Chrome theme for the pip window's own controls. Same fallback rule, and
+  // it seeds every pip window opened from here, not just the first.
+  let chromeTheme: "light" | "dark" =
+    opts.chromeTheme === "light" ? "light" : "dark"
+  // Live overlay handle while pip is open, so a theme flip mid-session
+  // restyles it in place. Null outside pip.
+  let pipOverlay: PipOverlay | null = null
   // Rate held while a setRate command is in flight, so a stale host snapshot
   // taken before the command landed doesn't flicker the speed menu back.
   let pendingRate: number | null = null
@@ -215,6 +233,13 @@ export function createScenesProvider(
     }
   }
 
+  // The pip body shows through until the mirrored stage paints, so it tracks
+  // the stage theme; a hardcoded black flashed black under a light stage.
+  const applyPipBackdrop = (win: Window) => {
+    win.document.body.style.background = pipStageBackdrop(theme)
+    win.document.documentElement.style.colorScheme = theme
+  }
+
   const onFullscreenChange = () =>
     patch({ fullscreen: document.fullscreenElement != null })
 
@@ -316,7 +341,7 @@ export function createScenesProvider(
         clearPseudoFullscreen()
         pipWindow = win as Window & { close(): void }
         win.document.body.style.margin = "0"
-        win.document.body.style.background = "#000"
+        applyPipBackdrop(win)
         // The pip document may be standards-mode with an auto-height body,
         // which would collapse the percentage-height mirror to 150px.
         win.document.documentElement.style.height = "100%"
@@ -338,9 +363,9 @@ export function createScenesProvider(
         // The mirror host's parent is the pip window, so its events land
         // there, not on the main window.
         win.addEventListener("message", onMirrorMessage)
-        pipCleanups = [
-          mountPipPlaceholder(mountContainer, actions.exitPiP),
-          mountPipOverlay(win, {
+        const overlay = mountPipOverlay(
+          win,
+          {
             play: actions.play,
             pause: actions.pause,
             getState: () => state,
@@ -348,7 +373,16 @@ export function createScenesProvider(
               listeners.add(l)
               return () => listeners.delete(l)
             },
-          }),
+          },
+          chromeTheme,
+        )
+        pipOverlay = overlay
+        pipCleanups = [
+          mountPipPlaceholder(mountContainer, actions.exitPiP),
+          () => {
+            overlay.destroy()
+            pipOverlay = null
+          },
         ]
         onPipPagehide = () => {
           if (!pipWindow) return
@@ -430,6 +464,14 @@ export function createScenesProvider(
       theme = next === "light" ? "light" : "dark"
       send({ type: "kino:setTheme", theme })
       sendMirror({ type: "kino:setTheme", theme })
+      // The mirror repaints the stage; the window behind it repaints here.
+      if (pipWindow) applyPipBackdrop(pipWindow)
+    },
+    // Themes the controls drawn over the pip window. A flip while pip is open
+    // restyles it in place; otherwise it just seeds the next window.
+    setChromeTheme(next) {
+      chromeTheme = next === "light" ? "light" : "dark"
+      pipOverlay?.setTheme(chromeTheme)
     },
     destroy() {
       window.removeEventListener("message", onMessage)

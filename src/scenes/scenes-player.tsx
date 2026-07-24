@@ -9,13 +9,17 @@ import {
   type ScenesProviderOptions,
 } from "./provider"
 
-export type ScenesPlayerProps = Omit<ScenesProviderOptions, "theme"> & {
+export type ScenesPlayerProps = Omit<
+  ScenesProviderOptions,
+  "theme" | "chromeTheme"
+> & {
   accentColor?: string
   theme?: Record<string, string>
   /**
-   * Chrome theme for the parent-document controls; defaults to dark. Stamped
-   * as `data-kino-theme` on the `.kino` root. Distinct from `sceneTheme`,
-   * which themes the iframe stage.
+   * Chrome theme; defaults to dark. Stamped as `data-kino-theme` on the
+   * `.kino` root, and carried into the picture-in-picture window, whose
+   * controls kino draws itself. Later values flip both without a remount.
+   * Distinct from `sceneTheme`, which themes the iframe stage.
    */
   chromeTheme?: "light" | "dark"
   /**
@@ -53,13 +57,21 @@ function ScenesPlayerInner({
 }: ScenesPlayerProps) {
   const providerRef = useRef<ScenesProvider | null>(null)
   if (providerRef.current === null) {
-    providerRef.current = createScenesProvider({ ...opts, theme: sceneTheme })
+    providerRef.current = createScenesProvider({
+      ...opts,
+      theme: sceneTheme,
+      chromeTheme,
+    })
   }
-  // The initial value already rode the provider options; the extra mount-time
-  // setSceneTheme is idempotent, and later values flip the host live.
+  // The initial values already rode the provider options; the extra mount-time
+  // setters are idempotent, and later values flip the host and any open pip
+  // window live.
   useEffect(() => {
     if (sceneTheme != null) providerRef.current?.setSceneTheme(sceneTheme)
   }, [sceneTheme])
+  useEffect(() => {
+    if (chromeTheme != null) providerRef.current?.setChromeTheme(chromeTheme)
+  }, [chromeTheme])
   return (
     <Player
       provider={providerRef.current}

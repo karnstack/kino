@@ -1,11 +1,14 @@
 // Parent-origin DOM for document picture-in-picture: the placeholder shown
 // inline where the stage was, and the compact controls overlaid on the pip
-// window (the main tab's chrome is not visible from there). The overlay uses
-// inline styles because kino.css is not loaded in the pip window; where a
-// value mirrors a kino design token it is hardcoded with a comment naming
-// the token.
+// window (the main tab's chrome is not visible from there). kino.css is not
+// loaded in the pip window, so layout stays inline and every color comes from
+// the small token sheet this module injects there; the sheet mirrors the
+// chrome tokens in src/styles/kino.css, dark by default with a light block
+// keyed on data-kino-theme, exactly like the in-page chrome.
 
 import { formatTime } from "../util/format-time"
+
+export type PipTheme = "light" | "dark"
 
 export type PipOverlayDeps = {
   play(): void
@@ -18,6 +21,59 @@ export type PipOverlayDeps = {
   }
   subscribe(listener: () => void): () => void
 }
+
+// Handle on a mounted overlay: the chrome theme can flip while the window
+// stays open (the embedding site's theme toggle), so this outlives mount.
+export type PipOverlay = {
+  setTheme(theme: PipTheme): void
+  destroy(): void
+}
+
+const theme = (t: PipTheme | undefined): PipTheme =>
+  t === "light" ? "light" : "dark"
+
+/**
+ * Backdrop for the pip window body. It shows before the mirrored stage paints,
+ * so it follows the *stage* theme rather than the chrome theme, and it mirrors
+ * --kino-bg in src/styles/kino.css. Opaque in both themes: a transparent body
+ * would fall through to the browser's own window chrome.
+ */
+export function pipStageBackdrop(t: PipTheme): string {
+  return theme(t) === "light" ? "oklch(98% 0 0)" : "#000"
+}
+
+// Token sheet injected into the pip document. Values mirror the chrome tokens
+// in src/styles/kino.css (--kino-control-*, --kino-text-dim, --kino-caption-*,
+// --kino-hover, --kino-thumb) so the two chromes read as one player.
+const OVERLAY_CSS = `
+[data-kino-pip-overlay] {
+  --kino-pip-bar: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+  --kino-pip-ctrl: #fff;
+  --kino-pip-ctrl-dim: rgba(255, 255, 255, 0.65);
+  --kino-pip-ctrl-hover: rgba(255, 255, 255, 0.12);
+  --kino-pip-cue-fill: rgba(0, 0, 0, 0.6);
+  --kino-pip-cue-text: #fff;
+  --kino-pip-progress: rgba(255, 255, 255, 0.9);
+}
+[data-kino-pip-overlay][data-kino-theme="light"] {
+  --kino-pip-bar: linear-gradient(transparent, rgba(255, 255, 255, 0.88));
+  --kino-pip-ctrl: oklch(24% 0 0);
+  --kino-pip-ctrl-dim: rgba(0, 0, 0, 0.55);
+  --kino-pip-ctrl-hover: rgba(0, 0, 0, 0.08);
+  --kino-pip-cue-fill: rgba(255, 255, 255, 0.72);
+  --kino-pip-cue-text: oklch(28% 0 0);
+  --kino-pip-progress: rgba(0, 0, 0, 0.62);
+}
+[data-kino-pip-bar] { background: var(--kino-pip-bar); }
+[data-kino-pip-overlay] button { color: var(--kino-pip-ctrl); }
+[data-kino-pip-overlay] button:hover { background: var(--kino-pip-ctrl-hover); }
+[data-kino-pip-time] { color: var(--kino-pip-ctrl-dim); }
+[data-kino-pip-cue] {
+  color: var(--kino-pip-cue-text);
+  background: var(--kino-pip-cue-fill);
+}
+[data-kino-pip-progress] { background: var(--kino-pip-progress); }
+`
 
 // Exact path data from src/ui/icons.tsx (PlayIcon, PauseIcon, PipIcon) so the
 // pip surfaces visually match kino's buttons.
@@ -62,38 +118,41 @@ export function mountPipPlaceholder(
 export function mountPipOverlay(
   pipWindow: Window,
   deps: PipOverlayDeps,
-): () => void {
+  chromeTheme?: PipTheme,
+): PipOverlay {
   const doc = pipWindow.document
 
   const root = doc.createElement("div")
   root.setAttribute("data-kino-pip-overlay", "")
+  root.setAttribute("data-kino-theme", theme(chromeTheme))
   // pointer-events none on the root; the control bar re-enables clicks.
   root.style.cssText =
     "position:absolute;inset:0;pointer-events:none;font-family:ui-sans-serif,system-ui,sans-serif;"
 
-  // :hover cannot be expressed inline; mirrors .kino-ctrl:hover
-  // (color-mix(in oklab, white 12%, transparent)).
+  // Colors and :hover live in the sheet: neither a custom property lookup nor
+  // a pseudo-class can be expressed inline, and keeping every color here is
+  // what lets a theme flip be one attribute change.
   const style = doc.createElement("style")
-  style.textContent =
-    "[data-kino-pip-overlay] button:hover{background:rgba(255,255,255,0.12);}"
+  style.setAttribute("data-kino-pip-style", "")
+  style.textContent = OVERLAY_CSS
   doc.head.appendChild(style)
 
   const bar = doc.createElement("div")
   bar.setAttribute("data-kino-pip-bar", "")
   bar.style.cssText =
     "position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:10px;padding:10px 12px;pointer-events:auto;" +
-    `background:linear-gradient(transparent,rgba(0,0,0,0.85));transition:opacity 250ms ${EASE};`
+    `transition:opacity 250ms ${EASE};`
 
   const btn = doc.createElement("button")
   btn.type = "button"
   btn.style.cssText =
-    "display:grid;place-items:center;width:34px;height:34px;padding:0;color:#fff;background:none;border:0;" +
+    "display:grid;place-items:center;width:34px;height:34px;padding:0;background:none;border:0;" +
     `border-radius:8px;cursor:pointer;transition:background 150ms ${EASE};`
 
   const time = doc.createElement("div")
-  // color mirrors --kino-text-dim (white at 65% alpha)
+  time.setAttribute("data-kino-pip-time", "")
   time.style.cssText =
-    "font-size:12px;color:rgba(255,255,255,0.65);font-variant-numeric:tabular-nums;white-space:nowrap;"
+    "font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap;"
 
   const cue = doc.createElement("div")
   cue.setAttribute("data-kino-pip-cue", "")
@@ -102,7 +161,7 @@ export function mountPipOverlay(
   // on each side) with a small gap.
   cue.style.cssText =
     "position:absolute;left:50%;bottom:58px;transform:translateX(-50%);max-width:85%;padding:4px 10px;" +
-    "font-size:13px;line-height:1.35;text-align:center;color:#fff;background:rgba(0,0,0,0.6);" +
+    "font-size:13px;line-height:1.35;text-align:center;" +
     `border-radius:6px;transition:opacity 250ms ${EASE};`
 
   // Always-visible playback position along the very bottom edge; updates at
@@ -110,7 +169,7 @@ export function mountPipOverlay(
   const progress = doc.createElement("div")
   progress.setAttribute("data-kino-pip-progress", "")
   progress.style.cssText =
-    "position:absolute;left:0;bottom:0;height:2px;width:0;background:rgba(255,255,255,0.9);"
+    "position:absolute;left:0;bottom:0;height:2px;width:0;"
 
   // Auto-hide: bar + cue stay up while paused; while playing they fade after
   // a stretch without pointer movement over the pip document.
@@ -177,11 +236,16 @@ export function mountPipOverlay(
   bar.append(btn, time)
   root.append(cue, bar, progress)
   doc.body.appendChild(root)
-  return () => {
-    unsubscribe()
-    doc.removeEventListener("pointermove", onPointerMove)
-    clearHideTimer()
-    style.remove()
-    root.remove()
+  return {
+    setTheme(next) {
+      root.setAttribute("data-kino-theme", theme(next))
+    },
+    destroy() {
+      unsubscribe()
+      doc.removeEventListener("pointermove", onPointerMove)
+      clearHideTimer()
+      style.remove()
+      root.remove()
+    },
   }
 }
