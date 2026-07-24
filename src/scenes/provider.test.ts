@@ -120,11 +120,41 @@ test("init carries the theme option; anything but light falls back to dark", () 
   p.destroy()
 })
 
+// Until the host announces kino:ready the frame is still on its initial
+// about:blank document, which inherits the embedding page's origin. A command
+// targeted at the host origin is refused there ("The target origin provided
+// does not match the recipient window's origin"), so nothing may go out early.
+test("no command reaches the host frame before the ready handshake", () => {
+  const p = createScenesProvider({ src: SRC })
+  const { iframe } = mount(p)
+  const posted: unknown[] = []
+  iframe.contentWindow!.postMessage = (msg: unknown) => posted.push(msg)
+  p.setSceneTheme("light")
+  p.actions.play()
+  p.actions.seek(4)
+  p.actions.setRate(1.5)
+  p.actions.setVolume(0.5)
+  p.actions.setMuted(true)
+  expect(posted).toEqual([])
+  // The dropped pre-ready settings are not lost: they ride the init reply.
+  fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+  expect(posted).toContainEqual({
+    type: "kino:init",
+    rate: 1.5,
+    volume: 0.5,
+    muted: true,
+    autoPlay: false,
+    theme: "light",
+  })
+  p.destroy()
+})
+
 test("setSceneTheme posts kino:setTheme to the master", () => {
   const p = createScenesProvider({ src: SRC })
   const { iframe } = mount(p)
   const posted: unknown[] = []
   iframe.contentWindow!.postMessage = (msg: unknown) => posted.push(msg)
+  fromHost(iframe, { type: "kino:ready", duration: 40.5 })
   p.setSceneTheme("light")
   expect(posted).toContainEqual({ type: "kino:setTheme", theme: "light" })
   p.setSceneTheme("dark")
@@ -186,6 +216,7 @@ test("actions post protocol commands to the host", () => {
   const { iframe } = mount(p)
   const posted: unknown[] = []
   iframe.contentWindow!.postMessage = (msg: unknown) => posted.push(msg)
+  fromHost(iframe, { type: "kino:ready", duration: 40.5 })
   p.actions.play()
   p.actions.seek(21)
   p.actions.setRate(2)
@@ -498,6 +529,36 @@ test("mirror init carries the current theme, not the mount-time one", async () =
   uninstall()
 })
 
+// Same about:blank rule as the master: a mirror created in the pip window is
+// on the pip document's origin until it loads, so nothing may be posted at the
+// host origin before its own ready handshake.
+test("no command reaches the mirror before its ready handshake", async () => {
+  const fake = new FakePipWindow()
+  const uninstall = installFakeDocumentPiP(fake)
+  const p = createScenesProvider({ src: SRC })
+  const { iframe } = mount(p)
+  fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+  p.actions.enterPiP()
+  await vi.waitFor(() => expect(p.getState().pip).toBe(true))
+  const mirror = findMirror()!
+  const mirrorPost = vi.spyOn(mirror.contentWindow!, "postMessage")
+  p.actions.play()
+  p.actions.seek(9)
+  p.setSceneTheme("light")
+  expect(mirrorPost).not.toHaveBeenCalled()
+  // The mirror comes up on the master's clock and theme regardless.
+  fromMirror(fake, mirror, { type: "kino:ready", duration: 40.5 })
+  expect(mirrorPost.mock.calls.map((c) => c[0])).toContainEqual(
+    expect.objectContaining({
+      type: "kino:init",
+      startTime: 9,
+      theme: "light",
+    }),
+  )
+  p.destroy()
+  uninstall()
+})
+
 test("setSceneTheme fans out to the mirror while in pip", async () => {
   const fake = new FakePipWindow()
   const uninstall = installFakeDocumentPiP(fake)
@@ -507,6 +568,7 @@ test("setSceneTheme fans out to the mirror while in pip", async () => {
   p.actions.enterPiP()
   await vi.waitFor(() => expect(p.getState().pip).toBe(true))
   const mirror = findMirror()!
+  fromMirror(fake, mirror, { type: "kino:ready", duration: 40.5 })
   const mirrorPost = vi.spyOn(mirror.contentWindow!, "postMessage")
   const masterPost = vi.spyOn(iframe.contentWindow!, "postMessage")
   p.setSceneTheme("light")
@@ -599,6 +661,7 @@ test("mirror state feeds drift correction only, never MediaState", async () => {
   p.actions.enterPiP()
   await vi.waitFor(() => expect(p.getState().pip).toBe(true))
   const mirror = findMirror()!
+  fromMirror(fake, mirror, { type: "kino:ready", duration: 40.5 })
   const mirrorPost = vi.spyOn(mirror.contentWindow!, "postMessage")
   // The mirror reports its own clock; MediaState stays on the master's.
   fromMirror(fake, mirror, snapshot(1, 5))
@@ -627,6 +690,7 @@ test("transport commands fan out to the mirror while in pip, volume commands nev
   p.actions.enterPiP()
   await vi.waitFor(() => expect(p.getState().pip).toBe(true))
   const mirror = findMirror()!
+  fromMirror(fake, mirror, { type: "kino:ready", duration: 40.5 })
   const mirrorPost = vi.spyOn(mirror.contentWindow!, "postMessage")
   p.actions.play()
   p.actions.pause()
