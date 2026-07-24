@@ -42,13 +42,18 @@ export function mountPipPlaceholder(
 ): () => void {
   const el = document.createElement("div")
   el.className = "kino-pip-placeholder"
-  el.innerHTML = svg(PIP_PATH, 28)
+  // The fill covers the whole stage; the card carries the affordance so it
+  // reads as a panel in either chrome theme (see kino.css --kino-pip-*).
+  const card = document.createElement("div")
+  card.className = "kino-pip-placeholder-card"
+  card.innerHTML = svg(PIP_PATH, 28)
   const label = document.createElement("div")
   label.textContent = "Playing in picture in picture"
   const sub = document.createElement("div")
   sub.className = "kino-pip-placeholder-sub"
   sub.textContent = "Click to return"
-  el.append(label, sub)
+  card.append(label, sub)
+  el.appendChild(card)
   el.addEventListener("click", onReturn)
   container.appendChild(el)
   return () => el.remove()
