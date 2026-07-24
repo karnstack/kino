@@ -1,5 +1,9 @@
 import { readFileSync } from "node:fs"
-import { mountPipPlaceholder, mountPipOverlay } from "./pip-surfaces"
+import {
+  mountPipPlaceholder,
+  mountPipOverlay,
+  pipStageBackdrop,
+} from "./pip-surfaces"
 
 afterEach(() => {
   vi.useRealTimers()
@@ -85,7 +89,7 @@ function overlayHarness(state: OverlayState) {
 test("overlay toggles play/pause off provider state and mirrors cue text", () => {
   const state = { paused: true, activeCueText: "", currentTime: 0, duration: 0 }
   const { deps, emit } = overlayHarness(state)
-  const cleanup = mountPipOverlay(window, deps)
+  const overlay = mountPipOverlay(window, deps)
   const root = document.body.querySelector(
     "[data-kino-pip-overlay]",
   ) as HTMLElement
@@ -103,7 +107,7 @@ test("overlay toggles play/pause off provider state and mirrors cue text", () =>
   expect(root.textContent).toContain("hello from the sequence")
   btn.click()
   expect(deps.pause).toHaveBeenCalledOnce()
-  cleanup()
+  overlay.destroy()
   expect(document.body.querySelector("[data-kino-pip-overlay]")).toBeNull()
 })
 
@@ -115,20 +119,20 @@ test("time readout pads seconds and progress line tracks position", () => {
     duration: 130,
   }
   const { deps } = overlayHarness(state)
-  const cleanup = mountPipOverlay(window, deps)
+  const overlay = mountPipOverlay(window, deps)
   const root = document.body.querySelector(
     "[data-kino-pip-overlay]",
   ) as HTMLElement
   expect(root.textContent).toContain("1:05 / 2:10")
   const progress = root.querySelector("[data-kino-pip-progress]") as HTMLElement
   expect(progress.style.width).toBe("50%")
-  cleanup()
+  overlay.destroy()
 })
 
 test("cue pill hides entirely when empty and shows with text", () => {
   const state = { paused: true, activeCueText: "", currentTime: 0, duration: 0 }
   const { deps, emit } = overlayHarness(state)
-  const cleanup = mountPipOverlay(window, deps)
+  const overlay = mountPipOverlay(window, deps)
   const cue = document.body.querySelector("[data-kino-pip-cue]") as HTMLElement
   expect(cue.getAttribute("aria-live")).toBe("polite")
   expect(cue.style.display).toBe("none")
@@ -139,7 +143,7 @@ test("cue pill hides entirely when empty and shows with text", () => {
   state.activeCueText = ""
   emit()
   expect(cue.style.display).toBe("none")
-  cleanup()
+  overlay.destroy()
 })
 
 test("controls auto-hide while playing and reappear on pointer movement", () => {
@@ -151,7 +155,7 @@ test("controls auto-hide while playing and reappear on pointer movement", () => 
     duration: 10,
   }
   const { deps, emit } = overlayHarness(state)
-  const cleanup = mountPipOverlay(window, deps)
+  const overlay = mountPipOverlay(window, deps)
   const bar = document.body.querySelector("[data-kino-pip-bar]") as HTMLElement
   const cue = document.body.querySelector("[data-kino-pip-cue]") as HTMLElement
   expect(bar.style.opacity).not.toBe("0")
@@ -168,7 +172,72 @@ test("controls auto-hide while playing and reappear on pointer movement", () => 
   expect(bar.style.opacity).toBe("1")
   vi.advanceTimersByTime(5000)
   expect(bar.style.opacity).toBe("1")
-  cleanup()
+  overlay.destroy()
+})
+
+// The pip document never loads kino.css, so the overlay ships its own token
+// sheet: dark on the root, light overriding it, mirroring the chrome tokens.
+test("overlay stamps the chrome theme and flips it live without a remount", () => {
+  const { deps } = overlayHarness({
+    paused: true,
+    activeCueText: "cue",
+    currentTime: 0,
+    duration: 10,
+  })
+  const overlay = mountPipOverlay(window, deps, "light")
+  const root = document.body.querySelector(
+    "[data-kino-pip-overlay]",
+  ) as HTMLElement
+  expect(root.getAttribute("data-kino-theme")).toBe("light")
+  const sheet = document.head.querySelector(
+    "style[data-kino-pip-style]",
+  ) as HTMLStyleElement
+  expect(sheet.textContent).toContain('[data-kino-theme="light"]')
+  // Every color the overlay paints comes from a token, so the light block can
+  // reach all of it.
+  for (const token of [
+    "--kino-pip-bar",
+    "--kino-pip-ctrl",
+    "--kino-pip-ctrl-dim",
+    "--kino-pip-ctrl-hover",
+    "--kino-pip-cue-fill",
+    "--kino-pip-cue-text",
+    "--kino-pip-progress",
+  ]) {
+    expect(
+      sheet.textContent!.split(`${token}:`).length - 1,
+      `${token} needs a dark default and a light override`,
+    ).toBe(2)
+  }
+  // Live flip: the pip window stays open, only the stamp changes.
+  overlay.setTheme("dark")
+  expect(root.getAttribute("data-kino-theme")).toBe("dark")
+  expect(document.body.querySelector("[data-kino-pip-overlay]")).toBe(root)
+  overlay.destroy()
+  expect(document.head.querySelector("style[data-kino-pip-style]")).toBeNull()
+})
+
+test("overlay defaults to dark chrome when no theme is passed", () => {
+  const { deps } = overlayHarness({
+    paused: true,
+    activeCueText: "",
+    currentTime: 0,
+    duration: 0,
+  })
+  const overlay = mountPipOverlay(window, deps)
+  const root = document.body.querySelector(
+    "[data-kino-pip-overlay]",
+  ) as HTMLElement
+  expect(root.getAttribute("data-kino-theme")).toBe("dark")
+  overlay.destroy()
+})
+
+// The backdrop is what shows before the mirrored stage paints, so it follows
+// the stage theme rather than the chrome theme.
+test("stage backdrop follows the theme and is opaque in both", () => {
+  expect(pipStageBackdrop("dark")).toBe("#000")
+  expect(pipStageBackdrop("light")).not.toBe("#000")
+  expect(pipStageBackdrop("light")).not.toContain("transparent")
 })
 
 test("overlay cleanup unsubscribes and removes the pointermove listener", () => {
@@ -180,9 +249,9 @@ test("overlay cleanup unsubscribes and removes the pointermove listener", () => 
     currentTime: 0,
     duration: 0,
   })
-  const cleanup = mountPipOverlay(window, deps)
+  const overlay = mountPipOverlay(window, deps)
   expect(listeners.size).toBe(1)
-  cleanup()
+  overlay.destroy()
   expect(listeners.size).toBe(0)
   const added = addSpy.mock.calls.filter(([type]) => type === "pointermove")
   const removed = removeSpy.mock.calls.filter(

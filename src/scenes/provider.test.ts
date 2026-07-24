@@ -1,4 +1,5 @@
 import { createScenesProvider } from "./provider"
+import { pipStageBackdrop } from "./pip-surfaces"
 import type { HostEvent } from "./protocol"
 
 function mount(p: ReturnType<typeof createScenesProvider>) {
@@ -517,6 +518,73 @@ test("setSceneTheme fans out to the mirror while in pip", async () => {
     type: "kino:setTheme",
     theme: "light",
   })
+  p.destroy()
+  uninstall()
+})
+
+// jsdom rewrites color syntax on assignment (oklch percentages become
+// decimals), so compare against what the same value becomes in a style prop.
+function asStyleValue(background: string): string {
+  const probe = document.createElement("div")
+  probe.style.background = background
+  return probe.style.background
+}
+
+test("the pip window backdrop follows the stage theme, live", async () => {
+  const fake = new FakePipWindow()
+  const uninstall = installFakeDocumentPiP(fake)
+  const p = createScenesProvider({ src: SRC, theme: "light" })
+  const { iframe } = mount(p)
+  fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+  p.actions.enterPiP()
+  await vi.waitFor(() => expect(p.getState().pip).toBe(true))
+  // A hardcoded black body flashed black behind a light stage before the
+  // mirror painted, the same defect the in-page placeholder had.
+  expect(fake.document.body.style.background).toBe(
+    asStyleValue(pipStageBackdrop("light")),
+  )
+  expect(fake.document.documentElement.style.colorScheme).toBe("light")
+  p.setSceneTheme("dark")
+  expect(fake.document.body.style.background).toBe(
+    asStyleValue(pipStageBackdrop("dark")),
+  )
+  expect(fake.document.documentElement.style.colorScheme).toBe("dark")
+  p.destroy()
+  uninstall()
+})
+
+test("chromeTheme themes the pip overlay and setChromeTheme flips it live", async () => {
+  const fake = new FakePipWindow()
+  const uninstall = installFakeDocumentPiP(fake)
+  const p = createScenesProvider({ src: SRC, chromeTheme: "light" })
+  const { iframe } = mount(p)
+  fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+  p.actions.enterPiP()
+  await vi.waitFor(() => expect(p.getState().pip).toBe(true))
+  const overlay = document.body.querySelector(
+    "[data-kino-pip-overlay]",
+  ) as HTMLElement
+  expect(overlay.getAttribute("data-kino-theme")).toBe("light")
+  p.setChromeTheme("dark")
+  expect(overlay.getAttribute("data-kino-theme")).toBe("dark")
+  p.destroy()
+  uninstall()
+})
+
+test("a chrome flip outside pip seeds the next pip window", async () => {
+  const fake = new FakePipWindow()
+  const uninstall = installFakeDocumentPiP(fake)
+  const p = createScenesProvider({ src: SRC })
+  const { iframe } = mount(p)
+  fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+  p.setChromeTheme("light")
+  p.actions.enterPiP()
+  await vi.waitFor(() => expect(p.getState().pip).toBe(true))
+  expect(
+    document.body
+      .querySelector("[data-kino-pip-overlay]")!
+      .getAttribute("data-kino-theme"),
+  ).toBe("light")
   p.destroy()
   uninstall()
 })

@@ -317,6 +317,16 @@ For deeper control, every visual is driven by CSS custom properties on the `.kin
 }
 ```
 
+### Light chrome
+
+`chromeTheme` (`"light"` or `"dark"`, dark by default) flips the whole chrome to a light token set: control bar, captions, idle overlay, scrubber, menus, and the compact/touch UI. It is stamped as `data-kino-theme` on the `.kino` root, so your own overrides still win.
+
+```tsx
+<ScenesPlayer src="..." chromeTheme="light" sceneTheme="light" />
+```
+
+On `ScenesPlayer` it also reaches the picture-in-picture surfaces, which kino draws itself: the placeholder left inline where the stage was, and the controls over the pip window (that window never loads `kino.css`, so it carries its own copy of the tokens). Later values flip both live, so the player can follow your site's theme toggle mid-playback without closing pip. `chromeTheme` is distinct from `sceneTheme`, which themes the stage inside the host document.
+
 ## Keyboard shortcuts
 
 The player is keyboard-first. Shortcuts are ignored while a text input, textarea, select, or contenteditable element is focused, and modifier-key combinations (Ctrl/Cmd/Alt) are passed through.
