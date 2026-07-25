@@ -1,9 +1,0 @@
----
-"@karnstack/kino": minor
----
-
-Scenes: an ambient first-load preview. `createScenesProvider` and `ScenesPlayer` take an optional `preview: { endSeconds, cycles? }`; with it, the stage plays its opening window muted on load, loops it (twice by default), then holds the opening scene's settled final frame. A scene sequence paused at time 0 renders its scenes in their pre-entrance state, so the default first-load frame is a blank stage behind a play button; this fills it with the lesson itself rather than a poster asset.
-
-Throughout the preview `MediaState` keeps reporting a paused player at time 0, carrying the viewer's own volume and muted values. Every chrome surface and every consumer already keys off that idle shape, so the idle overlay, control bar and captions behave exactly as they do without a preview, and nothing downstream mistakes the loop for playback. Only `buffered` and `readyState` flow through, since loading progress is not clock state. The first transport action hands the clock back: the host is paused, seeked to where the viewer wants it, and given back their audio settings and rate, after which snapshots flow normally and nothing preview-related runs again. `play()` hands back at the top, so the preview is a tease of the opening rather than progress through it.
-
-`endSeconds` comes from the caller, which is the side that has the manifest; the opening scene's boundary is the natural window, since one that ends mid-motion also restarts mid-motion. The preview is skipped for `prefers-reduced-motion: reduce`, for `navigator.connection.saveData`, and when `autoPlay` is set. It waits for the player to intersect the viewport before starting, so a lesson below the fold does not spend its loops unwatched, and if muted autoplay is refused (iOS low power mode) it settles on the held frame instead, which is still a real frame of the lesson. Omit `preview` and nothing changes.
