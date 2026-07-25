@@ -1177,16 +1177,35 @@ test("destroy tears down a preview that never started", () => {
   vi.unstubAllGlobals()
 })
 
-test("the loop always runs at 1x, whatever speed the viewer watches at", () => {
-  const { p, iframe, posted } = mountPreviewing({ defaultRate: 2.5 })
-  // The viewer's speed is how fast they want to learn, not how fast a teaser
-  // should move.
-  expect(posted).toContainEqual({ type: "kino:setRate", rate: 1 })
+test("the loop runs at its own rate, not the viewer's, and hands theirs back", () => {
+  const { p, iframe, posted } = mountPreviewing({ defaultRate: 1.2 })
+  // 2x by default, whatever speed the viewer watches at.
+  expect(posted).toContainEqual({ type: "kino:setRate", rate: 2 })
   fromHost(iframe, playingAt(5))
   posted.length = 0
-  // It comes back on the hand-back, not before.
+  // Theirs comes back on the hand-back, not before.
   p.actions.play()
-  expect(posted).toContainEqual({ type: "kino:setRate", rate: 2.5 })
-  expect(p.getState().rate).toBe(2.5)
+  expect(posted).toContainEqual({ type: "kino:setRate", rate: 1.2 })
+  expect(p.getState().rate).toBe(1.2)
   p.destroy()
+})
+
+test("an explicit preview rate overrides the default", () => {
+  const { p, posted } = mountPreviewing({
+    preview: { endSeconds: 20, rate: 1 },
+  })
+  expect(posted).toContainEqual({ type: "kino:setRate", rate: 1 })
+  p.destroy()
+})
+
+test("a rate that would stall the loop falls back to the default", () => {
+  // Zero or negative would freeze the clock at the first frame, which the
+  // grace timer would then read as refused autoplay and settle.
+  for (const rate of [0, -1, Number.NaN]) {
+    const { p, posted } = mountPreviewing({
+      preview: { endSeconds: 20, rate },
+    })
+    expect(posted).toContainEqual({ type: "kino:setRate", rate: 2 })
+    p.destroy()
+  }
 })
