@@ -11,7 +11,11 @@ export { createSceneClock } from "./scenes/cues"
 export type { SceneClock } from "./scenes/cues"
 export { sceneAt, localTime } from "./scenes/sequence-timeline"
 export { createScenesProvider } from "./scenes/provider"
-export type { ScenesProviderOptions, ScenesProvider } from "./scenes/provider"
+export type {
+  ScenesProviderOptions,
+  ScenesProvider,
+  ScenesPreviewOptions,
+} from "./scenes/provider"
 export { ScenesPlayer } from "./scenes/scenes-player"
 export type { ScenesPlayerProps } from "./scenes/scenes-player"
 export { createSceneHost } from "./scenes/host"

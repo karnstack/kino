@@ -848,3 +848,345 @@ test("enterFullscreen is a no-op while in pip", async () => {
   p.destroy()
   uninstall()
 })
+
+// ---------------------------------------------------------------------------
+// Ambient first-load preview
+// ---------------------------------------------------------------------------
+
+const PREVIEW = { endSeconds: 20, cycles: 2 }
+
+// A host snapshot for the preview loop: playing, at `currentTime`.
+function playingAt(currentTime: number): HostEvent {
+  return {
+    type: "kino:state",
+    state: {
+      currentTime,
+      duration: 40.5,
+      paused: false,
+      buffered: [[0, 20]],
+      seeking: false,
+      ended: false,
+      rate: 1,
+      volume: 1,
+      muted: true,
+      readyState: 4,
+    },
+  }
+}
+
+// Bring a provider up to the point where the muted loop is running, and hand
+// back the command log with the handshake traffic already dropped.
+function mountPreviewing(
+  options: Partial<Parameters<typeof createScenesProvider>[0]> = {},
+) {
+  const p = createScenesProvider({ src: SRC, preview: PREVIEW, ...options })
+  const { iframe } = mount(p)
+  const posted: unknown[] = []
+  iframe.contentWindow!.postMessage = (msg: unknown) => posted.push(msg)
+  fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+  return { p, iframe, posted }
+}
+
+test("without the preview option the handshake starts nothing", () => {
+  const p = createScenesProvider({ src: SRC })
+  const { iframe } = mount(p)
+  const posted: unknown[] = []
+  iframe.contentWindow!.postMessage = (msg: unknown) => posted.push(msg)
+  fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+  expect(posted).toEqual([
+    expect.objectContaining({ type: "kino:init", autoPlay: false }),
+  ])
+  p.destroy()
+})
+
+test("preview starts the loop muted, and mutes before it plays", () => {
+  const { p, posted } = mountPreviewing()
+  expect(posted).toContainEqual({ type: "kino:setMuted", muted: true })
+  expect(posted).toContainEqual({ type: "kino:seek", time: 0 })
+  expect(posted).toContainEqual({ type: "kino:play" })
+  // Muted-autoplay policy only exempts a player that is already muted.
+  const muteAt = posted.findIndex(
+    (m) => (m as { type: string }).type === "kino:setMuted",
+  )
+  const playAt = posted.findIndex(
+    (m) => (m as { type: string }).type === "kino:play",
+  )
+  expect(muteAt).toBeLessThan(playAt)
+  p.destroy()
+})
+
+test("the loop never reaches MediaState: the player keeps reading idle", () => {
+  const { p, iframe } = mountPreviewing()
+  fromHost(iframe, playingAt(7.5))
+  const s = p.getState()
+  // Exactly the shape IdleOverlay, ControlBar and Captions gate on.
+  expect(s.paused).toBe(true)
+  expect(s.currentTime).toBe(0)
+  expect(s.ended).toBe(false)
+  // The viewer's own audio settings, not the loop's.
+  expect(s.muted).toBe(false)
+  // Loading progress is not clock state, so it still flows: cross-lesson
+  // autoplay arms on the readyState edge.
+  expect(s.readyState).toBe(4)
+  expect(s.buffered).toEqual([[0, 20]])
+  p.destroy()
+})
+
+test("no caption fires while the preview runs", () => {
+  const { p, iframe } = mountPreviewing({
+    captions: {
+      src: "https://scenes.example.com/c.vtt",
+      label: "en",
+      srclang: "en",
+    },
+  })
+  p.actions.setTextTrack("captions")
+  fromHost(iframe, playingAt(7.5))
+  expect(p.getState().activeCueText).toBe("")
+  p.destroy()
+})
+
+test("the window loops `cycles` times, then settles on the held frame", () => {
+  const { p, iframe, posted } = mountPreviewing()
+  const seeks = () =>
+    posted.filter((m) => (m as { type: string }).type === "kino:seek")
+
+  fromHost(iframe, playingAt(19.9))
+  expect(seeks()).toHaveLength(1) // just the start-of-loop seek
+
+  fromHost(iframe, playingAt(20.1))
+  expect(seeks()).toEqual([
+    { type: "kino:seek", time: 0 },
+    { type: "kino:seek", time: 0 },
+  ])
+
+  fromHost(iframe, playingAt(3))
+  fromHost(iframe, playingAt(20.2))
+  // Last cycle spent: pause on the opening scene's settled final frame.
+  expect(posted).toContainEqual({ type: "kino:pause" })
+  expect(seeks().at(-1)).toEqual({ type: "kino:seek", time: 20 - 0.15 })
+  // Still idle to everyone watching.
+  expect(p.getState().paused).toBe(true)
+  expect(p.getState().currentTime).toBe(0)
+  p.destroy()
+})
+
+test("a snapshot queued before the loop seek cannot burn a second cycle", () => {
+  const { p, iframe, posted } = mountPreviewing()
+  fromHost(iframe, playingAt(20.1))
+  // Same boundary again: the host had this in flight before our seek landed.
+  fromHost(iframe, playingAt(20.15))
+  expect(posted).not.toContainEqual({ type: "kino:pause" })
+  fromHost(iframe, playingAt(1))
+  fromHost(iframe, playingAt(20.2))
+  expect(posted).toContainEqual({ type: "kino:pause" })
+  p.destroy()
+})
+
+test("play() hands the clock back at the top with the viewer's audio", () => {
+  const { p, iframe, posted } = mountPreviewing()
+  fromHost(iframe, playingAt(12))
+  posted.length = 0
+  p.actions.play()
+  expect(posted).toEqual([
+    { type: "kino:pause" },
+    { type: "kino:seek", time: 0 },
+    { type: "kino:setMuted", muted: false },
+    { type: "kino:setVolume", volume: 1 },
+    { type: "kino:setRate", rate: 1 },
+    { type: "kino:play" },
+  ])
+  // And the host is authoritative again.
+  fromHost(iframe, snapshot(1, 0.4))
+  expect(p.getState().currentTime).toBe(0.4)
+  expect(p.getState().paused).toBe(false)
+  p.destroy()
+})
+
+test("play() after the preview settled still starts from the top", () => {
+  const { p, iframe, posted } = mountPreviewing({
+    preview: { endSeconds: 20, cycles: 1 },
+  })
+  fromHost(iframe, playingAt(20.1))
+  posted.length = 0
+  p.actions.play()
+  expect(posted).toContainEqual({ type: "kino:seek", time: 0 })
+  p.destroy()
+})
+
+test("a stale snapshot after the hand-back is dropped, not flashed", () => {
+  const { p, iframe } = mountPreviewing()
+  fromHost(iframe, playingAt(12))
+  p.actions.play()
+  // Queued by the host before our seek landed; it still carries the loop clock.
+  fromHost(iframe, snapshot(1, 12.1))
+  expect(p.getState().currentTime).toBe(0)
+  // The host agreeing releases the guard.
+  fromHost(iframe, snapshot(1, 0.2))
+  expect(p.getState().currentTime).toBe(0.2)
+  p.destroy()
+})
+
+test("seek() hands the clock back at the requested time", () => {
+  const { p, iframe, posted } = mountPreviewing()
+  fromHost(iframe, playingAt(12))
+  posted.length = 0
+  p.actions.seek(300)
+  expect(posted).toContainEqual({ type: "kino:setMuted", muted: false })
+  expect(
+    posted.filter((m) => (m as { type: string }).type === "kino:seek"),
+  ).toEqual([
+    { type: "kino:seek", time: 300 },
+    { type: "kino:seek", time: 300 },
+  ])
+  expect(p.getState().currentTime).toBe(300)
+  p.destroy()
+})
+
+test("setRate holds the preview: the chips set a speed, then play", () => {
+  const { p, iframe, posted } = mountPreviewing()
+  fromHost(iframe, playingAt(5))
+  posted.length = 0
+  p.actions.setRate(2.5)
+  // Nothing posted: speeding the muted loop under the viewer only looks broken.
+  expect(posted).toEqual([])
+  expect(p.getState().rate).toBe(2.5)
+  // The chosen rate rides the hand-back instead.
+  p.actions.play()
+  expect(posted).toContainEqual({ type: "kino:setRate", rate: 2.5 })
+  p.destroy()
+})
+
+test("refused muted autoplay settles on the held frame after the grace", () => {
+  vi.useFakeTimers()
+  const p = createScenesProvider({ src: SRC, preview: PREVIEW })
+  const { iframe } = mount(p)
+  const posted: unknown[] = []
+  iframe.contentWindow!.postMessage = (msg: unknown) => posted.push(msg)
+  fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+  // iOS low power mode: play() rejected, so the clock never moves.
+  vi.advanceTimersByTime(900)
+  expect(posted).toContainEqual({ type: "kino:pause" })
+  expect(posted).toContainEqual({ type: "kino:seek", time: 20 - 0.15 })
+  expect(p.getState().paused).toBe(true)
+  p.destroy()
+  vi.useRealTimers()
+})
+
+test("a rolling loop is never settled by the grace timer", () => {
+  vi.useFakeTimers()
+  const p = createScenesProvider({ src: SRC, preview: PREVIEW })
+  const { iframe } = mount(p)
+  const posted: unknown[] = []
+  iframe.contentWindow!.postMessage = (msg: unknown) => posted.push(msg)
+  fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+  fromHost(iframe, playingAt(0.3))
+  vi.advanceTimersByTime(900)
+  expect(posted).not.toContainEqual({ type: "kino:pause" })
+  p.destroy()
+  vi.useRealTimers()
+})
+
+test("autoPlay wins over preview: nothing is teased", () => {
+  const p = createScenesProvider({ src: SRC, preview: PREVIEW, autoPlay: true })
+  const { iframe } = mount(p)
+  const posted: unknown[] = []
+  iframe.contentWindow!.postMessage = (msg: unknown) => posted.push(msg)
+  fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+  expect(posted).toEqual([
+    expect.objectContaining({
+      type: "kino:init",
+      autoPlay: true,
+      muted: false,
+    }),
+  ])
+  p.destroy()
+})
+
+test("a window too short to settle inside is no preview at all", () => {
+  const p = createScenesProvider({ src: SRC, preview: { endSeconds: 0.1 } })
+  const { iframe } = mount(p)
+  const posted: unknown[] = []
+  iframe.contentWindow!.postMessage = (msg: unknown) => posted.push(msg)
+  fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+  expect(posted).toHaveLength(1)
+  p.destroy()
+})
+
+test("prefers-reduced-motion suppresses the preview", () => {
+  const original = window.matchMedia
+  window.matchMedia = ((q: string) => ({
+    matches: q.includes("prefers-reduced-motion"),
+  })) as typeof window.matchMedia
+  const { p, posted } = mountPreviewing()
+  expect(posted).toHaveLength(1)
+  p.destroy()
+  window.matchMedia = original
+})
+
+test("save-data suppresses the preview", () => {
+  Object.defineProperty(navigator, "connection", {
+    value: { saveData: true },
+    configurable: true,
+  })
+  const { p, posted } = mountPreviewing()
+  expect(posted).toHaveLength(1)
+  p.destroy()
+  Reflect.deleteProperty(navigator, "connection")
+})
+
+test("an offscreen player defers the preview until it scrolls into view", () => {
+  let fire: ((entries: Array<{ isIntersecting: boolean }>) => void) | null =
+    null
+  const disconnect = vi.fn()
+  class FakeObserver {
+    constructor(cb: (entries: Array<{ isIntersecting: boolean }>) => void) {
+      fire = cb
+    }
+    observe() {}
+    disconnect = disconnect
+  }
+  vi.stubGlobal("IntersectionObserver", FakeObserver)
+  const { p, posted } = mountPreviewing()
+  // Below the fold: both loops would be spent unwatched.
+  expect(posted).toHaveLength(1)
+  fire!([{ isIntersecting: true }])
+  expect(posted).toContainEqual({ type: "kino:play" })
+  expect(disconnect).toHaveBeenCalled()
+  p.destroy()
+  vi.unstubAllGlobals()
+})
+
+test("destroy tears down a preview that never started", () => {
+  let fire: ((entries: Array<{ isIntersecting: boolean }>) => void) | null =
+    null
+  const disconnect = vi.fn()
+  class FakeObserver {
+    constructor(cb: (entries: Array<{ isIntersecting: boolean }>) => void) {
+      fire = cb
+    }
+    observe() {}
+    disconnect = disconnect
+  }
+  vi.stubGlobal("IntersectionObserver", FakeObserver)
+  const { p, posted } = mountPreviewing()
+  p.destroy()
+  expect(disconnect).toHaveBeenCalled()
+  fire!([{ isIntersecting: true }])
+  expect(posted).toHaveLength(1)
+  vi.unstubAllGlobals()
+})
+
+test("the loop always runs at 1x, whatever speed the viewer watches at", () => {
+  const { p, iframe, posted } = mountPreviewing({ defaultRate: 2.5 })
+  // The viewer's speed is how fast they want to learn, not how fast a teaser
+  // should move.
+  expect(posted).toContainEqual({ type: "kino:setRate", rate: 1 })
+  fromHost(iframe, playingAt(5))
+  posted.length = 0
+  // It comes back on the hand-back, not before.
+  p.actions.play()
+  expect(posted).toContainEqual({ type: "kino:setRate", rate: 2.5 })
+  expect(p.getState().rate).toBe(2.5)
+  p.destroy()
+})
