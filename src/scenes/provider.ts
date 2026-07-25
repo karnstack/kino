@@ -8,12 +8,40 @@ import {
 } from "./pip-surfaces"
 import { parseVtt, cueTextAt, type VttCue } from "./vtt"
 import type { MediaState, PlayerActions, Provider } from "../core/types"
-import type { HostCommand, HostEvent } from "./protocol"
+import type { HostCommand, HostEvent, HostMediaState } from "./protocol"
 
 type DocumentPiPHost = Window & {
   documentPictureInPicture?: {
     requestWindow(opts?: { width?: number; height?: number }): Promise<Window>
   }
+}
+
+/**
+ * Ambient preview: on first load the stage plays its opening window muted and
+ * loops it, so the player reads as something worth pressing play on instead of
+ * a blank frame behind a play button.
+ *
+ * Throughout, `MediaState` keeps reporting a paused player at time 0 (and the
+ * viewer's own volume/muted). Every chrome surface and every consumer already
+ * keys off that idle shape, so none of them need to know a preview is running;
+ * the real clock lives only inside the host iframe. The first transport action
+ * hands the clock back and nothing preview-related runs again.
+ */
+export type ScenesPreviewOptions = {
+  /**
+   * End of the looped window, in sequence seconds. The caller derives this
+   * from the manifest (the provider never sees one) — the opening scene's
+   * boundary is the natural choice, since a window that ends mid-motion
+   * restarts mid-motion. Values at or below the settle backoff disable the
+   * preview.
+   */
+  endSeconds: number
+  /**
+   * Loops before settling; defaults to 2. After the last one the host holds
+   * the opening scene's settled final frame, paused, so the player is lively
+   * on arrival and calm afterwards rather than animating forever.
+   */
+  cycles?: number
 }
 
 export type ScenesProviderOptions = {
@@ -34,6 +62,9 @@ export type ScenesProviderOptions = {
   // to dark. The main tab's chrome is themed by the Player's chromeTheme prop
   // instead, which cannot reach across into the pip document.
   chromeTheme?: "light" | "dark"
+  // Ambient first-load preview. Omit for a still, idle player. Ignored when
+  // autoPlay is set, which already starts the real thing.
+  preview?: ScenesPreviewOptions
 }
 
 // The Provider contract plus the scenes-only theme channels. The stage is a
@@ -45,6 +76,54 @@ export type ScenesProvider = Provider & {
 }
 
 const TRACK_ID = "captions"
+
+const PREVIEW_DEFAULT_CYCLES = 2
+// How far back from the window's end the settled frame sits. Far enough inside
+// the opening scene that the clock cannot tip into the next one, close enough
+// that the scene is holding its final state rather than still animating.
+const PREVIEW_SETTLE_BACKOFF_S = 0.15
+// Muted autoplay is allowed by policy everywhere that matters, but iOS low
+// power mode refuses it outright. If the host has not reported itself playing
+// by now, treat it as refused and settle instead of waiting forever.
+const PREVIEW_START_GRACE_MS = 800
+// A snapshot the host queued before a seek landed can report the old clock.
+// Anything inside this window of the seek target counts as the host agreeing.
+const PREVIEW_RESUME_EPSILON_S = 0.5
+
+type NormalizedPreview = { end: number; cycles: number; settleAt: number }
+
+function normalizePreview(
+  opts: ScenesProviderOptions,
+): NormalizedPreview | null {
+  const preview = opts.preview
+  // autoPlay is the viewer starting the real thing; there is nothing to tease.
+  if (!preview || opts.autoPlay) return null
+  const end = preview.endSeconds
+  // Too short to settle inside means too short to be worth looping.
+  if (!Number.isFinite(end) || end <= PREVIEW_SETTLE_BACKOFF_S) return null
+  const cycles = Math.max(
+    1,
+    Math.floor(preview.cycles ?? PREVIEW_DEFAULT_CYCLES),
+  )
+  return { end, cycles, settleAt: end - PREVIEW_SETTLE_BACKOFF_S }
+}
+
+type NavigatorWithConnection = Navigator & {
+  connection?: { saveData?: boolean }
+}
+
+// Reasons never to run the preview, checked once at the handshake.
+function previewSuppressed(): boolean {
+  if (typeof window === "undefined") return true
+  // Someone who asked for less motion did not ask for a looping animation.
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true)
+    return true
+  // On a metered connection the opening window would be fetched for nothing
+  // whenever the viewer never presses play.
+  if ((navigator as NavigatorWithConnection).connection?.saveData === true)
+    return true
+  return false
+}
 
 // Plays an audio-driven React scene sequence hosted in an iframe. The iframe
 // owns the audio element and the scene DOM; this side only speaks the wire
@@ -105,6 +184,32 @@ export function createScenesProvider(
   // iPhone-class WebKit) is active. Null otherwise.
   let pseudoRestore: (() => void) | null = null
 
+  // Ambient preview. Null when not configured, suppressed, or superseded by
+  // autoPlay; the phase below then never leaves "off".
+  const preview = normalizePreview(opts)
+  //   "off"      never configured, or the viewer has taken the clock back
+  //   "waiting"  configured; the host is untouched, still idle at its start
+  //   "running"  muted loop in flight
+  //   "settled"  loop finished (or was refused); host paused on the opening
+  //              scene's final frame
+  // "running" and "settled" both mean the host clock is somewhere the viewer
+  // did not put it, so both suppress state snapshots and both must be released
+  // with an explicit seek before real playback.
+  let previewPhase: "off" | "waiting" | "running" | "settled" = "off"
+  let previewCyclesLeft = 0
+  let previewGrace: ReturnType<typeof setTimeout> | null = null
+  let previewObserver: IntersectionObserver | null = null
+  // Seek target from the hand-back, held until the host's own clock agrees, so
+  // a snapshot queued before that seek cannot flash the preview clock into the
+  // scrubber. Null outside the hand-back.
+  let previewResumeAt: number | null = null
+  // True from a loop seek until the host's clock has actually come back, so a
+  // snapshot queued at the window's end before that seek landed cannot burn a
+  // second cycle.
+  let previewRewinding = false
+  const previewHoldsClock = () =>
+    previewPhase === "running" || previewPhase === "settled"
+
   let state: MediaState = {
     ...defaultState(),
     rate: desiredRate,
@@ -163,6 +268,110 @@ export function createScenesProvider(
   const readCueText = (t: number): string =>
     state.activeTextTrackId === TRACK_ID ? cueTextAt(vttCues, t) : ""
 
+  const clearPreviewGrace = () => {
+    if (previewGrace === null) return
+    clearTimeout(previewGrace)
+    previewGrace = null
+  }
+
+  const stopPreviewObserver = () => {
+    previewObserver?.disconnect()
+    previewObserver = null
+  }
+
+  // End of the loop: hold the opening scene's settled final frame. Also the
+  // landing spot when muted autoplay was refused, which is why it is a still
+  // frame of real content and not a blank stage.
+  const settlePreview = () => {
+    if (previewPhase !== "running") return
+    previewPhase = "settled"
+    clearPreviewGrace()
+    send({ type: "kino:pause" })
+    send({ type: "kino:seek", time: preview?.settleAt ?? 0 })
+  }
+
+  // Start the muted loop. Separate from the kino:init reply so the deferred
+  // (offscreen) start goes through exactly the same path as the immediate one.
+  const startPreview = () => {
+    if (!preview || previewPhase !== "waiting") return
+    stopPreviewObserver()
+    previewPhase = "running"
+    previewCyclesLeft = preview.cycles
+    // Muted before playing: the muted-autoplay exemption is what lets this
+    // start without any user activation.
+    send({ type: "kino:setMuted", muted: true })
+    // Always 1x, whatever speed the viewer watches at. Their rate is how fast
+    // they want to learn, not how fast a teaser should move; a saved 2x or
+    // 2.5x turns the loop frantic. The real rate rides the hand-back.
+    send({ type: "kino:setRate", rate: 1 })
+    send({ type: "kino:seek", time: 0 })
+    send({ type: "kino:play" })
+    previewGrace = setTimeout(settlePreview, PREVIEW_START_GRACE_MS)
+  }
+
+  // Hand the clock back to the viewer, who wants it at `time`. Leaves the host
+  // paused there with their own audio settings restored, and retires the
+  // preview for the life of this provider. A no-op once the preview is off, so
+  // every transport action can call it unconditionally.
+  const releasePreview = (time: number) => {
+    if (previewPhase === "off") return
+    const disturbed = previewHoldsClock()
+    previewPhase = "off"
+    stopPreviewObserver()
+    clearPreviewGrace()
+    // "waiting" never touched the host, so there is nothing to undo — and
+    // rewinding here would clobber a resume seek that arrived first.
+    if (!disturbed) return
+    send({ type: "kino:pause" })
+    send({ type: "kino:seek", time })
+    send({ type: "kino:setMuted", muted: state.muted })
+    send({ type: "kino:setVolume", volume: state.volume })
+    send({ type: "kino:setRate", rate: desiredRate })
+    previewResumeAt = time
+    patch({ currentTime: time, activeCueText: readCueText(time) })
+  }
+
+  // Drive the loop off the host's state ticks. Coarse by design: at the host's
+  // 10Hz the loop point lands within ~100ms of the window's end, which is
+  // under the threshold of noticing on an ambient loop.
+  const advancePreview = (snapshot: HostMediaState) => {
+    if (previewPhase !== "running" || !preview) return
+    // Playing means muted autoplay was allowed after all.
+    if (!snapshot.paused) clearPreviewGrace()
+    if (previewRewinding) {
+      if (snapshot.currentTime < preview.end) previewRewinding = false
+      return
+    }
+    if (snapshot.currentTime < preview.end) return
+    previewCyclesLeft -= 1
+    if (previewCyclesLeft > 0) {
+      previewRewinding = true
+      send({ type: "kino:seek", time: 0 })
+      return
+    }
+    settlePreview()
+  }
+
+  // Arm the preview once the host is listening. Deferred until the player is
+  // actually on screen: a lesson opened below the fold would otherwise spend
+  // both its loops unwatched and be settled by the time anyone scrolled to it.
+  const armPreview = () => {
+    if (!preview || previewPhase !== "off") return
+    if (previewSuppressed()) return
+    previewPhase = "waiting"
+    if (typeof IntersectionObserver === "undefined" || !mountContainer) {
+      startPreview()
+      return
+    }
+    previewObserver = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) startPreview()
+      },
+      { threshold: 0.25 },
+    )
+    previewObserver.observe(mountContainer)
+  }
+
   const onMessage = (ev: MessageEvent) => {
     if (!iframe) return
     if (ev.origin !== origin || ev.source !== iframe.contentWindow) return
@@ -181,8 +390,33 @@ export function createScenesProvider(
           autoPlay: opts.autoPlay ?? false,
           theme,
         })
+        armPreview()
         break
       case "kino:state":
+        // While the ambient preview owns the host clock, MediaState keeps
+        // reporting the idle player the chrome and its consumers expect: the
+        // loop must not move the scrubber, fire captions, or read as playback
+        // to anything watching. Loading progress is not clock state, so
+        // buffered/readyState still flow (cross-lesson autoplay arms on the
+        // readyState edge, and would otherwise wait for a preview to finish).
+        if (previewHoldsClock()) {
+          patch({
+            buffered: msg.state.buffered,
+            readyState: msg.state.readyState,
+          })
+          advancePreview(msg.state)
+          break
+        }
+        // A snapshot the host queued before the hand-back seek landed still
+        // carries the preview clock; drop it rather than flash it.
+        if (previewResumeAt !== null) {
+          if (
+            Math.abs(msg.state.currentTime - previewResumeAt) >
+            PREVIEW_RESUME_EPSILON_S
+          )
+            break
+          previewResumeAt = null
+        }
         // The host's snapshot is authoritative once it arrives, except while
         // a setRate is in flight: hold the optimistic rate until the host
         // echoes it back, then let snapshots flow through wholly again.
@@ -264,14 +498,19 @@ export function createScenesProvider(
   // never fan out: the mirror stays muted forever.
   const actions: PlayerActions = {
     play: () => {
+      // Taking over from the ambient preview starts the lesson at the top: the
+      // preview is a tease of the opening, not progress through it.
+      releasePreview(0)
       send({ type: "kino:play" })
       sendMirror({ type: "kino:play" })
     },
     pause: () => {
+      releasePreview(0)
       send({ type: "kino:pause" })
       sendMirror({ type: "kino:pause" })
     },
     seek: (t) => {
+      releasePreview(t)
       send({ type: "kino:seek", time: t })
       sendMirror({ type: "kino:seek", time: t })
       // Optimistic time so the scrubber tracks the pointer between state ticks.
@@ -280,9 +519,14 @@ export function createScenesProvider(
     setRate: (r) => {
       pendingRate = r
       desiredRate = r
+      patch({ rate: r })
+      // Deliberately not a hand-back: the idle speed chips set a rate and then
+      // play, so a rate change alone must leave the preview alone. Speeding up
+      // the muted loop under the viewer would only look like a glitch; the
+      // chosen rate rides the hand-back instead.
+      if (previewHoldsClock()) return
       send({ type: "kino:setRate", rate: r })
       sendMirror({ type: "kino:setRate", rate: r })
-      patch({ rate: r })
     },
     setVolume: (v) => {
       const vol = Math.min(1, Math.max(0, v))
@@ -331,6 +575,10 @@ export function createScenesProvider(
         const dpp = (window as DocumentPiPHost).documentPictureInPicture
         if (!dpp || pipWindow || pipEntering || !iframe || !mountContainer)
           return
+        // The mirror comes up on MediaState's clock, so the preview has to be
+        // off it before the window opens or the mirror would sync to 0 while
+        // the master kept looping behind the inline placeholder.
+        releasePreview(0)
         clearPseudoFullscreen()
         pipEntering = true
         let win: Window
@@ -496,6 +744,9 @@ export function createScenesProvider(
     destroy() {
       window.removeEventListener("message", onMessage)
       document.removeEventListener("fullscreenchange", onFullscreenChange)
+      stopPreviewObserver()
+      clearPreviewGrace()
+      previewPhase = "off"
       pseudoRestore?.()
       pseudoRestore = null
       // Fires the pagehide handler, which removes the mirror and clears pip
