@@ -42,6 +42,14 @@ export type ScenesPreviewOptions = {
    * on arrival and calm afterwards rather than animating forever.
    */
   cycles?: number
+  /**
+   * Speed of the loop, defaulting to 2x. Scenes are driven off the sequence
+   * clock rather than wall time, so the whole stage scales cleanly with the
+   * rate; the faster pass reads livelier and covers the window in half the
+   * time, so the player settles sooner. Independent of the viewer's own rate,
+   * which is restored when they take the clock back.
+   */
+  rate?: number
 }
 
 export type ScenesProviderOptions = {
@@ -78,6 +86,12 @@ export type ScenesProvider = Provider & {
 const TRACK_ID = "captions"
 
 const PREVIEW_DEFAULT_CYCLES = 2
+// Default loop speed. Scenes compute everything from the sequence clock (the
+// render path drives them under a fake clock, so wall-time CSS transitions
+// would not survive it), which means the stage scales cleanly with the rate
+// instead of desyncing. Double speed reads livelier and halves how long the
+// player animates before it settles.
+const PREVIEW_DEFAULT_RATE = 2
 // How far back from the window's end the settled frame sits. Far enough inside
 // the opening scene that the clock cannot tip into the next one, close enough
 // that the scene is holding its final state rather than still animating.
@@ -90,7 +104,12 @@ const PREVIEW_START_GRACE_MS = 800
 // Anything inside this window of the seek target counts as the host agreeing.
 const PREVIEW_RESUME_EPSILON_S = 0.5
 
-type NormalizedPreview = { end: number; cycles: number; settleAt: number }
+type NormalizedPreview = {
+  end: number
+  cycles: number
+  rate: number
+  settleAt: number
+}
 
 function normalizePreview(
   opts: ScenesProviderOptions,
@@ -105,7 +124,13 @@ function normalizePreview(
     1,
     Math.floor(preview.cycles ?? PREVIEW_DEFAULT_CYCLES),
   )
-  return { end, cycles, settleAt: end - PREVIEW_SETTLE_BACKOFF_S }
+  // A zero or negative rate would stall the loop at the first frame, and the
+  // grace timer would read that as refused autoplay and settle it.
+  const rate =
+    Number.isFinite(preview.rate) && (preview.rate ?? 0) > 0
+      ? (preview.rate as number)
+      : PREVIEW_DEFAULT_RATE
+  return { end, cycles, rate, settleAt: end - PREVIEW_SETTLE_BACKOFF_S }
 }
 
 type NavigatorWithConnection = Navigator & {
@@ -300,10 +325,9 @@ export function createScenesProvider(
     // Muted before playing: the muted-autoplay exemption is what lets this
     // start without any user activation.
     send({ type: "kino:setMuted", muted: true })
-    // Always 1x, whatever speed the viewer watches at. Their rate is how fast
-    // they want to learn, not how fast a teaser should move; a saved 2x or
-    // 2.5x turns the loop frantic. The real rate rides the hand-back.
-    send({ type: "kino:setRate", rate: 1 })
+    // The loop's own rate, not the viewer's: the tease runs at one deliberate
+    // speed for everyone. Theirs rides the hand-back.
+    send({ type: "kino:setRate", rate: preview.rate })
     send({ type: "kino:seek", time: 0 })
     send({ type: "kino:play" })
     previewGrace = setTimeout(settlePreview, PREVIEW_START_GRACE_MS)
