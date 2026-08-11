@@ -471,6 +471,16 @@ export function createMuxProvider(opts: MuxProviderOptions): Provider {
         el.textTracks?.removeEventListener("addtrack", onTextTracksChanged)
         el.textTracks?.removeEventListener("removetrack", onTextTracksChanged)
         el.textTracks?.removeEventListener("change", onTextTracksChanged)
+        // Removing the element does not stop it: a detached <mux-video> keeps
+        // playing and keeps pulling segments, and nothing on the page can reach
+        // it any more. Pause, then drop the src, which is what makes mux-video
+        // tear its playback engine down. Both belong here rather than in the
+        // element's own disconnectedCallback, which is too late: mux-video
+        // finishes its setup a microtask after mount, so an element mounted and
+        // destroyed in the same tick (React runs a mount effect twice in
+        // development) comes up playing after it was already thrown away.
+        el.pause()
+        el.removeAttribute("src")
         el.remove()
       }
       el = null
