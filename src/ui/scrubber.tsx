@@ -88,14 +88,27 @@ export function Scrubber() {
     const pw = previewRef.current?.getBoundingClientRect().width ?? 0
     const tw = trackRef.current?.getBoundingClientRect().width ?? 0
     setDims({ pw, tw })
-  }, [hover, tile?.url])
+  }, [hover, tile?.url, hoverMarker])
 
   // Center the preview on the cursor, but clamp so it never crosses an edge.
+  // A preview wider than the track is centered on the track.
   let previewLeft = hover?.x ?? 0
   if (hover && dims.pw > 0 && dims.tw > 0) {
     const half = dims.pw / 2 + 4
-    previewLeft = Math.min(Math.max(hover.x, half), dims.tw - half)
+    previewLeft =
+      half * 2 >= dims.tw
+        ? dims.tw / 2
+        : Math.min(Math.max(hover.x, half), dims.tw - half)
   }
+
+  const rich = hoverMarker?.preview != null ? hoverMarker.preview : null
+  const previewClass = [
+    "kino-preview kino-glass",
+    rich != null && "kino-preview-rich",
+    hoverMarker?.icon && "kino-preview-above-icon",
+  ]
+    .filter(Boolean)
+    .join(" ")
 
   return (
     <div
@@ -110,11 +123,7 @@ export function Scrubber() {
       {hover && (
         <div
           ref={previewRef}
-          className={
-            hoverMarker?.icon
-              ? "kino-preview kino-glass kino-preview-above-icon"
-              : "kino-preview kino-glass"
-          }
+          className={previewClass}
           style={{ left: previewLeft }}
         >
           {tile && (
@@ -128,11 +137,17 @@ export function Scrubber() {
               }}
             />
           )}
-          <span className="kino-preview-time">
-            <RollingTime value={formatTime(previewTime)} />
-          </span>
-          {hoverMarker?.label && (
-            <span className="kino-preview-label">{hoverMarker.label}</span>
+          {rich != null ? (
+            <div className="kino-preview-content">{rich}</div>
+          ) : (
+            <>
+              <span className="kino-preview-time">
+                <RollingTime value={formatTime(previewTime)} />
+              </span>
+              {hoverMarker?.label && (
+                <span className="kino-preview-label">{hoverMarker.label}</span>
+              )}
+            </>
           )}
         </div>
       )}

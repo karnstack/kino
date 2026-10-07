@@ -227,3 +227,47 @@ test("hovering a marker shows the marker's own time", () => {
       .getAttribute("aria-label"),
   ).toBe("0:50")
 })
+
+test("hovering a marker with a preview shows the preview instead of time and label", () => {
+  withMarkers([
+    {
+      id: "a",
+      time: 50,
+      label: "Lee: gzip",
+      preview: <p data-testid="rich">Lee says gzip</p>,
+    },
+  ])
+  stubRect(screen.getByTestId("kino-track"))
+  hoverMarker(screen.getByTestId("kino-marker"))
+  const preview = document.querySelector(".kino-preview")!
+  expect(preview.classList.contains("kino-preview-rich")).toBe(true)
+  expect(screen.getByTestId("rich").textContent).toBe("Lee says gzip")
+  expect(preview.querySelector(".kino-preview-time")).toBeNull()
+  expect(preview.querySelector(".kino-preview-label")).toBeNull()
+})
+
+test("a marker without a preview keeps the time and label preview", () => {
+  withMarkers([{ id: "a", time: 50, label: "Lee: gzip" }])
+  stubRect(screen.getByTestId("kino-track"))
+  hoverMarker(screen.getByTestId("kino-marker"))
+  const preview = document.querySelector(".kino-preview")!
+  expect(preview.classList.contains("kino-preview-rich")).toBe(false)
+  expect(preview.querySelector(".kino-preview-time")).toBeTruthy()
+  expect(preview.querySelector(".kino-preview-label")!.textContent).toBe(
+    "Lee: gzip",
+  )
+})
+
+test("a marker with a preview still takes its accessible name from label", () => {
+  withMarkers([{ id: "a", time: 50, label: "Lee: gzip", preview: <b>rich</b> }])
+  expect(screen.getByRole("button", { name: "Lee: gzip" })).toBeTruthy()
+})
+
+test("a rich preview above an icon marker still rises above the icon", () => {
+  withMarkers([{ id: "r", time: 50, icon: "🔥", preview: <b>rich</b> }])
+  stubRect(screen.getByTestId("kino-track"))
+  hoverMarker(screen.getByTestId("kino-marker"))
+  const cls = document.querySelector(".kino-preview")!.classList
+  expect(cls.contains("kino-preview-rich")).toBe(true)
+  expect(cls.contains("kino-preview-above-icon")).toBe(true)
+})
