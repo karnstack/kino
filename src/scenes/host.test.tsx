@@ -520,3 +520,91 @@ test("commands from unrelated sources are still dropped", async () => {
   expect(h.audio().currentTime).toBe(0)
   act(() => h.host.destroy())
 })
+
+// ---------------------------------------------------------------------------
+// Frame loop and visibility
+// ---------------------------------------------------------------------------
+
+// Capture rAF callbacks instead of running them, so a test can step frames.
+function stubRaf() {
+  const queue: FrameRequestCallback[] = []
+  const raf = vi
+    .spyOn(window, "requestAnimationFrame")
+    .mockImplementation((cb) => {
+      queue.push(cb)
+      return queue.length
+    })
+  const caf = vi
+    .spyOn(window, "cancelAnimationFrame")
+    .mockImplementation(() => {})
+  return {
+    raf,
+    pending: () => queue.length,
+    // Run every queued frame once.
+    frame() {
+      const run = queue.splice(0)
+      act(() => run.forEach((cb) => cb(0)))
+    },
+    restore() {
+      raf.mockRestore()
+      caf.mockRestore()
+    },
+  }
+}
+
+test("no frame loop runs while the audio is paused", async () => {
+  const frames = stubRaf()
+  const h = makeHost()
+  await flush()
+  // Paused at rest: nothing to draw, so nothing is scheduled.
+  expect(frames.pending()).toBe(0)
+  const play = playing(h.audio())
+  act(() => {
+    h.audio().dispatchEvent(new Event("play"))
+  })
+  expect(frames.pending()).toBe(1)
+  frames.frame()
+  expect(frames.pending()).toBe(1)
+  play.pause()
+  frames.frame()
+  // The loop ends on the first frame after the pause.
+  expect(frames.pending()).toBe(0)
+  act(() => h.host.destroy())
+  frames.restore()
+})
+
+test("a hidden host stops drawing frames but the audio keeps playing", async () => {
+  const frames = stubRaf()
+  const h = makeHost()
+  await flush()
+  playing(h.audio())
+  act(() => {
+    h.audio().dispatchEvent(new Event("play"))
+  })
+  command({ type: "kino:setVisible", visible: false })
+  frames.frame()
+  expect(frames.pending()).toBe(0)
+  // timeupdate does not redraw either while hidden.
+  tick(h.audio(), 7)
+  expect(scenesInDom(h.container)).toEqual(["01"])
+  expect(h.audio().paused).toBe(false)
+  // Back on screen: the stage catches up with the audio clock at once, and
+  // the loop starts again.
+  command({ type: "kino:setVisible", visible: true })
+  await flush()
+  expect(scenesInDom(h.container)).toEqual(["02"])
+  expect(frames.pending()).toBe(1)
+  act(() => h.host.destroy())
+  frames.restore()
+})
+
+test("a seek while hidden still lands on the right scene once shown", async () => {
+  const h = makeHost()
+  await flush()
+  command({ type: "kino:setVisible", visible: false })
+  command({ type: "kino:seek", time: 7 })
+  command({ type: "kino:setVisible", visible: true })
+  await flush()
+  expect(scenesInDom(h.container)).toEqual(["02"])
+  act(() => h.host.destroy())
+})

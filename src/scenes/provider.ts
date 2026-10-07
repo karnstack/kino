@@ -73,6 +73,11 @@ export type ScenesProviderOptions = {
   // Ambient first-load preview. Omit for a still, idle player. Ignored when
   // autoPlay is set, which already starts the real thing.
   preview?: ScenesPreviewOptions
+  // Save CPU while nobody can see the player: when it is scrolled out of view
+  // or the tab is hidden, the preview loop pauses and the stage stops drawing
+  // frames. Real playback keeps playing (the audio carries on) and the stage
+  // catches up when it is visible again. Defaults to true.
+  pauseWhenHidden?: boolean
 }
 
 // The Provider contract plus the scenes-only theme channels. The stage is a
@@ -234,6 +239,25 @@ export function createScenesProvider(
   let previewRewinding = false
   const previewHoldsClock = () =>
     previewPhase === "running" || previewPhase === "settled"
+  // True while the running loop is paused because nobody can see it. The
+  // grace timer is suspended alongside it (a pause is not a refused
+  // autoplay); previewGraceHeld says whether to re-arm it on resume.
+  let previewHeld = false
+  let previewGraceHeld = false
+  // True once the preview-start observer has seen the player in view, so a
+  // start held back by a hidden tab can go ahead when the tab shows.
+  let previewInView = false
+
+  // Visibility of the player: on screen (IntersectionObserver on the mount
+  // container) and in a visible tab. Assumed visible until told otherwise.
+  const pauseWhenHidden = opts.pauseWhenHidden ?? true
+  let onScreen = true
+  let viewObserver: IntersectionObserver | null = null
+  const pageVisible = () =>
+    typeof document === "undefined" || document.visibilityState !== "hidden"
+  const isVisible = () => !pauseWhenHidden || (onScreen && pageVisible())
+  // Last visibility the host was told. Hosts start visible.
+  let hostVisible = true
 
   let state: MediaState = {
     ...defaultState(),
@@ -310,6 +334,8 @@ export function createScenesProvider(
   const settlePreview = () => {
     if (previewPhase !== "running") return
     previewPhase = "settled"
+    previewHeld = false
+    previewGraceHeld = false
     clearPreviewGrace()
     send({ type: "kino:pause" })
     send({ type: "kino:seek", time: preview?.settleAt ?? 0 })
@@ -319,6 +345,8 @@ export function createScenesProvider(
   // (offscreen) start goes through exactly the same path as the immediate one.
   const startPreview = () => {
     if (!preview || previewPhase !== "waiting") return
+    // In view but in a hidden tab: start when the tab shows instead.
+    if (!isVisible()) return
     stopPreviewObserver()
     previewPhase = "running"
     previewCyclesLeft = preview.cycles
@@ -341,6 +369,8 @@ export function createScenesProvider(
     if (previewPhase === "off") return
     const disturbed = previewHoldsClock()
     previewPhase = "off"
+    previewHeld = false
+    previewGraceHeld = false
     stopPreviewObserver()
     clearPreviewGrace()
     // "waiting" never touched the host, so there is nothing to undo — and
@@ -376,6 +406,48 @@ export function createScenesProvider(
     settlePreview()
   }
 
+  // Pause the running loop while nobody can see it, and pick it up where it
+  // left off when they can. Only the loop: real playback is never paused here.
+  const holdPreview = () => {
+    if (previewPhase !== "running" || previewHeld) return
+    previewHeld = true
+    if (previewGrace !== null) {
+      clearPreviewGrace()
+      previewGraceHeld = true
+    }
+    send({ type: "kino:pause" })
+  }
+  const resumePreview = () => {
+    if (previewPhase !== "running" || !previewHeld) return
+    previewHeld = false
+    send({ type: "kino:play" })
+    if (previewGraceHeld) {
+      previewGraceHeld = false
+      previewGrace = setTimeout(settlePreview, PREVIEW_START_GRACE_MS)
+    }
+  }
+
+  // Apply the current visibility: pause or resume the preview loop, start a
+  // preview that was held back by a hidden tab, and tell the host whether to
+  // draw. During pip the master is covered by the placeholder (the stage the
+  // viewer sees is the mirror's), so it never needs to draw.
+  const applyVisibility = () => {
+    if (!ready) return
+    const visible = isVisible()
+    if (visible) {
+      if (previewPhase === "waiting" && previewInView) startPreview()
+      resumePreview()
+    } else {
+      holdPreview()
+    }
+    const draw = !pauseWhenHidden || (visible && pipWindow === null)
+    if (draw === hostVisible) return
+    hostVisible = draw
+    send({ type: "kino:setVisible", visible: draw })
+  }
+
+  const onVisibilityChange = () => applyVisibility()
+
   // Arm the preview once the host is listening. Deferred until the player is
   // actually on screen: a lesson opened below the fold would otherwise spend
   // both its loops unwatched and be settled by the time anyone scrolled to it.
@@ -384,12 +456,15 @@ export function createScenesProvider(
     if (previewSuppressed()) return
     previewPhase = "waiting"
     if (typeof IntersectionObserver === "undefined" || !mountContainer) {
+      previewInView = true
       startPreview()
       return
     }
     previewObserver = new IntersectionObserver(
       (entries) => {
-        if (entries.some((e) => e.isIntersecting)) startPreview()
+        if (!entries.some((e) => e.isIntersecting)) return
+        previewInView = true
+        startPreview()
       },
       { threshold: 0.25 },
     )
@@ -415,6 +490,7 @@ export function createScenesProvider(
           theme,
         })
         armPreview()
+        applyVisibility()
         break
       case "kino:state":
         // While the ambient preview owns the host clock, MediaState keeps
@@ -689,10 +765,13 @@ export function createScenesProvider(
           mirrorReady = false
           pipCleanups.forEach((c) => c())
           pipCleanups = []
-          // Nothing to resume: the master never stopped.
+          // Nothing to resume: the master never stopped. It only stopped
+          // drawing, so let it draw again if it is in view.
+          applyVisibility()
           patch({ pip: false })
         }
         win.addEventListener("pagehide", onPipPagehide)
+        applyVisibility()
         patch({ pip: true })
       })()
     },
@@ -741,6 +820,21 @@ export function createScenesProvider(
       iframe.style.display = "block"
       window.addEventListener("message", onMessage)
       document.addEventListener("fullscreenchange", onFullscreenChange)
+      if (pauseWhenHidden) {
+        document.addEventListener("visibilitychange", onVisibilityChange)
+        if (typeof IntersectionObserver !== "undefined") {
+          viewObserver = new IntersectionObserver(
+            (entries) => {
+              const last = entries[entries.length - 1]
+              if (!last) return
+              onScreen = last.isIntersecting
+              applyVisibility()
+            },
+            { threshold: 0 },
+          )
+          viewObserver.observe(container)
+        }
+      }
       container.appendChild(iframe)
       loadCaptions()
     },
@@ -768,6 +862,9 @@ export function createScenesProvider(
     destroy() {
       window.removeEventListener("message", onMessage)
       document.removeEventListener("fullscreenchange", onFullscreenChange)
+      document.removeEventListener("visibilitychange", onVisibilityChange)
+      viewObserver?.disconnect()
+      viewObserver = null
       stopPreviewObserver()
       clearPreviewGrace()
       previewPhase = "off"

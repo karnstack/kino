@@ -99,12 +99,28 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
     time = audio.currentTime
     emitTime()
   }
+  // False while the parent says nobody can see the stage (scrolled away, tab
+  // hidden, or covered during pip). The audio keeps its own clock; the stage
+  // just stops drawing and catches up from audio.currentTime when shown again.
+  // Every clock tick re-renders the scene tree, so this is where the CPU goes.
+  let visible = true
+  // The loop only runs while there is something new to draw: playing and
+  // visible. A paused or hidden host schedules no frames at all.
   let raf = 0
   const rafLoop = () => {
-    if (!audio.paused) syncTime()
+    raf = 0
+    if (audio.paused || !visible) return
+    syncTime()
     raf = requestAnimationFrame(rafLoop)
   }
-  raf = requestAnimationFrame(rafLoop)
+  const startLoop = () => {
+    if (raf !== 0 || audio.paused || !visible) return
+    raf = requestAnimationFrame(rafLoop)
+  }
+  // timeupdate (~4Hz) is the loop's coarse fallback; skip it while hidden too.
+  const onTimeUpdate = () => {
+    if (visible) syncTime()
+  }
 
   const readState = (): HostMediaState => {
     const buffered: Array<[number, number]> = []
@@ -145,9 +161,10 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
   const onAudioEvent = () => {
     syncTime()
     postState()
+    startLoop()
   }
   for (const ev of AUDIO_EVENTS) audio.addEventListener(ev, onAudioEvent)
-  audio.addEventListener("timeupdate", syncTime)
+  audio.addEventListener("timeupdate", onTimeUpdate)
 
   const onSeeked = () => opts.onSeekingChange?.(false)
   audio.addEventListener("seeked", onSeeked)
@@ -217,6 +234,21 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
       case "kino:setTheme":
         if (msg.theme === "light" || msg.theme === "dark") applyTheme(msg.theme)
         break
+      case "kino:setVisible": {
+        const next = msg.visible !== false
+        if (next === visible) break
+        visible = next
+        if (!visible) {
+          cancelAnimationFrame(raf)
+          raf = 0
+          break
+        }
+        // Shown again: jump straight to where the audio is now, then keep
+        // drawing if it is playing.
+        syncTime()
+        startLoop()
+        break
+      }
     }
   }
   window.addEventListener("message", onCommand)
@@ -406,7 +438,7 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
       clearInterval(interval)
       cancelAnimationFrame(raf)
       for (const ev of AUDIO_EVENTS) audio.removeEventListener(ev, onAudioEvent)
-      audio.removeEventListener("timeupdate", syncTime)
+      audio.removeEventListener("timeupdate", onTimeUpdate)
       audio.removeEventListener("seeked", onSeeked)
       audio.removeEventListener("error", onError)
       audio.pause()
