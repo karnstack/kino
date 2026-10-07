@@ -353,8 +353,10 @@
   pointer-events: none;
   z-index: 2;
 }
+/* With icon markers on the track, every preview sits above the icon row,
+   so a preview never covers the icons. */
 .kino .kino-preview.kino-preview-above-icon {
-  bottom: calc(100% + 11px);
+  bottom: calc(100% + 20px);
 }
 /* A marker's own preview content: full size, left-aligned, wraps at 300px
    (or the scrubber width, if that is smaller). */

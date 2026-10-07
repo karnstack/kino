@@ -105,7 +105,7 @@ export function Scrubber() {
   const previewClass = [
     "kino-preview kino-glass",
     rich != null && "kino-preview-rich",
-    hoverMarker?.icon && "kino-preview-above-icon",
+    shown.some((m) => m.icon) && "kino-preview-above-icon",
   ]
     .filter(Boolean)
     .join(" ")

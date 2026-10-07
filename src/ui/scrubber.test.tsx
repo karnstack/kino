@@ -217,6 +217,20 @@ test("the preview rises above an icon marker but not a dot marker", () => {
   ).toBe(false)
 })
 
+test("with any icon marker on the track, a dot marker's preview also rises", () => {
+  withMarkers([
+    { id: "r", time: 20, icon: "🔥" },
+    { id: "a", time: 50 },
+  ])
+  stubRect(screen.getByTestId("kino-track"))
+  hoverMarker(screen.getAllByTestId("kino-marker")[1]!)
+  expect(
+    document
+      .querySelector(".kino-preview")!
+      .classList.contains("kino-preview-above-icon"),
+  ).toBe(true)
+})
+
 test("hovering a marker shows the marker's own time", () => {
   withMarkers([{ id: "a", time: 50, label: "x" }])
   stubRect(screen.getByTestId("kino-track"))
