@@ -1436,4 +1436,20 @@ describe("pause when hidden", () => {
     p.destroy()
     uninstall()
   })
+
+  test("a host that announces itself again is told it is hidden again", () => {
+    const io = stubObservers()
+    const p = createScenesProvider({ src: SRC })
+    const { iframe } = mount(p)
+    const posted: unknown[] = []
+    iframe.contentWindow!.postMessage = (msg: unknown) => posted.push(msg)
+    io.fireAll(false)
+    fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+    expect(posted).toContainEqual({ type: "kino:setVisible", visible: false })
+    posted.length = 0
+    // A fresh host document starts visible.
+    fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+    expect(posted).toContainEqual({ type: "kino:setVisible", visible: false })
+    p.destroy()
+  })
 })

@@ -118,8 +118,20 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
     raf = requestAnimationFrame(rafLoop)
   }
   // timeupdate (~4Hz) is the loop's coarse fallback; skip it while hidden too.
+  // Hidden, it still loads the scene the audio is in and the one after it
+  // (load only, no render). Stage normally preloads on clock ticks, so
+  // without this, playback that crossed two boundaries while hidden would
+  // return to a scene that is not loaded yet and show a blank stage.
   const onTimeUpdate = () => {
-    if (visible) syncTime()
+    if (visible) {
+      syncTime()
+      return
+    }
+    const scene = sceneAt(manifest.scenes, audio.currentTime)
+    if (!scene) return
+    ensureLoaded(scene.id)
+    const next = manifest.scenes[manifest.scenes.indexOf(scene) + 1]
+    if (next) ensureLoaded(next.id)
   }
 
   const readState = (): HostMediaState => {

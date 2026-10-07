@@ -608,3 +608,38 @@ test("a seek while hidden still lands on the right scene once shown", async () =
   expect(scenesInDom(h.container)).toEqual(["02"])
   act(() => h.host.destroy())
 })
+
+test("scenes keep loading while hidden, so the stage is not blank on return", async () => {
+  const three: SceneManifest = {
+    ...manifest,
+    duration: 18,
+    scenes: [
+      ...manifest.scenes,
+      {
+        id: "03",
+        src: "/03.js",
+        start: 12,
+        end: 18,
+        cues: { audioDuration: 6, cues: [], words: [] },
+      },
+    ],
+  }
+  const SceneThree = () => <div data-scene="03" />
+  const h = makeHost({
+    manifest: three,
+    loadScene: (id) =>
+      Promise.resolve({
+        default: id === "01" ? SceneOne : id === "02" ? SceneTwo : SceneThree,
+      }),
+  })
+  await flush()
+  playing(h.audio())
+  command({ type: "kino:setVisible", visible: false })
+  // Playback crosses two boundaries while nobody can see the stage.
+  tick(h.audio(), 13)
+  await flush()
+  // Shown again: the scene is already loaded, so it draws at once.
+  command({ type: "kino:setVisible", visible: true })
+  expect(scenesInDom(h.container)).toEqual(["03"])
+  act(() => h.host.destroy())
+})

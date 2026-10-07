@@ -490,6 +490,9 @@ export function createScenesProvider(
           theme,
         })
         armPreview()
+        // A host that announces itself (again) starts visible; match that so
+        // the dedupe below cannot skip a needed setVisible.
+        hostVisible = true
         applyVisibility()
         break
       case "kino:state":

@@ -78,5 +78,7 @@ export type HostMediaState = {
 export type HostEvent =
   | { type: "kino:ready"; duration: number }
   | { type: "kino:state"; state: HostMediaState }
+  // Not posted while the stage is hidden (kino:setVisible false); the change
+  // is posted when the stage draws again.
   | { type: "kino:scenechange"; id: string }
   | { type: "kino:error"; code: string; message: string }
