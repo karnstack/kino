@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react"
@@ -14,7 +15,8 @@ import {
 } from "../core/store"
 import { resolveKey, isTypingTarget } from "../util/keymap"
 import { PlayIcon, PauseIcon } from "./icons"
-import type { Provider } from "../core/types"
+import { MarkersContext } from "./markers"
+import type { Marker, Provider } from "../core/types"
 
 // Below this player width (px) we swap to the touch-first compact UI: a
 // centered control cluster + bottom seek bar + settings sheet. Keyed on the
@@ -62,6 +64,10 @@ type PlayerProps = {
    * so it only shows during the initial load and across source swaps.
    */
   placeholder?: string
+  /** Points to draw on the timeline. Omit and nothing changes. */
+  markers?: Marker[]
+  /** Called with a marker's id when it is clicked. A click on a marker does not seek. */
+  onMarkerClick?: (id: string) => void
   children?: ReactNode
 }
 
@@ -72,6 +78,8 @@ export function Player({
   chromeTheme,
   className,
   placeholder,
+  markers,
+  onMarkerClick,
   children,
 }: PlayerProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null)
@@ -175,29 +183,36 @@ export function Player({
   const style: Record<string, string> = { ...theme }
   if (accentColor) style["--kino-accent"] = accentColor
 
+  const markersValue = useMemo(
+    () => ({ markers: markers ?? [], onMarkerClick }),
+    [markers, onMarkerClick],
+  )
+
   return (
     <PlayerContext.Provider value={provider}>
-      <WrapperContext.Provider value={wrapperRef}>
-        <div
-          ref={wrapperRef}
-          className={["kino", className].filter(Boolean).join(" ")}
-          data-kino-theme={chromeTheme ?? "dark"}
-          style={style as CSSProperties}
-          tabIndex={0}
-        >
-          {placeholder && (
-            <img
-              className="kino-placeholder"
-              src={placeholder}
-              alt=""
-              aria-hidden="true"
-              draggable={false}
-            />
-          )}
-          <div ref={videoHostRef} className="kino-video-host" />
-          <PlayerChrome compact={compact}>{children}</PlayerChrome>
-        </div>
-      </WrapperContext.Provider>
+      <MarkersContext.Provider value={markersValue}>
+        <WrapperContext.Provider value={wrapperRef}>
+          <div
+            ref={wrapperRef}
+            className={["kino", className].filter(Boolean).join(" ")}
+            data-kino-theme={chromeTheme ?? "dark"}
+            style={style as CSSProperties}
+            tabIndex={0}
+          >
+            {placeholder && (
+              <img
+                className="kino-placeholder"
+                src={placeholder}
+                alt=""
+                aria-hidden="true"
+                draggable={false}
+              />
+            )}
+            <div ref={videoHostRef} className="kino-video-host" />
+            <PlayerChrome compact={compact}>{children}</PlayerChrome>
+          </div>
+        </WrapperContext.Provider>
+      </MarkersContext.Provider>
     </PlayerContext.Provider>
   )
 }

@@ -85,6 +85,7 @@
   --kino-speed-text: color-mix(in oklab, black 50%, transparent);
   --kino-speed-text-max: color-mix(in oklab, black 22%, transparent);
   --kino-track: color-mix(in oklab, black 16%, transparent);
+  --kino-marker-ring: rgb(255 255 255 / 0.7);
   --kino-track-buffered: color-mix(in oklab, black 26%, transparent);
   --kino-volume-track: color-mix(in oklab, black 24%, transparent);
   --kino-thumb: oklch(24% 0 0);
@@ -266,6 +267,57 @@
 }
 .kino .kino-scrubber:hover .kino-thumb {
   opacity: 1;
+}
+.kino .kino-markers {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 0;
+  pointer-events: none;
+}
+.kino .kino-marker {
+  position: absolute;
+  top: 0;
+  width: 8px;
+  height: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--kino-marker-color, var(--kino-text));
+  box-shadow: 0 0 0 2px var(--kino-marker-ring, rgb(0 0 0 / 0.45));
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  cursor: pointer;
+  transition: transform 0.15s var(--kino-ease);
+}
+/* A bigger hit area than the dot. */
+.kino .kino-marker::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+}
+.kino .kino-marker:hover,
+.kino .kino-marker:focus-visible {
+  transform: translate(-50%, -50%) scale(1.4);
+}
+.kino .kino-marker:focus-visible {
+  outline: 2px solid var(--kino-text);
+  outline-offset: 2px;
+}
+.kino .kino-preview-label {
+  display: block;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .kino .kino-marker {
+    transition: none;
+  }
 }
 .kino .kino-preview {
   position: absolute;

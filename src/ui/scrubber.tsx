@@ -3,12 +3,15 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from "react"
 import { useMediaSelector, usePlayerActions } from "../core/store"
 import { parseStoryboard, type Storyboard } from "../util/storyboard"
 import { formatTime } from "../util/format-time"
 import { RollingTime } from "./rolling-time"
+import { useMarkers, visibleMarkers } from "./markers"
+import type { Marker } from "../core/types"
 
 export function Scrubber() {
   const actions = usePlayerActions()
@@ -17,6 +20,9 @@ export function Scrubber() {
   const buffered = useMediaSelector((s) => s.buffered)
   const storyboardUrl = useMediaSelector((s) => s.storyboard?.vttUrl ?? null)
   const hasStoryboard = useMediaSelector((s) => s.capabilities.hasStoryboard)
+  const { markers, onMarkerClick } = useMarkers()
+  const shown = visibleMarkers(markers, duration)
+  const [hoverMarker, setHoverMarker] = useState<Marker | null>(null)
 
   const trackRef = useRef<HTMLDivElement | null>(null)
   const previewRef = useRef<HTMLDivElement | null>(null)
@@ -93,7 +99,10 @@ export function Scrubber() {
     <div
       className="kino-scrubber"
       onPointerMove={onPointerMove}
-      onPointerLeave={() => setHover(null)}
+      onPointerLeave={() => {
+        setHover(null)
+        setHoverMarker(null)
+      }}
       onPointerDown={onPointerDown}
     >
       {hover && (
@@ -116,6 +125,9 @@ export function Scrubber() {
           <span className="kino-preview-time">
             <RollingTime value={formatTime(hover.time)} />
           </span>
+          {hoverMarker?.label && (
+            <span className="kino-preview-label">{hoverMarker.label}</span>
+          )}
         </div>
       )}
       <div
@@ -147,6 +159,33 @@ export function Scrubber() {
         />
         <div className="kino-thumb" style={{ left: `${pct}%` }} />
       </div>
+      {shown.length > 0 && (
+        <div className="kino-markers">
+          {shown.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              data-testid="kino-marker"
+              className="kino-marker"
+              aria-label={m.label ?? `Marker at ${formatTime(m.time)}`}
+              style={
+                {
+                  left: `${(m.time / duration) * 100}%`,
+                  ...(m.color ? { "--kino-marker-color": m.color } : {}),
+                } as CSSProperties
+              }
+              // The scrubber seeks on pointerdown; a marker is a button, not a seek.
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation()
+                onMarkerClick?.(m.id)
+              }}
+              onPointerEnter={() => setHoverMarker(m)}
+              onPointerLeave={() => setHoverMarker(null)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
