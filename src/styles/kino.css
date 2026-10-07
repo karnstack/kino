@@ -376,6 +376,20 @@
 .kino .kino-preview-content {
   min-width: 0;
 }
+/* A clickable rich preview takes the pointer. Its ::after fills the gap down
+   to the markers, so moving from a marker up into the card never leaves both. */
+.kino .kino-preview.kino-preview-clickable {
+  pointer-events: auto;
+  cursor: pointer;
+}
+.kino .kino-preview.kino-preview-clickable::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 24px;
+}
 .kino .kino-preview-img {
   border-radius: 6px;
   background-repeat: no-repeat;
