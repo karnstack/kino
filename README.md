@@ -285,6 +285,27 @@ createSceneHost({
 
 Each seek flips the flag on, animations jump to their final values, and once the audio fires `seeked` the flag drops and playback continues with motion.
 
+## Timeline markers
+
+Pass `markers` to draw dots on the timeline, for example comments or notes at a time. Each dot is a button: clicking it calls `onMarkerClick` with its id and does not seek, so your app decides what happens. Hovering a dot shows its `label` in the scrub preview. Markers outside `[0, duration]` are skipped.
+
+```tsx
+<ScenesPlayer
+  src="/host"
+  markers={[
+    {
+      id: "c42",
+      time: 41.2,
+      color: "var(--danger)",
+      label: "Lee: the video skips gzip",
+    },
+  ]}
+  onMarkerClick={(id) => openComment(id)}
+/>
+```
+
+`Player` takes the same two props. Theme the dot ring with `--kino-marker-ring`. Omit `markers` and nothing changes.
+
 ## Theming
 
 The quickest knob is the `accentColor` prop, which drives the scrubber fill, active menu items, and range controls.

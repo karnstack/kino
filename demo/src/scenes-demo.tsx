@@ -49,6 +49,16 @@ function DemoPage() {
           }}
           metadata={{ videoTitle: "kino scenes demo" }}
           accentColor="#34d399"
+          markers={[
+            { id: "m1", time: 2, color: "#34d399", label: "Nice: clear intro" },
+            {
+              id: "m2",
+              time: 6,
+              color: "#f87171",
+              label: "Wrong: check this number",
+            },
+          ]}
+          onMarkerClick={(id) => console.info("marker", id)}
         />
       </div>
     </div>
