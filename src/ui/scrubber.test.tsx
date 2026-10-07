@@ -285,3 +285,45 @@ test("a rich preview above an icon marker still rises above the icon", () => {
   expect(cls.contains("kino-preview-rich")).toBe(true)
   expect(cls.contains("kino-preview-above-icon")).toBe(true)
 })
+
+test("a rich preview stays open when the pointer moves from the marker into it, and a click opens the marker", () => {
+  const clicks: string[] = []
+  const { provider } = withMarkers(
+    [{ id: "a", time: 50, label: "Lee: gzip", preview: <b>rich</b> }],
+    (id) => clicks.push(id),
+  )
+  stubRect(screen.getByTestId("kino-track"))
+  const marker = screen.getByTestId("kino-marker")
+  hoverMarker(marker)
+  const preview = document.querySelector(".kino-preview")!
+  expect(preview.classList.contains("kino-preview-clickable")).toBe(true)
+  pointerOut(marker, preview)
+  expect(document.querySelector(".kino-preview-rich")).toBeTruthy()
+  fireEvent.pointerDown(preview)
+  fireEvent.click(preview)
+  expect(clicks).toEqual(["a"])
+  expect(provider.getState().currentTime).toBe(0)
+})
+
+test("leaving a rich preview for somewhere else closes it", () => {
+  withMarkers(
+    [{ id: "a", time: 50, label: "Lee: gzip", preview: <b>rich</b> }],
+    () => {},
+  )
+  stubRect(screen.getByTestId("kino-track"))
+  const marker = screen.getByTestId("kino-marker")
+  hoverMarker(marker)
+  const preview = document.querySelector(".kino-preview")!
+  pointerOut(marker, preview)
+  pointerOut(preview, screen.getByTestId("kino-track"))
+  expect(document.querySelector(".kino-preview-rich")).toBeNull()
+})
+
+// jsdom has no PointerEvent, so fireEvent drops relatedTarget. A MouseEvent keeps it.
+function pointerOut(from: Element, to: Element) {
+  act(() => {
+    from.dispatchEvent(
+      new MouseEvent("pointerout", { bubbles: true, relatedTarget: to }),
+    )
+  })
+}

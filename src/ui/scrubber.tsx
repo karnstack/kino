@@ -75,6 +75,8 @@ export function Scrubber() {
   }
 
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    // Over a rich preview the card holds still, so the pointer can reach it.
+    if (previewRef.current?.contains(e.target as Node)) return
     const rect = trackRef.current?.getBoundingClientRect()
     if (!rect) return
     setHover({ x: e.clientX - rect.left, time: timeFromClientX(e.clientX) })
@@ -105,6 +107,7 @@ export function Scrubber() {
   const previewClass = [
     "kino-preview kino-glass",
     rich != null && "kino-preview-rich",
+    rich != null && onMarkerClick && "kino-preview-clickable",
     shown.some((m) => m.icon) && "kino-preview-above-icon",
   ]
     .filter(Boolean)
@@ -125,6 +128,24 @@ export function Scrubber() {
           ref={previewRef}
           className={previewClass}
           style={{ left: previewLeft }}
+          // A rich preview can be clicked like its marker. It stays open while
+          // the pointer moves from the marker up into it.
+          onPointerDown={rich != null ? (e) => e.stopPropagation() : undefined}
+          onClick={
+            rich != null && hoverMarker && onMarkerClick
+              ? (e) => {
+                  e.stopPropagation()
+                  onMarkerClick(hoverMarker.id)
+                }
+              : undefined
+          }
+          onPointerLeave={
+            rich != null
+              ? (e) => {
+                  if (!isMarker(e.relatedTarget)) setHoverMarker(null)
+                }
+              : undefined
+          }
         >
           {tile && (
             <div
@@ -204,7 +225,17 @@ export function Scrubber() {
                 onMarkerClick?.(m.id)
               }}
               onPointerEnter={() => setHoverMarker(m)}
-              onPointerLeave={() => setHoverMarker(null)}
+              onPointerLeave={(e) => {
+                // Moving up into a rich preview keeps it open.
+                const to = e.relatedTarget
+                if (
+                  m.preview != null &&
+                  to instanceof Node &&
+                  previewRef.current?.contains(to)
+                )
+                  return
+                setHoverMarker(null)
+              }}
             >
               {m.icon && <span aria-hidden="true">{m.icon}</span>}
             </button>
@@ -213,4 +244,8 @@ export function Scrubber() {
       )}
     </div>
   )
+}
+
+function isMarker(el: EventTarget | null): boolean {
+  return el instanceof Element && el.closest(".kino-marker") != null
 }
