@@ -55,6 +55,9 @@ export type HostCommand =
   // Follows the embedding site's live theme toggle without reloading the
   // iframe.
   | { type: "kino:setTheme"; theme: "light" | "dark" }
+  // Whether anyone can see the stage. While false the host draws no frames;
+  // the audio, and so playback, carries on. Hosts start visible.
+  | { type: "kino:setVisible"; visible: boolean }
 
 // Host -> parent. `state` is emitted at ~10Hz while playing and immediately
 // on every transition (play/pause/seek/ended/rate), which is enough
@@ -75,5 +78,7 @@ export type HostMediaState = {
 export type HostEvent =
   | { type: "kino:ready"; duration: number }
   | { type: "kino:state"; state: HostMediaState }
+  // Not posted while the stage is hidden (kino:setVisible false); the change
+  // is posted when the stage draws again.
   | { type: "kino:scenechange"; id: string }
   | { type: "kino:error"; code: string; message: string }

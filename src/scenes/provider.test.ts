@@ -1209,3 +1209,247 @@ test("a rate that would stall the loop falls back to the default", () => {
     p.destroy()
   }
 })
+
+// ---------------------------------------------------------------------------
+// Pause when hidden
+// ---------------------------------------------------------------------------
+
+type FakeEntry = { isIntersecting: boolean }
+type FakeObserverInstance = {
+  cb: (entries: FakeEntry[]) => void
+  threshold: number | number[] | undefined
+  disconnected: boolean
+}
+
+// Every IntersectionObserver the provider makes, so a test can drive the
+// whole-life view observer and the one-shot preview-start observer apart.
+function stubObservers() {
+  const all: FakeObserverInstance[] = []
+  class FakeObserver {
+    rec: FakeObserverInstance
+    constructor(
+      cb: (entries: FakeEntry[]) => void,
+      opts?: IntersectionObserverInit,
+    ) {
+      this.rec = { cb, threshold: opts?.threshold, disconnected: false }
+      all.push(this.rec)
+    }
+    observe() {}
+    disconnect() {
+      this.rec.disconnected = true
+    }
+  }
+  vi.stubGlobal("IntersectionObserver", FakeObserver)
+  const fireAll = (isIntersecting: boolean) =>
+    act(() => {
+      for (const o of all) if (!o.disconnected) o.cb([{ isIntersecting }])
+    })
+  return { all, fireAll }
+}
+
+// No React here, so act is just "run it".
+function act(fn: () => void) {
+  fn()
+}
+
+let visibility: DocumentVisibilityState = "visible"
+function setTabVisibility(next: DocumentVisibilityState) {
+  visibility = next
+  document.dispatchEvent(new Event("visibilitychange"))
+}
+
+describe("pause when hidden", () => {
+  beforeEach(() => {
+    visibility = "visible"
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => visibility,
+    })
+  })
+
+  afterEach(() => {
+    Reflect.deleteProperty(document, "visibilityState")
+    vi.unstubAllGlobals()
+    vi.useRealTimers()
+  })
+
+  const types = (posted: unknown[]) =>
+    posted.map((m) => (m as { type: string }).type)
+
+  test("scrolling a running preview off screen pauses it; back on screen resumes it", () => {
+    const io = stubObservers()
+    const { p, iframe, posted } = mountPreviewing()
+    io.fireAll(true)
+    fromHost(iframe, playingAt(4))
+    posted.length = 0
+    io.fireAll(false)
+    expect(posted).toContainEqual({ type: "kino:pause" })
+    expect(posted).toContainEqual({ type: "kino:setVisible", visible: false })
+    posted.length = 0
+    io.fireAll(true)
+    // Resumes where it was: a play, no seek back to the top.
+    expect(posted).toContainEqual({ type: "kino:play" })
+    expect(types(posted)).not.toContain("kino:seek")
+    expect(posted).toContainEqual({ type: "kino:setVisible", visible: true })
+    // Still the preview: MediaState reads idle.
+    expect(p.getState().paused).toBe(true)
+    p.destroy()
+  })
+
+  test("hiding the tab pauses a running preview; showing it resumes", () => {
+    const { p, iframe, posted } = mountPreviewing()
+    fromHost(iframe, playingAt(4))
+    posted.length = 0
+    setTabVisibility("hidden")
+    expect(posted).toContainEqual({ type: "kino:pause" })
+    posted.length = 0
+    setTabVisibility("visible")
+    expect(posted).toContainEqual({ type: "kino:play" })
+    p.destroy()
+  })
+
+  test("a preview paused while hidden does not count as refused autoplay", () => {
+    vi.useFakeTimers()
+    const { p, posted } = mountPreviewing()
+    // Hidden before the host ever reported playing: the grace timer must not
+    // read the pause as a refusal and settle the loop.
+    setTabVisibility("hidden")
+    vi.advanceTimersByTime(5000)
+    posted.length = 0
+    setTabVisibility("visible")
+    expect(posted).toEqual([
+      { type: "kino:play" },
+      { type: "kino:setVisible", visible: true },
+    ])
+    // The grace timer runs again from the resume.
+    vi.advanceTimersByTime(1000)
+    expect(posted).toContainEqual({ type: "kino:seek", time: 19.85 })
+    p.destroy()
+  })
+
+  test("a preview in view waits for a hidden tab before it starts", () => {
+    const io = stubObservers()
+    setTabVisibility("hidden")
+    const { p, posted } = mountPreviewing()
+    io.fireAll(true)
+    expect(types(posted)).not.toContain("kino:play")
+    setTabVisibility("visible")
+    expect(posted).toContainEqual({ type: "kino:play" })
+    p.destroy()
+  })
+
+  test("real playback keeps playing off screen; only drawing stops", () => {
+    const io = stubObservers()
+    const p = createScenesProvider({ src: SRC })
+    const { iframe } = mount(p)
+    const posted: unknown[] = []
+    iframe.contentWindow!.postMessage = (msg: unknown) => posted.push(msg)
+    fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+    io.fireAll(true)
+    p.actions.play()
+    posted.length = 0
+    io.fireAll(false)
+    expect(posted).toEqual([{ type: "kino:setVisible", visible: false }])
+    posted.length = 0
+    setTabVisibility("hidden")
+    // Already not drawing: nothing new to say.
+    expect(posted).toEqual([])
+    io.fireAll(true)
+    expect(posted).toEqual([])
+    setTabVisibility("visible")
+    expect(posted).toEqual([{ type: "kino:setVisible", visible: true }])
+    p.destroy()
+  })
+
+  test("pauseWhenHidden: false keeps the old behaviour", () => {
+    const io = stubObservers()
+    const { p, iframe, posted } = mountPreviewing({ pauseWhenHidden: false })
+    io.fireAll(true)
+    fromHost(iframe, playingAt(4))
+    posted.length = 0
+    io.fireAll(false)
+    setTabVisibility("hidden")
+    expect(posted).toEqual([])
+    p.destroy()
+  })
+
+  test("destroy stops watching visibility", () => {
+    const io = stubObservers()
+    const { p, posted } = mountPreviewing()
+    p.destroy()
+    expect(io.all.every((o) => o.disconnected)).toBe(true)
+    posted.length = 0
+    setTabVisibility("hidden")
+    expect(posted).toEqual([])
+  })
+
+  test("pip: the covered master stops drawing; the mirror is left alone", async () => {
+    const fake = new FakePipWindow()
+    const uninstall = installFakeDocumentPiP(fake)
+    const p = createScenesProvider({ src: SRC })
+    const { iframe } = mount(p)
+    const posted: unknown[] = []
+    iframe.contentWindow!.postMessage = (msg: unknown) => posted.push(msg)
+    fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+    p.actions.play()
+    posted.length = 0
+    p.actions.enterPiP()
+    await vi.waitFor(() => expect(p.getState().pip).toBe(true))
+    expect(posted).toContainEqual({ type: "kino:setVisible", visible: false })
+    const mirror = findMirror()!
+    const mirrorPost = vi.spyOn(mirror.contentWindow!, "postMessage")
+    fromMirror(fake, mirror, { type: "kino:ready", duration: 40.5 })
+    // The main tab going to the background does not touch the pip window.
+    setTabVisibility("hidden")
+    setTabVisibility("visible")
+    expect(types(mirrorPost.mock.calls.map((c) => c[0]))).not.toContain(
+      "kino:setVisible",
+    )
+    posted.length = 0
+    p.actions.exitPiP()
+    expect(posted).toEqual([{ type: "kino:setVisible", visible: true }])
+    p.destroy()
+    uninstall()
+  })
+
+  test("without IntersectionObserver a held-back start waits for the tab", () => {
+    vi.stubGlobal("IntersectionObserver", undefined)
+    setTabVisibility("hidden")
+    const { p, posted } = mountPreviewing()
+    expect(types(posted)).not.toContain("kino:play")
+    setTabVisibility("visible")
+    expect(posted).toContainEqual({ type: "kino:play" })
+    p.destroy()
+  })
+
+  test("pauseWhenHidden: false leaves the master drawing during pip", async () => {
+    const fake = new FakePipWindow()
+    const uninstall = installFakeDocumentPiP(fake)
+    const p = createScenesProvider({ src: SRC, pauseWhenHidden: false })
+    const { iframe } = mount(p)
+    const posted: unknown[] = []
+    iframe.contentWindow!.postMessage = (msg: unknown) => posted.push(msg)
+    fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+    p.actions.enterPiP()
+    await vi.waitFor(() => expect(p.getState().pip).toBe(true))
+    expect(types(posted)).not.toContain("kino:setVisible")
+    p.destroy()
+    uninstall()
+  })
+
+  test("a host that announces itself again is told it is hidden again", () => {
+    const io = stubObservers()
+    const p = createScenesProvider({ src: SRC })
+    const { iframe } = mount(p)
+    const posted: unknown[] = []
+    iframe.contentWindow!.postMessage = (msg: unknown) => posted.push(msg)
+    io.fireAll(false)
+    fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+    expect(posted).toContainEqual({ type: "kino:setVisible", visible: false })
+    posted.length = 0
+    // A fresh host document starts visible.
+    fromHost(iframe, { type: "kino:ready", duration: 40.5 })
+    expect(posted).toContainEqual({ type: "kino:setVisible", visible: false })
+    p.destroy()
+  })
+})
