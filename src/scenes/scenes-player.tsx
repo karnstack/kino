@@ -3,6 +3,7 @@ import { Player } from "../ui/player"
 import { ControlBar } from "../ui/control-bar"
 import { IdleOverlay } from "../ui/idle-overlay"
 import { Captions } from "../ui/captions"
+import type { Marker } from "../core/types"
 import {
   createScenesProvider,
   type ScenesProvider,
@@ -14,6 +15,10 @@ export type ScenesPlayerProps = Omit<
   "theme" | "chromeTheme"
 > & {
   accentColor?: string
+  /** Points to draw on the timeline. Omit and nothing changes. */
+  markers?: Marker[]
+  /** Called with a marker's id when it is clicked. A click on a marker does not seek. */
+  onMarkerClick?: (id: string) => void
   theme?: Record<string, string>
   /**
    * Chrome theme; defaults to dark. Stamped as `data-kino-theme` on the
@@ -52,6 +57,8 @@ function ScenesPlayerInner({
   sceneTheme,
   className,
   placeholder,
+  markers,
+  onMarkerClick,
   children,
   ...opts
 }: ScenesPlayerProps) {
@@ -80,6 +87,8 @@ function ScenesPlayerInner({
       chromeTheme={chromeTheme}
       className={className}
       placeholder={placeholder}
+      markers={markers}
+      onMarkerClick={onMarkerClick}
     >
       <IdleOverlay />
       <Captions />

@@ -81,3 +81,15 @@ export interface Provider {
   // recreating it, preserving DOM and fullscreen continuity.
   swapSource?(opts: SourceOptions): void
 }
+
+/**
+ * A point on the timeline the host wants to show, like a comment or a chapter
+ * start. `color` is any CSS color (a var() works); `label` shows in the hover
+ * preview and is the marker button's accessible name.
+ */
+export type Marker = {
+  id: string
+  time: number
+  color?: string
+  label?: string
+}

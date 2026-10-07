@@ -1,6 +1,7 @@
 import { render, screen, act, fireEvent } from "@testing-library/react"
 import { Player } from "./player"
 import { createFakeProvider } from "../core/fake-provider"
+import { Scrubber } from "./scrubber"
 
 test("renders children overlay and applies accent var", () => {
   const provider = createFakeProvider()
@@ -94,4 +95,19 @@ test("sets data-kino-theme from chromeTheme", () => {
     "data-kino-theme",
     "dark",
   )
+})
+
+test("markers passed to Player reach the scrubber", () => {
+  const onMarkerClick = vi.fn()
+  render(
+    <Player
+      provider={createFakeProvider({ duration: 100 })}
+      markers={[{ id: "a", time: 50, label: "A" }]}
+      onMarkerClick={onMarkerClick}
+    >
+      <Scrubber />
+    </Player>,
+  )
+  screen.getByRole("button", { name: "A" }).click()
+  expect(onMarkerClick).toHaveBeenCalledWith("a")
 })
