@@ -1,5 +1,11 @@
 # @karnstack/kino
 
+## 0.14.0
+
+### Minor Changes
+
+- 55194bd: Markers can carry an `icon` (short text such as an emoji) drawn in place of the dot. The hover label now wraps (up to three lines) instead of cutting off. Omit `icon` and markers look as before.
+
 ## 0.13.0
 
 ### Minor Changes
