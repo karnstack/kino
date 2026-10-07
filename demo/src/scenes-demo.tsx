@@ -57,6 +57,13 @@ function DemoPage() {
               color: "#f87171",
               label: "Wrong: check this number",
             },
+            {
+              id: "m3",
+              time: 4,
+              icon: "🔥",
+              label:
+                "🔥 3 at 0:04. A long label wraps onto more lines so it shows in full instead of cutting off.",
+            },
           ]}
           onMarkerClick={(id) => console.info("marker", id)}
         />

@@ -166,7 +166,9 @@ export function Scrubber() {
               key={m.id}
               type="button"
               data-testid="kino-marker"
-              className="kino-marker"
+              className={
+                m.icon ? "kino-marker kino-marker-icon" : "kino-marker"
+              }
               aria-label={m.label ?? `Marker at ${formatTime(m.time)}`}
               style={
                 {
@@ -182,7 +184,9 @@ export function Scrubber() {
               }}
               onPointerEnter={() => setHoverMarker(m)}
               onPointerLeave={() => setHoverMarker(null)}
-            />
+            >
+              {m.icon && <span aria-hidden="true">{m.icon}</span>}
+            </button>
           ))}
         </div>
       )}
