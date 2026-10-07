@@ -1,7 +1,9 @@
-import { render, screen, act } from "@testing-library/react"
+import { render, screen, act, fireEvent } from "@testing-library/react"
 import { PlayerContext } from "../core/store"
 import { createFakeProvider } from "../core/fake-provider"
 import { Scrubber } from "./scrubber"
+import { MarkersContext } from "./markers"
+import type { Marker } from "../core/types"
 
 test("renders progress fill proportional to currentTime/duration", () => {
   const provider = createFakeProvider({ duration: 100, currentTime: 25 })
@@ -72,9 +74,19 @@ test("clicking the scrubber padding (off the thin track) also seeks", () => {
   expect(provider.getState().currentTime).toBe(50)
 })
 
-import { fireEvent } from "@testing-library/react"
-import { MarkersContext } from "./markers"
-import type { Marker } from "../core/types"
+function stubRect(el: HTMLElement) {
+  el.getBoundingClientRect = () => ({
+    left: 0,
+    width: 200,
+    top: 0,
+    height: 4,
+    right: 200,
+    bottom: 4,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  })
+}
 
 function withMarkers(markers: Marker[], onMarkerClick?: (id: string) => void) {
   const provider = createFakeProvider({ duration: 100, currentTime: 0 })
@@ -125,8 +137,13 @@ test("clicking a marker calls onMarkerClick and does not seek", () => {
     [{ id: "a", time: 50, label: "Lee: gzip" }],
     onMarkerClick,
   )
+  stubRect(screen.getByTestId("kino-track"))
   const marker = screen.getByTestId("kino-marker")
-  fireEvent.pointerDown(marker, { clientX: 100 })
+  act(() => {
+    marker.dispatchEvent(
+      new MouseEvent("pointerdown", { clientX: 100, bubbles: true }),
+    )
+  })
   fireEvent.click(marker)
   expect(onMarkerClick).toHaveBeenCalledWith("a")
   expect(provider.getState().currentTime).toBe(0)
@@ -143,20 +160,13 @@ test("a marker has an accessible name: its label, else its time", () => {
 
 test("hovering a marker shows its label in the preview", () => {
   withMarkers([{ id: "a", time: 50, label: "Lee: gzip" }])
-  const track = screen.getByTestId("kino-track")
-  track.getBoundingClientRect = () => ({
-    left: 0,
-    width: 200,
-    top: 0,
-    height: 4,
-    right: 200,
-    bottom: 4,
-    x: 0,
-    y: 0,
-    toJSON: () => ({}),
-  })
+  stubRect(screen.getByTestId("kino-track"))
   const marker = screen.getByTestId("kino-marker")
-  fireEvent.pointerMove(marker, { clientX: 100 })
+  act(() => {
+    marker.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: 100, bubbles: true }),
+    )
+  })
   fireEvent.pointerOver(marker)
   expect(
     screen.getByText("Lee: gzip", { selector: ".kino-preview-label" }),
