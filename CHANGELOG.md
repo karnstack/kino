@@ -1,5 +1,11 @@
 # @karnstack/kino
 
+## 0.17.0
+
+### Minor Changes
+
+- 165f5f9: A marker's rich preview can now be reached and clicked. It stays open while the pointer moves from the marker up into the card, and a click on the card does what a click on the marker does.
+
 ## 0.16.1
 
 ### Patch Changes
