@@ -121,6 +121,20 @@ test("places markers by time over duration", () => {
   expect(b!.style.getPropertyValue("--kino-marker-color")).toBe("red")
 })
 
+test("a marker with an icon draws the icon instead of a dot", () => {
+  withMarkers([{ id: "r", time: 50, icon: "🔥", label: "🔥 3 at 0:50" }])
+  const m = screen.getByTestId("kino-marker")
+  expect(m.textContent).toBe("🔥")
+  expect(m.classList.contains("kino-marker-icon")).toBe(true)
+})
+
+test("a marker without an icon stays a dot", () => {
+  withMarkers([{ id: "a", time: 50 }])
+  const m = screen.getByTestId("kino-marker")
+  expect(m.textContent).toBe("")
+  expect(m.classList.contains("kino-marker-icon")).toBe(false)
+})
+
 test("skips markers outside the duration", () => {
   const { container } = withMarkers([
     { id: "neg", time: -1 },
@@ -171,4 +185,45 @@ test("hovering a marker shows its label in the preview", () => {
   expect(
     screen.getByText("Lee: gzip", { selector: ".kino-preview-label" }),
   ).toBeTruthy()
+})
+
+function hoverMarker(marker: HTMLElement) {
+  act(() => {
+    marker.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: 100, bubbles: true }),
+    )
+  })
+  fireEvent.pointerOver(marker)
+}
+
+test("the preview rises above an icon marker but not a dot marker", () => {
+  const { unmount } = withMarkers([{ id: "r", time: 50, icon: "🔥" }])
+  stubRect(screen.getByTestId("kino-track"))
+  hoverMarker(screen.getByTestId("kino-marker"))
+  expect(
+    document
+      .querySelector(".kino-preview")!
+      .classList.contains("kino-preview-above-icon"),
+  ).toBe(true)
+  unmount()
+
+  withMarkers([{ id: "a", time: 50 }])
+  stubRect(screen.getByTestId("kino-track"))
+  hoverMarker(screen.getByTestId("kino-marker"))
+  expect(
+    document
+      .querySelector(".kino-preview")!
+      .classList.contains("kino-preview-above-icon"),
+  ).toBe(false)
+})
+
+test("hovering a marker shows the marker's own time", () => {
+  withMarkers([{ id: "a", time: 50, label: "x" }])
+  stubRect(screen.getByTestId("kino-track"))
+  hoverMarker(screen.getByTestId("kino-marker"))
+  expect(
+    document
+      .querySelector(".kino-preview-time .kino-roll")!
+      .getAttribute("aria-label"),
+  ).toBe("0:50")
 })

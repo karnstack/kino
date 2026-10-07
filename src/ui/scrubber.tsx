@@ -80,7 +80,9 @@ export function Scrubber() {
     setHover({ x: e.clientX - rect.left, time: timeFromClientX(e.clientX) })
   }
 
-  const tile = sb && hover ? sb.thumbnailAt(hover.time) : null
+  // Over a marker, the preview shows the marker's own time.
+  const previewTime = hoverMarker?.time ?? hover?.time ?? 0
+  const tile = sb && hover ? sb.thumbnailAt(previewTime) : null
 
   useLayoutEffect(() => {
     const pw = previewRef.current?.getBoundingClientRect().width ?? 0
@@ -108,7 +110,11 @@ export function Scrubber() {
       {hover && (
         <div
           ref={previewRef}
-          className="kino-preview kino-glass"
+          className={
+            hoverMarker?.icon
+              ? "kino-preview kino-glass kino-preview-above-icon"
+              : "kino-preview kino-glass"
+          }
           style={{ left: previewLeft }}
         >
           {tile && (
@@ -123,7 +129,7 @@ export function Scrubber() {
             />
           )}
           <span className="kino-preview-time">
-            <RollingTime value={formatTime(hover.time)} />
+            <RollingTime value={formatTime(previewTime)} />
           </span>
           {hoverMarker?.label && (
             <span className="kino-preview-label">{hoverMarker.label}</span>
@@ -166,7 +172,9 @@ export function Scrubber() {
               key={m.id}
               type="button"
               data-testid="kino-marker"
-              className="kino-marker"
+              className={
+                m.icon ? "kino-marker kino-marker-icon" : "kino-marker"
+              }
               aria-label={m.label ?? `Marker at ${formatTime(m.time)}`}
               style={
                 {
@@ -182,7 +190,9 @@ export function Scrubber() {
               }}
               onPointerEnter={() => setHoverMarker(m)}
               onPointerLeave={() => setHoverMarker(null)}
-            />
+            >
+              {m.icon && <span aria-hidden="true">{m.icon}</span>}
+            </button>
           ))}
         </div>
       )}

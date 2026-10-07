@@ -306,13 +306,34 @@
   outline: 2px solid var(--kino-text);
   outline-offset: 2px;
 }
+.kino .kino-marker-icon {
+  width: auto;
+  height: auto;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+  font-size: 13px;
+  line-height: 1;
+  transform: translate(-50%, calc(-50% - 10px));
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.45));
+}
+.kino .kino-marker-icon:hover,
+.kino .kino-marker-icon:focus-visible {
+  transform: translate(-50%, calc(-50% - 10px)) scale(1.25);
+}
+/* The label wraps. Three lines is a hard cap for very long text. */
 .kino .kino-preview-label {
-  display: block;
-  max-width: 240px;
+  display: -webkit-box;
+  max-width: 320px;
+  margin-top: 4px;
+  font-size: 14px;
+  line-height: 1.4;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
 }
 @media (prefers-reduced-motion: reduce) {
   .kino .kino-marker {
@@ -332,6 +353,9 @@
   pointer-events: none;
   z-index: 2;
 }
+.kino .kino-preview.kino-preview-above-icon {
+  bottom: calc(100% + 11px);
+}
 .kino .kino-preview-img {
   border-radius: 6px;
   background-repeat: no-repeat;
@@ -340,7 +364,7 @@
 .kino .kino-preview-time {
   padding: 5px 4px 4px;
   font-family: var(--kino-mono);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   color: var(--kino-text);

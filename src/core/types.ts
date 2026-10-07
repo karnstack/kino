@@ -92,4 +92,6 @@ export type Marker = {
   time: number
   color?: string
   label?: string
+  /** Short text drawn in place of the dot, usually one emoji. */
+  icon?: string
 }
