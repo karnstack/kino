@@ -308,6 +308,8 @@ Pass `markers` to draw dots on the timeline, for example comments or notes at a 
 
 Give a marker an `icon` (short text, usually one emoji) to draw it in place of the dot, for example reactions: `{ id: "r1", time: 79, icon: "🔥", label: "🔥 3 at 1:19" }`. The hover label wraps up to three lines. Keep labels short.
 
+For a richer hover card, give a marker a `preview` (any React content). It is shown in place of the time and `label`, left-aligned, up to 300px wide, and stays inside the track. Keep `label` too: it is still the button's accessible name.
+
 `Player` takes the same two props. Theme the ring around dot markers with `--kino-marker-ring` (icons have no ring). Omit `markers` and nothing changes.
 
 ## Theming

@@ -1,3 +1,5 @@
+import type { ReactNode } from "react"
+
 export type QualityLevel = {
   id: string // rendition id from the engine
   height: number // e.g. 1080
@@ -94,4 +96,9 @@ export type Marker = {
   label?: string
   /** Short text drawn in place of the dot, usually one emoji. */
   icon?: string
+  /**
+   * Rich content shown in the hover preview instead of the time and `label`.
+   * `label` stays the marker button's accessible name, so set both.
+   */
+  preview?: ReactNode
 }

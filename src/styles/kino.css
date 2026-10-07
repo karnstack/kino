@@ -356,6 +356,24 @@
 .kino .kino-preview.kino-preview-above-icon {
   bottom: calc(100% + 11px);
 }
+/* A marker's own preview content: full size, left-aligned, wraps at 300px
+   (or the scrubber width, if that is smaller). */
+.kino .kino-preview.kino-preview-rich {
+  transform: translateX(-50%);
+  align-items: stretch;
+  width: max-content;
+  max-width: min(300px, 100% - 8px);
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--kino-text);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.kino .kino-preview-content {
+  min-width: 0;
+}
 .kino .kino-preview-img {
   border-radius: 6px;
   background-repeat: no-repeat;
