@@ -251,7 +251,7 @@ type SceneManifest = {
 }
 ```
 
-A scene owns `[start, end)` on the sequence clock. `end` includes the trailing silence after the scene's narration; the scene-local clock clamps to the narration length, so the scene holds its final settled state through the gap. Scenes should tile the clock with no gaps; the host warns once at startup if they do not. `src` records where a scene module lives for tooling, but the host actually loads modules through the `loadScene` callback.
+A scene owns `[start, end)` on the sequence clock. `end` includes the trailing silence after the scene's narration. The scene-local clock keeps running through that gap, up to `end`, so looping animations keep moving until the next scene starts; cue progress already stops at its end value, so cue-driven state stays settled. Scenes should tile the clock with no gaps; the host warns once at startup if they do not. `src` records where a scene module lives for tooling, but the host actually loads modules through the `loadScene` callback.
 
 ### The wire protocol
 

@@ -16,8 +16,10 @@ export function sceneAt(
   return scenes[scenes.length - 1] ?? first
 }
 
-// Scene-local clock value for global time t. Clamped to the narration length
-// so the trailing silence gap holds the final settled state.
+// Scene-local clock value for global time t. The clock keeps running through
+// the trailing silence gap, up to the scene's end, so a looping animation (data
+// moving along a path) keeps moving until the next scene starts. Cue-driven
+// state is already settled there: cue progress stops at its end value.
 export function localTime(scene: SceneManifestScene, t: number): number {
-  return Math.max(0, Math.min(scene.cues.audioDuration, t - scene.start))
+  return Math.max(0, Math.min(scene.end - scene.start, t - scene.start))
 }

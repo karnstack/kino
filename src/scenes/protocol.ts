@@ -2,8 +2,8 @@ import type { Cues } from "./cues"
 
 // A scene sequence is one audio file plus React scene modules mapped onto its
 // timeline. start/end are global seconds; end includes the trailing silence
-// gap after the scene's narration, during which the scene holds its final
-// settled state.
+// gap after the scene's narration. The scene clock keeps running through the
+// gap, so looping animations keep moving; cue-driven state stays settled.
 export type SceneManifestScene = {
   id: string
   // Module URL resolving to { default: React.ComponentType }. Absolute, or

@@ -36,11 +36,13 @@ test("sceneAt clamps outside the sequence to first/last scene", () => {
   expect(sceneAt([], 5)).toBe(null)
 })
 
-test("localTime maps global t into the scene and clamps to the narration", () => {
+test("localTime maps global t into the scene and runs through the trailing gap", () => {
   expect(localTime(scenes[1], 24.66)).toBe(0)
   expect(localTime(scenes[1], 30)).toBeCloseTo(5.34, 5)
-  // Inside the trailing gap the clock pins to audioDuration: the scene holds
-  // its final settled state instead of running past its cues.
-  expect(localTime(scenes[0], 24.5)).toBe(24.16)
+  // Inside the trailing gap the clock keeps running past audioDuration, so
+  // looping animations do not freeze before the next scene starts.
+  expect(localTime(scenes[0], 24.5)).toBeCloseTo(24.5, 5)
   expect(localTime(scenes[1], 20)).toBe(0)
+  // Past the scene's end (the last scene, after the sequence) it stops at the end.
+  expect(localTime(scenes[2], 999)).toBeCloseTo(5.34, 5)
 })
