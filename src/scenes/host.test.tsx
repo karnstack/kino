@@ -643,3 +643,28 @@ test("scenes keep loading while hidden, so the stage is not blank on return", as
   expect(scenesInDom(h.container)).toEqual(["03"])
   act(() => h.host.destroy())
 })
+
+test("a seek into a scene still preloading draws it once the load lands", async () => {
+  // Scene 02 resolves only when the test says so, so its preload is still in
+  // flight when the seek arrives.
+  let resolveTwo!: (m: { default: typeof SceneTwo }) => void
+  const two = new Promise<{ default: typeof SceneTwo }>((r) => {
+    resolveTwo = r
+  })
+  const h = makeHost({
+    loadScene: (id) =>
+      id === "01" ? Promise.resolve({ default: SceneOne }) : two,
+  })
+  await flush()
+  // Scene 01 drew, which started the preload of 02.
+  expect(scenesInDom(h.container)).toEqual(["01"])
+  // Paused seek into 02 while its preload is pending: no clock ticks follow.
+  command({ type: "kino:seek", time: 7 })
+  await flush()
+  await act(async () => {
+    resolveTwo({ default: SceneTwo })
+    await two
+  })
+  expect(scenesInDom(h.container)).toEqual(["02"])
+  act(() => h.host.destroy())
+})
