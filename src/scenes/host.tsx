@@ -269,16 +269,25 @@ export function createSceneHost(opts: SceneHostOptions): { destroy(): void } {
   // cached after first load; the next scene preloads while the current plays.
   // Failures are memoized too: Stage calls ensureLoaded on every clock tick,
   // so without this a broken scene would retry and re-post at frame rate.
+  // A caller that asks for a scene already in flight joins its waiters: a
+  // preload (no onDone) can still be running when a paused seek lands in that
+  // scene, and with no clock ticks to follow, the waiter is the only thing
+  // that draws it when the load lands.
   const moduleCache = new Map<string, ComponentType>()
-  const pending = new Set<string>()
+  const pending = new Map<string, Set<() => void>>()
   const failed = new Set<string>()
   const ensureLoaded = (id: string, onDone?: () => void) => {
-    if (moduleCache.has(id) || pending.has(id) || failed.has(id)) return
-    pending.add(id)
+    if (moduleCache.has(id) || failed.has(id)) return
+    const waiters = pending.get(id)
+    if (waiters) {
+      if (onDone) waiters.add(onDone)
+      return
+    }
+    pending.set(id, new Set(onDone ? [onDone] : []))
     loadScene(id)
       .then((m) => {
         moduleCache.set(id, m.default)
-        onDone?.()
+        for (const done of pending.get(id) ?? []) done()
       })
       .catch(() => {
         failed.add(id)
