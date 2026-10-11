@@ -1,3 +1,4 @@
+import { expect, test, vi } from "vitest"
 import { createNativeProvider } from "./provider"
 
 function mount(provider: ReturnType<typeof createNativeProvider>) {
@@ -149,4 +150,22 @@ test("destroy removes the video element from its host", () => {
   const { host } = mount(p)
   p.destroy()
   expect(host.querySelector("video")).toBeNull()
+})
+
+test("destroy pauses the element before dropping it", () => {
+  // jsdom decodes no media, so playback here is a stand-in for it: the element
+  // reports itself playing until something calls pause() on it.
+  const p = createNativeProvider({ src: "clip.mp4", autoPlay: true })
+  const { el } = mount(p)
+  let paused = false
+  const pause = vi.fn(() => {
+    paused = true
+  })
+  Object.defineProperty(el, "paused", { configurable: true, get: () => paused })
+  Object.defineProperty(el, "pause", { configurable: true, value: pause })
+  p.destroy()
+  expect(pause).toHaveBeenCalled()
+  expect(el.paused).toBe(true)
+  expect(el.isConnected).toBe(false)
+  expect(el.hasAttribute("src")).toBe(false)
 })

@@ -394,6 +394,12 @@ export function createNativeProvider(opts: NativeProviderOptions): Provider {
           tt.removeEventListener("removetrack", onTextTracksChanged)
           tt.removeEventListener("change", onTextTracksChanged)
         }
+        // Removing the element does not stop it: a detached <video> keeps
+        // playing, out of reach of the controls that were pointed at it.
+        // Dropping the source below releases it, but the stop that comes with
+        // it rides on load(), which we swallow where it is unavailable, so
+        // pause first and teardown stops playback on its own.
+        el.pause()
         el.removeAttribute("src")
         reload()
         el.remove()
